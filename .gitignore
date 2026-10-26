@@ -1,0 +1,17 @@
+*.iml
+.gradle/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+build/
+.tmp/
+.idea/
+.DS_Store
+android/local.properties
+**/captures/
+.externalNativeBuild/
+.cxx/
+# Widget Preview related
+.widget_preview/

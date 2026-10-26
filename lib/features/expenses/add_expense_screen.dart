@@ -1,0 +1,447 @@
+import '../../core/preferences.dart';
+import '../../core/categories.dart';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
+
+import '../../core/theme.dart';
+import '../../core/preview_data.dart';
+import '../../shared/widgets.dart';
+import '../../shared/app_dropdown.dart';
+import '../../shared/expense_date_picker.dart';
+import 'record_expense_modal.dart';
+
+class ExpenseDraft {
+  final String id;
+  final TextEditingController title, description, amount;
+  String category;
+  ExpenseDraft({
+    String? id,
+    String title = '',
+    String description = '',
+    String amount = '',
+    this.category = 'Groceries',
+  }) : id = id ?? DateTime.now().microsecondsSinceEpoch.toString(),
+       title = TextEditingController(text: title),
+       description = TextEditingController(text: description),
+       amount = TextEditingController(
+         text: double.tryParse(amount)?.toStringAsFixed(2) ?? amount,
+       );
+  void formatAmount() {
+    final value = double.tryParse(amount.text);
+    if (value != null && value.isFinite) {
+      amount.text = value.toStringAsFixed(2);
+    }
+  }
+
+  void dispose() {
+    title.dispose();
+    description.dispose();
+    amount.dispose();
+  }
+}
+
+class AddExpenseScreen extends ConsumerStatefulWidget {
+  final Object? expense;
+  const AddExpenseScreen({super.key, this.expense});
+  @override
+  ConsumerState<AddExpenseScreen> createState() => _AddExpenseState();
+}
+
+class _AddExpenseState extends ConsumerState<AddExpenseScreen> {
+  final form = GlobalKey<FormState>();
+  final scroll = ScrollController();
+  late List<ExpenseDraft> drafts;
+  late DateTime date;
+  bool get editing => widget.expense is Expense;
+
+  @override
+  void initState() {
+    super.initState();
+    final e = widget.expense is Expense ? widget.expense as Expense : null;
+    date =
+        e?.date ??
+        (widget.expense is DateTime
+            ? widget.expense as DateTime
+            : DateTime.now());
+    drafts = [
+      if (e != null)
+        ExpenseDraft(
+          id: e.id,
+          title: e.title,
+          description: e.description,
+          amount: e.amount.toString(),
+          category: e.category,
+        )
+      else
+        ExpenseDraft(category: ref.read(categoriesProvider).first.name),
+    ];
+  }
+
+  @override
+  void dispose() {
+    for (final d in drafts) {
+      d.dispose();
+    }
+    scroll.dispose();
+    super.dispose();
+  }
+
+  void add() {
+    setState(
+      () => drafts.add(
+        ExpenseDraft(category: ref.read(categoriesProvider).first.name),
+      ),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (scroll.hasClients) {
+        scroll.animateTo(
+          scroll.position.maxScrollExtent,
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : Duration(milliseconds: 250),
+          curve: Curves.easeOutCubic,
+        );
+      }
+    });
+  }
+
+  void save() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    if (!form.currentState!.validate()) return;
+    final now = DateTime.now();
+    ref
+        .read(expensesProvider.notifier)
+        .save(
+          drafts
+              .map(
+                (d) => Expense(
+                  id: d.id,
+                  title: d.title.text.trim(),
+                  description: d.description.text.trim(),
+                  category: d.category,
+                  amount: double.parse(d.amount.text),
+                  date: DateTime(
+                    date.year,
+                    date.month,
+                    date.day,
+                    editing ? date.hour : now.hour,
+                    editing ? date.minute : now.minute,
+                  ),
+                ),
+              )
+              .toList(),
+        );
+    context.pop();
+  }
+
+  Future<void> record() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    final result = await showModalBottomSheet<List<ExpenseDraft>>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => RecordExpenseModal(),
+    );
+    if (result != null && mounted) {
+      setState(() {
+        if (drafts.length == 1 &&
+            drafts.first.title.text.isEmpty &&
+            drafts.first.amount.text.isEmpty) {
+          drafts.removeLast().dispose();
+        }
+        drafts.addAll(result);
+      });
+    }
+  }
+
+  Future<void> deleteExpense() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Delete expense?'),
+        content: Text('This removes the expense from this preview session.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Delete', style: TextStyle(color: red)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      ref
+          .read(expensesProvider.notifier)
+          .delete((widget.expense as Expense).id);
+      context.pop();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      toolbarHeight: 52,
+      leadingWidth: 40,
+      titleSpacing: 0,
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            editing ? 'Edit Expense' : 'Add Expense',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+          ),
+          Text(
+            DateFormat('MMMM yyyy').format(date),
+            style: TextStyle(fontSize: 11, color: context.appColors.muted),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton.icon(
+          onPressed: () async {
+            final picked = await showExpenseDatePicker(context, date);
+            if (picked != null && mounted) setState(() => date = picked);
+          },
+          icon: Icon(Icons.calendar_today_outlined, size: 16),
+          label: Text(
+            DateFormat('dd MMM yy').format(date),
+            style: TextStyle(color: context.appColors.ink, fontSize: 11),
+          ),
+        ),
+        if (editing)
+          IconButton(
+            tooltip: 'Delete expense',
+            onPressed: deleteExpense,
+            icon: Icon(Icons.delete_outline, color: red, size: 20),
+          ),
+      ],
+    ),
+    body: SafeArea(
+      top: false,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: 700),
+          child: Form(
+            key: form,
+            child: Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    controller: scroll,
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    padding: EdgeInsets.fromLTRB(14, 8, 14, 8),
+                    // Keep every field mounted so Save validates offscreen cards too.
+                    child: Column(
+                      children: [
+                        for (var i = 0; i < drafts.length; i++)
+                          Padding(
+                            padding: EdgeInsets.only(bottom: 8),
+                            child: _card(drafts[i], i),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                // Outside the list: these actions remain visible as the cards scroll.
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.fromLTRB(14, 10, 14, 8),
+                  decoration: BoxDecoration(
+                    color: context.appColors.surface,
+                    border: Border(
+                      top: BorderSide(color: context.appColors.line),
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _action(
+                        'Add Another Expense',
+                        Icons.add_circle_outline,
+                        context.appColors.actionBlue,
+                        context.appColors.actionBlue.withValues(alpha: .05),
+                        add,
+                      ),
+                      SizedBox(height: 6),
+                      _action(
+                        'Record Expense (Voice)',
+                        Icons.mic,
+                        red,
+                        red.withValues(alpha: .06),
+                        record,
+                      ),
+                      SizedBox(height: 6),
+                      _action(
+                        editing
+                            ? 'Save Changes'
+                            : 'Add Expenses (${drafts.length})',
+                        Icons.check_circle,
+                        Colors.white,
+                        green,
+                        save,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+
+  Widget _action(
+    String label,
+    IconData icon,
+    Color foreground,
+    Color background,
+    VoidCallback onTap,
+  ) => SizedBox(
+    width: double.infinity,
+    height: 46,
+    child: FilledButton.icon(
+      onPressed: onTap,
+      icon: Icon(icon, size: 20),
+      label: Text(label, style: TextStyle(fontSize: 13)),
+      style: FilledButton.styleFrom(
+        minimumSize: Size.zero,
+        padding: EdgeInsets.symmetric(horizontal: 12),
+        backgroundColor: background,
+        foregroundColor: foreground,
+        side: BorderSide(
+          color: foreground == Colors.white
+              ? green
+              : foreground.withValues(alpha: .3),
+        ),
+      ),
+    ),
+  );
+
+  InputDecoration _input(String label, {String? hint}) => InputDecoration(
+    labelText: label,
+    hintText: hint,
+    labelStyle: TextStyle(fontSize: 12, color: context.appColors.muted),
+    contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+  );
+
+  Widget _card(ExpenseDraft d, int index) => SurfaceCard(
+    key: ValueKey(d.id),
+    padding: EdgeInsets.all(10),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            CategoryIcon(d.category, size: 27),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Expense ${index + 1}',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+            ),
+            IconButton(
+              tooltip: 'Remove expense card',
+              visualDensity: VisualDensity.compact,
+              constraints: BoxConstraints(minWidth: 32, minHeight: 32),
+              padding: EdgeInsets.zero,
+              onPressed: drafts.length == 1
+                  ? null
+                  : () => setState(() {
+                      drafts.remove(d);
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        d.dispose();
+                      });
+                    }),
+              icon: Icon(Icons.delete_outline, size: 18),
+              color: red,
+            ),
+          ],
+        ),
+        SizedBox(height: 8),
+        TextFormField(
+          controller: d.title,
+          style: TextStyle(fontSize: 12),
+          textCapitalization: TextCapitalization.sentences,
+          decoration: _input('Title'),
+          validator: (v) =>
+              v == null || v.trim().isEmpty ? 'Enter a title' : null,
+        ),
+        SizedBox(height: 8),
+        TextFormField(
+          controller: d.description,
+          style: TextStyle(fontSize: 12),
+          minLines: 1,
+          maxLines: 2,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: _input('Description (optional)', hint: 'Add a note…'),
+        ),
+        SizedBox(height: 10),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              flex: 3,
+              child: AppDropdown<String>(
+                value: d.category,
+                label: 'Category',
+                options: [
+                  for (var i = 0; i < context.categoryNames.length; i++)
+                    AppDropdownOption(
+                      context.categoryNames[i],
+                      context.categoryNames[i],
+                      icon: context.categoryIcons[i],
+                    ),
+                ],
+                onChanged: (value) => setState(() => d.category = value),
+              ),
+            ),
+            SizedBox(width: 8),
+            Expanded(
+              flex: 2,
+              child: Focus(
+                onFocusChange: (focused) {
+                  if (!focused) d.formatAmount();
+                },
+                child: TextFormField(
+                  controller: d.amount,
+                  style: TextStyle(fontSize: 13),
+                  keyboardType: TextInputType.numberWithOptions(decimal: true),
+                  decoration: _input(
+                    'Amount (${context.currency.symbol})',
+                    hint: '0.00',
+                  ),
+                  inputFormatters: [
+                    TextInputFormatter.withFunction(
+                      (oldValue, newValue) =>
+                          RegExp(r'^\d{0,10}(\.\d{0,2})?$')
+                              .hasMatch(newValue.text)
+                          ? newValue
+                          : oldValue,
+                    ),
+                  ],
+                  validator: (v) {
+                    final n = double.tryParse(v ?? '');
+                    return n == null || !n.isFinite || n <= 0
+                        ? 'Invalid amount'
+                        : null;
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+}

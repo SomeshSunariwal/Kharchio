@@ -1,0 +1,30 @@
+name: kharchio
+description: Kharchio expense tracker UI preview.
+publish_to: none
+version: 1.0.0+1
+environment:
+  sdk: ^3.13.5
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^3.0.0
+  go_router: ^18.1.1
+  fl_chart: ^1.1.1
+  intl: ^0.20.2
+dev_dependencies:
+  flutter_launcher_icons: ^0.14.4
+  flutter_lints: ^6.0.0
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/branding/kharchio_icon.png
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/branding/kharchio_icon.png
+  adaptive_icon_background: '#FFFFFF'
+  adaptive_icon_foreground: assets/branding/kharchio_icon.png
+  adaptive_icon_foreground_inset: 16
+  remove_alpha_ios: true
+  background_color_ios: '#FFFFFF'

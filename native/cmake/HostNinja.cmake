@@ -1,0 +1,10 @@
+# ExternalProject's host build does not inherit Android's Ninja cache entry.
+file(MAKE_DIRECTORY "${HOST_BUILD_DIR}")
+file(TO_CMAKE_PATH "${NINJA_PATH}" _ninja)
+set(_cache "${HOST_BUILD_DIR}/CMakeCache.txt")
+set(_contents "")
+if(EXISTS "${_cache}")
+  file(READ "${_cache}" _contents)
+endif()
+string(REGEX REPLACE "CMAKE_MAKE_PROGRAM:[^\n]*" "" _contents "${_contents}")
+file(WRITE "${_cache}" "${_contents}\nCMAKE_MAKE_PROGRAM:FILEPATH=${_ninja}\n")

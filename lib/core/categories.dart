@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'native_settings.dart';
+import '../database/local_store.dart';
 
 const categoryIconOptions = <String, IconData>{
   'groceries': Icons.local_drink_outlined,
@@ -39,9 +39,14 @@ const categoryIconOptions = <String, IconData>{
 };
 
 class ExpenseCategory {
-  final String name, iconKey;
+  final String name, iconKey, id;
   final int colorValue;
-  const ExpenseCategory(this.name, this.colorValue, this.iconKey);
+  const ExpenseCategory(
+    this.name,
+    this.colorValue,
+    this.iconKey, {
+    this.id = '',
+  });
   Color get color => Color(colorValue);
   IconData get icon => categoryIconOptions[iconKey] ?? Icons.more_horiz;
   Map<String, Object> toJson() => {
@@ -106,7 +111,14 @@ final categoriesProvider =
 
 class CategoriesStore extends Notifier<List<ExpenseCategory>> {
   @override
-  List<ExpenseCategory> build() => ref.read(initialCategoriesProvider);
+  List<ExpenseCategory> build() {
+    final store = ref.read(localStoreProvider);
+    final subscription = store.watchCategories().listen(
+      (values) => state = values,
+    );
+    ref.onDispose(subscription.cancel);
+    return store.initialCategories;
+  }
 
   Future<void> add(ExpenseCategory category) async {
     final name = category.name.trim();
@@ -120,33 +132,14 @@ class CategoriesStore extends Notifier<List<ExpenseCategory>> {
     if (!categoryIconOptions.containsKey(category.iconKey)) {
       throw ArgumentError('Choose a category icon.');
     }
-    final next = [
-      ...state,
-      ExpenseCategory(name, category.colorValue, category.iconKey),
-    ];
-    await _save(next);
-    state = next;
+    await ref.read(localStoreProvider).addCategory(category);
   }
-
-  Future<void> _save(List<ExpenseCategory> categories) =>
-      NativeSettings.writePreference(
-        'categories',
-        jsonEncode({
-          'version': 1,
-          'items': categories.map((c) => c.toJson()).toList(),
-        }),
-      );
 
   Future<String> remove(String name) async {
     if (state.length <= 1) {
       throw StateError('Keep at least one expense category.');
     }
-    final next = state.where((c) => c.name != name).toList();
-    final replacement =
-        next.where((c) => c.name == 'Others').firstOrNull ?? next.first;
-    await _save(next);
-    state = next;
-    return replacement.name;
+    return ref.read(localStoreProvider).removeCategory(name);
   }
 }
 

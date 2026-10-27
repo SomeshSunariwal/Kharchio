@@ -1,0 +1,20 @@
+{
+  "model": "openai/whisper-small",
+  "checkpoint_revision": "973afd24965f72e36ca33b3055d56a652f456b4d",
+  "reference_revision": "1c23e6d6c6ab2e6edbfb671c07484855d2e2511b",
+  "qairt": "2.50.0.260828",
+  "soc": "generic",
+  "revision": "61dff893df9fe2bc6988f4b2dae7ac37b053ec848813f25750c5600bde65a6ec",
+  "files": [
+    {
+      "name": "whisper-generic-encoder.dlc",
+      "bytes": 206769112,
+      "sha256": "ab2aa4bf24311f42ea77b6db41d7b86bf3f7fccbdac59da8570eb68dca572eda"
+    },
+    {
+      "name": "whisper-generic-decoder.dlc",
+      "bytes": 361097736,
+      "sha256": "c187ee70956073e1d5bac95bcff13d11d1b55ecce088fabd6d21cd0dd04d8671"
+    }
+  ]
+}

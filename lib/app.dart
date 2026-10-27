@@ -75,7 +75,7 @@ class KharchioApp extends ConsumerWidget {
       child: CategoriesScope(
         categories: ref.watch(categoriesProvider),
         child: CurrencyScope(
-          currency: ref.watch(preferencesProvider).currency,
+          currency: ref.watch(preferencesProvider.select((p) => p.currency)),
           child: child ?? const SizedBox.shrink(),
         ),
       ),

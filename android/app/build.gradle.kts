@@ -1,13 +1,25 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android Gradle plugin.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-android {
+val nativeProperties = Properties().apply {
+    val source = rootProject.file("local.properties")
+    if (source.exists()) source.inputStream().use { load(it) }
+}
+
+extensions.configure<com.android.build.api.dsl.ApplicationExtension> {
     namespace = "com.expense.kharchio"
     compileSdk = 37
     ndkVersion = flutter.ndkVersion
+    // Model sources live together at the repository root. Only Android bundles
+    // the Qualcomm NPU packages; Flutter bundles the shared models separately.
+    sourceSets.getByName("main").assets.srcDir("../../models/whisper/android")
+    // FastRPC opens bundled DSP libraries by filesystem path.
+    packaging { jniLibs { useLegacyPackaging = true } }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -27,6 +39,19 @@ android {
         // flag during build.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        ndk {
+            abiFilters.clear()
+            abiFilters += listOf("arm64-v8a", "x86_64")
+        }
+        externalNativeBuild {
+            cmake {
+                abiFilters += listOf("arm64-v8a", "x86_64")
+                arguments += listOf("-DCMAKE_BUILD_TYPE=Release")
+                nativeProperties.getProperty("native.python")?.let {
+                    arguments += "-DPython3_EXECUTABLE=$it"
+                }
+            }
+        }
     }
 
     buildTypes {
@@ -34,6 +59,12 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+        }
+    }
+    externalNativeBuild {
+        cmake {
+            path = file("../../native/CMakeLists.txt")
+            version = "3.22.1"
         }
     }
 }

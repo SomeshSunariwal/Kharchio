@@ -7,7 +7,7 @@
 .pub/
 build/
 .tmp/
-.idea/
+__pycache__/
 .DS_Store
 android/local.properties
 **/captures/
@@ -15,3 +15,14 @@ android/local.properties
 .cxx/
 # Widget Preview related
 .widget_preview/
+native/vendor/
+native/prebuilt/
+# Model weights are distributed as release assets; keep manifests and licenses.
+models/**/*.bin
+models/**/*.gguf
+models/**/*.dlc
+models/**/*.partial
+models/**/*.partial.*
+android/app/src/main/jniLibs/*/libggml-htp-*.so
+android/app/src/main/jniLibs/*/libQnn*.so
+ios/Frameworks/

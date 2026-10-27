@@ -50,10 +50,8 @@ class CategoriesScreen extends ConsumerWidget {
     );
     if (confirmed != true || !context.mounted) return;
     final categoryStore = ref.read(categoriesProvider.notifier);
-    final expenseStore = ref.read(expensesProvider.notifier);
     try {
-      final replacement = await categoryStore.remove(category.name);
-      expenseStore.reassignCategory(category.name, replacement);
+      await categoryStore.remove(category.name);
     } catch (_) {
       if (context.mounted) {
         notice(context, 'Could not remove the category. Please try again.');

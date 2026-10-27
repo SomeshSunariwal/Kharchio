@@ -1,47 +1,29 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'categories.dart';
-import 'demo_data.dart';
+import '../database/local_store.dart';
 import 'expense.dart';
 export 'expense.dart';
 
-// Temporary review store. Demo fixtures can be disabled in demo_data.dart.
 final expensesProvider = NotifierProvider<ExpenseStore, List<Expense>>(
   ExpenseStore.new,
 );
 
+/// UI facade; all mutations and persistence live in the database repository.
 class ExpenseStore extends Notifier<List<Expense>> {
   @override
   List<Expense> build() {
-    final categories = ref.read(initialCategoriesProvider);
-    final fallback =
-        categories.where((c) => c.name == 'Others').firstOrNull ??
-        categories.first;
-    return createDemoExpenses()
-        .map(
-          (e) => categories.any((c) => c.name == e.category)
-              ? e
-              : _withCategory(e, fallback.name),
-        )
-        .toList();
+    final store = ref.read(localStoreProvider);
+    final subscription = store.watchExpenses().listen(
+      (values) => state = values,
+    );
+    ref.onDispose(subscription.cancel);
+    return store.initialExpenses;
   }
 
-  void save(List<Expense> values) => state = [
-    ...state.where((e) => !values.any((v) => v.id == e.id)),
-    ...values,
-  ]..sort((a, b) => b.date.compareTo(a.date));
-  void delete(String id) => state = state.where((e) => e.id != id).toList();
-  void reassignCategory(String from, String to) => state = state
-      .map((e) => e.category == from ? _withCategory(e, to) : e)
-      .toList();
-  Expense _withCategory(Expense e, String category) => Expense(
-    id: e.id,
-    title: e.title,
-    description: e.description,
-    category: category,
-    amount: e.amount,
-    date: e.date,
-  );
+  Future<void> save(List<Expense> values) =>
+      ref.read(localStoreProvider).saveExpenses(values);
+  Future<void> delete(String id) =>
+      ref.read(localStoreProvider).deleteExpense(id);
 }
 
 final selectedMonthProvider = NotifierProvider<MonthStore, DateTime>(

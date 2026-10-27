@@ -15,6 +15,9 @@ extensions.configure<com.android.build.api.dsl.ApplicationExtension> {
     namespace = "com.expense.kharchio"
     compileSdk = 37
     ndkVersion = flutter.ndkVersion
+    // Model sources live together at the repository root. Only Android bundles
+    // the Qualcomm NPU packages; Flutter bundles the shared models separately.
+    sourceSets.getByName("main").assets.srcDir("../../models/whisper/android")
     // FastRPC opens bundled DSP libraries by filesystem path.
     packaging { jniLibs { useLegacyPackaging = true } }
 

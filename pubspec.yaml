@@ -26,7 +26,9 @@ flutter:
   uses-material-design: true
   assets:
     - assets/branding/kharchio_icon.png
-    - assets/models/
+    - models/whisper/
+    - models/qwen/
+    - models/licenses/
     - assets/diagnostics/model_check.wav
     - assets/diagnostics/model_check_hinglish.wav
 

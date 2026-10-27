@@ -8,6 +8,29 @@ import '../core/theme.dart';
 import '../core/preview_data.dart';
 import 'swipe_delete_expense.dart';
 
+/// Keeps page controls outside the scrolling content without a fixed height.
+class FixedHeaderPage extends StatelessWidget {
+  final Widget header;
+  final Widget child;
+  final EdgeInsets headerPadding;
+
+  const FixedHeaderPage({
+    super.key,
+    required this.header,
+    required this.child,
+    this.headerPadding = const EdgeInsets.fromLTRB(14, 6, 14, 12),
+  });
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Padding(padding: headerPadding, child: header),
+      Expanded(child: child),
+    ],
+  );
+}
+
 class AppIcon extends StatelessWidget {
   final double size;
   const AppIcon({super.key, this.size = 56});

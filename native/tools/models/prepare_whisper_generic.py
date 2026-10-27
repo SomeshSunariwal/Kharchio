@@ -99,21 +99,21 @@ def main():
                 torch.onnx.export(module.eval(), sample, str(temporary_onnx), input_names=inputs,
                                   output_names=outputs, opset_version=17, dynamo=False)
             temporary_onnx.replace(onnx)
-        output = ROOT / f"android/app/src/main/assets/whisper-qnn-generic/{name}.dlc"
+        output = ROOT / f"models/whisper/android/whisper-qnn-generic/whisper-generic-{name}.dlc"
         output.parent.mkdir(parents=True, exist_ok=True)
         if not output.exists():
             env = os.environ.copy()
             env["PYTHONUTF8"] = "1"
             env["PYTHONPATH"] = os.pathsep.join((str(WORK / "deps"), str(QAIRT / "lib/python")))
             print(f"Converting {name} to portable DLC", flush=True)
-            temporary_dlc = output.with_name(name + ".partial.dlc")
+            temporary_dlc = output.with_suffix(".partial.dlc")
             subprocess.run([sys.executable, str(QAIRT / "bin/x86_64-windows-msvc/qairt-converter"),
                             "--input_network", str(onnx), "--output_path", str(temporary_dlc),
                             "--float_bitwidth", "16"], env=env, check=True)
             temporary_dlc.replace(output)
-    folder = ROOT / "android/app/src/main/assets/whisper-qnn-generic"
+    folder = ROOT / "models/whisper/android/whisper-qnn-generic"
     files = [{"name": n, "bytes": (folder / n).stat().st_size, "sha256": digest(folder / n)}
-             for n in ("encoder.dlc", "decoder.dlc")]
+             for n in ("whisper-generic-encoder.dlc", "whisper-generic-decoder.dlc")]
     revision = hashlib.sha256("".join(f["sha256"] for f in files).encode()).hexdigest()
     manifest = {"model": "openai/whisper-small", "checkpoint_revision": CHECKPOINT_REVISION,
                 "reference_revision": REFERENCE_REVISION, "qairt": "2.50.0.260828", "soc": "generic",

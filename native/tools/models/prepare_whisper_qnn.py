@@ -66,7 +66,7 @@ def main():
             for name in (f"libQnnHtpV{version}Skel.so", f"libQnnHtpV{version}.so"):
                 extract(sdk, prefix + f"lib/hexagon-v{version}/unsigned/" + name, libraries / name)
         extract(sdk, prefix + "LICENSE.pdf", destination / "LICENSE.pdf")
-    assets = ROOT / "android/app/src/main/assets/whisper-qnn-sm8550"
+    assets = ROOT / "models/whisper/android/whisper-qnn-sm8550"
     files = []
     with archive(args.model_zip, lock["model_url"], lock["model_sha256"]) as model:
         folder = "whisper_small-qnn_context_binary-float-qualcomm_qcs8550_proxy/"
@@ -74,9 +74,9 @@ def main():
         if metadata["tool_versions"]["qairt"] != lock["qairt_build"]:
             raise ValueError("QNN context / runtime version mismatch")
         for name in ("encoder.bin", "decoder.bin"):
-            target = assets / name
+            target = assets / f"whisper-s23-{name}"
             extract(model, folder + name, target)
-            files.append({"name": name, "bytes": target.stat().st_size, "sha256": digest(target)})
+            files.append({"name": target.name, "bytes": target.stat().st_size, "sha256": digest(target)})
     manifest = {"model": lock["model"], "release": lock["release"], "soc": lock["soc"],
                 "qairt": lock["qairt_build"], "files": files}
     (assets / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")

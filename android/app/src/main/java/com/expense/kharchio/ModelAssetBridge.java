@@ -67,7 +67,7 @@ final class ModelAssetBridge {
                         if (!target.isFile() || target.length() != expectedBytes[index]) {
                             File partial = new File(folder, model[1] + ".partial");
                             String asset = FlutterInjector.instance().flutterLoader()
-                                    .getLookupKeyForAsset("assets/models/" + model[1]);
+                                    .getLookupKeyForAsset("models/" + model[0] + "/" + model[1]);
                             try (InputStream input = context.getAssets().open(asset);
                                     FileOutputStream output = new FileOutputStream(partial)) {
                                 byte[] buffer = new byte[256 * 1024];
@@ -135,10 +135,14 @@ final class ModelAssetBridge {
             JSONArray files = manifest.getJSONArray("files");
             for (int i = 0; i < files.length(); i++) {
                 JSONObject entry = files.getJSONObject(i);
-                String name = entry.getString("name");
-                if (!("generic".equals(soc) ? ("encoder.dlc".equals(name) || "decoder.dlc".equals(name))
-                        : ("encoder.bin".equals(name) || "decoder.bin".equals(name))))
+                String assetName = entry.getString("name");
+                String prefix = "generic".equals(soc) ? "whisper-generic-" : "whisper-s23-";
+                String extension = "generic".equals(soc) ? ".dlc" : ".bin";
+                if (!(assetName.equals(prefix + "encoder" + extension)
+                        || assetName.equals(prefix + "decoder" + extension)))
                     throw new Exception("Invalid Whisper QNN filename");
+                // Keep installed names stable so existing model copies/caches are reused.
+                String name = assetName.substring(prefix.length());
                 File target = new File(targetFolder, name);
                 // A checksum sidecar identifies the installed model release.
                 File stamp = new File(targetFolder, name + ".sha256");
@@ -149,7 +153,7 @@ final class ModelAssetBridge {
                     continue;
                 File partial = new File(targetFolder, name + ".partial");
                 MessageDigest digest = MessageDigest.getInstance("SHA-256");
-                String asset = assetFolder + name;
+                String asset = assetFolder + assetName;
                 try (InputStream input = context.getAssets().open(asset);
                         FileOutputStream output = new FileOutputStream(partial)) {
                     byte[] buffer = new byte[256 * 1024];

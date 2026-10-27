@@ -8,9 +8,27 @@ import 'native_ai.dart';
 
 enum OfflineModelKind { whisper, qwen }
 
+class ModelCheckResult {
+  final String model;
+  final String backend;
+  final String summary;
+  final String output;
+  final Duration elapsed;
+  final bool usedFallback;
+
+  const ModelCheckResult({
+    required this.model,
+    required this.backend,
+    required this.summary,
+    required this.output,
+    required this.elapsed,
+    required this.usedFallback,
+  });
+}
+
 /// Runs real inference without recording audio or writing expense data.
 class ModelValidator {
-  Future<String> check(
+  Future<ModelCheckResult> check(
     OfflineModelKind kind,
     OfflineModels models,
     void Function(String) onProgress, {
@@ -45,9 +63,14 @@ class ModelValidator {
           );
         }
         final backend = await NativeAiJob.lastBackend();
-        return 'Whisper transcribed the sample successfully.\nModel: Whisper Small\n${_backend(backend, processingMode)}\n\n'
-            '$transcript\n\nLoad and inference: '
-            '${(elapsed.elapsedMilliseconds / 1000).toStringAsFixed(2)} s';
+        return ModelCheckResult(
+          model: 'Whisper Small',
+          backend: backend,
+          summary: 'The sample speech was transcribed successfully.',
+          output: transcript,
+          elapsed: elapsed.elapsed,
+          usedFallback: _usedFallback(backend, processingMode),
+        );
       }
       onProgress('Loading Qwen…');
       await job.prepareQwen(models.qwen);
@@ -70,10 +93,14 @@ class ModelValidator {
         );
       }
       final backend = await NativeAiJob.lastBackend();
-      return 'Qwen generated valid JSON for both sample expenses.\n${_backend(backend, processingMode)}\n\n'
-          'Milk · ₹100.00 · Groceries\nMovie · ₹150.00 · Entertainment\n\n'
-          'Load, inference and validation: '
-          '${(elapsed.elapsedMilliseconds / 1000).toStringAsFixed(2)} s';
+      return ModelCheckResult(
+        model: 'Qwen3 · 0.6B',
+        backend: backend,
+        summary: 'Both sample expenses were extracted and validated.',
+        output: 'Milk · ₹100.00 · Groceries\nMovie · ₹150.00 · Entertainment',
+        elapsed: elapsed.elapsed,
+        usedFallback: _usedFallback(backend, processingMode),
+      );
     } finally {
       onProgress('Releasing model memory…');
       try {
@@ -84,9 +111,10 @@ class ModelValidator {
     }
   }
 
-  String _backend(String backend, int mode) =>
-      'Backend: $backend'
-      '${(mode == 2 || mode == 3) && !backend.startsWith('HTP') && !backend.startsWith('QNN/QAIRT') ? '\nNPU unavailable for this operation; fallback used.' : ''}';
+  bool _usedFallback(String backend, int mode) =>
+      (mode == 2 || mode == 3) &&
+      !backend.startsWith('HTP') &&
+      !backend.startsWith('QNN/QAIRT');
 
   Uint8List _pcm(ByteData wav) {
     String tag(int offset) => String.fromCharCodes(

@@ -8,7 +8,6 @@
 build/
 .tmp/
 __pycache__/
-.idea/
 .DS_Store
 android/local.properties
 **/captures/
@@ -18,10 +17,12 @@ android/local.properties
 .widget_preview/
 native/vendor/
 native/prebuilt/
+# Model weights are distributed as release assets; keep manifests and licenses.
+models/**/*.bin
+models/**/*.gguf
+models/**/*.dlc
+models/**/*.partial
+models/**/*.partial.*
 android/app/src/main/jniLibs/*/libggml-htp-*.so
-assets/models/*.bin
-assets/models/*.gguf
-android/app/src/main/assets/whisper-qnn-sm8550/*.bin
-android/app/src/main/assets/whisper-qnn-generic/*.dlc
 android/app/src/main/jniLibs/*/libQnn*.so
 ios/Frameworks/

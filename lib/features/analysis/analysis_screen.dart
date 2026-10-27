@@ -228,104 +228,102 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
       ),
     };
     return SafeArea(
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          NestedScrollView(
-            headerSliverBuilder: (nestedContext, innerBoxIsScrolled) => [
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 6, 14, 10),
-                  child: title,
-                ),
-              ),
-              if (total > 0)
-                SliverOverlapAbsorber(
-                  handle: NestedScrollView.sliverOverlapAbsorberHandleFor(
-                    nestedContext,
-                  ),
-                  sliver: SliverPersistentHeader(
-                    pinned: true,
-                    delegate: chartHeader,
-                  ),
-                )
-              else
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    child: Column(
-                      children: [
-                        CategoryPieChart(expenses: selected),
-                        resultsHeading,
-                      ],
+      child: FixedHeaderPage(
+        header: title,
+        headerPadding: const EdgeInsets.fromLTRB(14, 6, 14, 10),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            NestedScrollView(
+              headerSliverBuilder: (nestedContext, innerBoxIsScrolled) => [
+                if (total > 0)
+                  SliverOverlapAbsorber(
+                    handle: NestedScrollView.sliverOverlapAbsorberHandleFor(
+                      nestedContext,
+                    ),
+                    sliver: SliverPersistentHeader(
+                      pinned: true,
+                      delegate: chartHeader,
+                    ),
+                  )
+                else
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      child: Column(
+                        children: [
+                          CategoryPieChart(expenses: selected),
+                          resultsHeading,
+                        ],
+                      ),
                     ),
                   ),
+              ],
+              body: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  14,
+                  total > 0 ? chartHeader.minExtent : 0,
+                  14,
+                  0,
                 ),
-            ],
-            body: Padding(
-              padding: EdgeInsets.fromLTRB(
-                14,
-                total > 0 ? chartHeader.minExtent : 0,
-                14,
-                0,
-              ),
-              child: ClipRect(
-                child: AnimatedSwitcher(
-                  duration: MediaQuery.disableAnimationsOf(context)
-                      ? Duration.zero
-                      : const Duration(milliseconds: 280),
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeInCubic,
-                  layoutBuilder: (current, previous) => Stack(
-                    fit: StackFit.expand,
-                    children: [...previous, ?current],
-                  ),
-                  transitionBuilder: (child, animation) => AnimatedBuilder(
-                    animation: animation,
-                    child: FadeTransition(opacity: animation, child: child),
-                    builder: (context, panel) {
-                      final incoming = child.key == ValueKey(period);
-                      final direction = movingForward ? 1.0 : -1.0;
-                      return IgnorePointer(
-                        ignoring: !incoming,
-                        child: ExcludeSemantics(
-                          excluding: !incoming,
-                          child: FractionalTranslation(
-                            translation: Offset(
-                              (incoming ? direction : -direction) *
-                                  .3 *
-                                  (1 - animation.value),
-                              0,
+                child: ClipRect(
+                  child: AnimatedSwitcher(
+                    duration: MediaQuery.disableAnimationsOf(context)
+                        ? Duration.zero
+                        : const Duration(milliseconds: 280),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    layoutBuilder: (current, previous) => Stack(
+                      fit: StackFit.expand,
+                      children: [...previous, ?current],
+                    ),
+                    transitionBuilder: (child, animation) => AnimatedBuilder(
+                      animation: animation,
+                      child: FadeTransition(opacity: animation, child: child),
+                      builder: (context, panel) {
+                        final incoming = child.key == ValueKey(period);
+                        final direction = movingForward ? 1.0 : -1.0;
+                        return IgnorePointer(
+                          ignoring: !incoming,
+                          child: ExcludeSemantics(
+                            excluding: !incoming,
+                            child: FractionalTranslation(
+                              translation: Offset(
+                                (incoming ? direction : -direction) *
+                                    .3 *
+                                    (1 - animation.value),
+                                0,
+                              ),
+                              child: panel,
                             ),
-                            child: panel,
                           ),
-                        ),
-                      );
-                    },
+                        );
+                      },
+                    ),
+                    child: KeyedSubtree(key: ValueKey(period), child: results),
                   ),
-                  child: KeyedSubtree(key: ValueKey(period), child: results),
                 ),
               ),
             ),
-          ),
-          Positioned(
-            right: 26,
-            bottom: 12,
-            child: SizedBox.square(
-              dimension: 48,
-              child: FloatingActionButton(
-                heroTag: 'analysis-add-expense',
-                tooltip: 'Add expense',
-                backgroundColor: green,
-                foregroundColor: Colors.white,
-                shape: const CircleBorder(),
-                elevation: 4,
-                onPressed: () => context.push('/add', extra: date),
-                child: const Icon(Icons.add_rounded, size: 24),
+            Positioned(
+              right: 26,
+              bottom: 12,
+              child: SizedBox.square(
+                dimension: 48,
+                child: FloatingActionButton(
+                  heroTag: 'analysis-add-expense',
+                  tooltip: 'Add expense',
+                  backgroundColor: green,
+                  foregroundColor: Colors.white,
+                  shape: const CircleBorder(),
+                  elevation: 4,
+                  onPressed: () => context.push('/add', extra: date),
+                  child: const Icon(Icons.add_rounded, size: 24),
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -40,7 +40,8 @@ class ModelManager extends AsyncNotifier<OfflineModels> {
     for (final name in names) {
       final file = File('${folder.path}/$name');
       if (!await file.exists()) {
-        final bytes = await rootBundle.load('assets/models/$name');
+        final family = name == names[0] ? 'whisper' : 'qwen';
+        final bytes = await rootBundle.load('models/$family/$name');
         final temporary = File('${file.path}.partial');
         await temporary.writeAsBytes(
           bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),

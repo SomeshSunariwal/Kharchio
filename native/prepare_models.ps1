@@ -1,10 +1,12 @@
 $ErrorActionPreference = 'Stop'
 $modelManifest = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'config/models.lock.json') -Raw | ConvertFrom-Json
-$modelDirectory = Join-Path (Split-Path $PSScriptRoot -Parent) 'assets/models'
+$modelDirectory = Join-Path (Split-Path $PSScriptRoot -Parent) 'models'
 New-Item -ItemType Directory -Force -Path $modelDirectory | Out-Null
 foreach ($entry in $modelManifest.PSObject.Properties) {
     $model = $entry.Value
-    $destination = Join-Path $modelDirectory $model.filename
+    $familyDirectory = Join-Path $modelDirectory $entry.Name
+    New-Item -ItemType Directory -Force -Path $familyDirectory | Out-Null
+    $destination = Join-Path $familyDirectory $model.filename
     if ((Test-Path -LiteralPath $destination) -and
         (Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash -eq $model.sha256) {
         Write-Output "$($entry.Name): verified"

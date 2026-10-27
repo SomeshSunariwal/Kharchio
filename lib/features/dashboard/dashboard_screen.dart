@@ -338,59 +338,57 @@ class _DashboardState extends ConsumerState<DashboardScreen>
           ],
         );
         return SafeArea(
-          child: NestedScrollView(
-            headerSliverBuilder: (nestedContext, innerBoxIsScrolled) => [
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 6, 14, 0),
-                  child: monthHeader,
+          child: FixedHeaderPage(
+            header: monthHeader,
+            headerPadding: const EdgeInsets.fromLTRB(14, 6, 14, 0),
+            child: NestedScrollView(
+              headerSliverBuilder: (nestedContext, innerBoxIsScrolled) => [
+                if (collapsible)
+                  SliverOverlapAbsorber(
+                    handle: NestedScrollView.sliverOverlapAbsorberHandleFor(
+                      nestedContext,
+                    ),
+                    sliver: SliverPersistentHeader(
+                      pinned: true,
+                      delegate: chartHeader,
+                    ),
+                  )
+                else
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      child: Column(children: [overview, recentHeading]),
+                    ),
+                  ),
+              ],
+              // Absorb the pinned header's obstruction, then reserve that space
+              // OUTSIDE the inner list. Its rounded card can never scroll beneath
+              // the header. NestedScrollView consumes header travel before rows.
+              body: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  14,
+                  collapsible ? chartHeader.minExtent : 0,
+                  14,
+                  0,
                 ),
-              ),
-              if (collapsible)
-                SliverOverlapAbsorber(
-                  handle: NestedScrollView.sliverOverlapAbsorberHandleFor(
-                    nestedContext,
-                  ),
-                  sliver: SliverPersistentHeader(
-                    pinned: true,
-                    delegate: chartHeader,
-                  ),
-                )
-              else
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    child: Column(children: [overview, recentHeading]),
-                  ),
+                child: ConnectedListCard(
+                  child: visible.isEmpty
+                      ? const Center(child: Text('No transactions found'))
+                      : ListView.separated(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 2,
+                          ),
+                          itemCount: visible.length,
+                          separatorBuilder: (context, index) =>
+                              Divider(height: 1, color: context.appColors.line),
+                          itemBuilder: (context, index) => ExpenseTile(
+                            visible[index],
+                            onTap: () =>
+                                context.push('/add', extra: visible[index]),
+                          ),
+                        ),
                 ),
-            ],
-            // Absorb the pinned header's obstruction, then reserve that space
-            // OUTSIDE the inner list. Its rounded card can never scroll beneath
-            // the header. NestedScrollView consumes header travel before rows.
-            body: Padding(
-              padding: EdgeInsets.fromLTRB(
-                14,
-                collapsible ? chartHeader.minExtent : 0,
-                14,
-                0,
-              ),
-              child: ConnectedListCard(
-                child: visible.isEmpty
-                    ? const Center(child: Text('No transactions found'))
-                    : ListView.separated(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 2,
-                        ),
-                        itemCount: visible.length,
-                        separatorBuilder: (context, index) =>
-                            Divider(height: 1, color: context.appColors.line),
-                        itemBuilder: (context, index) => ExpenseTile(
-                          visible[index],
-                          onTap: () =>
-                              context.push('/add', extra: visible[index]),
-                        ),
-                      ),
               ),
             ),
           ),

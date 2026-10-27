@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[2]
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--cxx", required=True)
-    parser.add_argument("--model", type=Path, default=ROOT / "assets/models/ggml-small-q5_1.bin")
+    parser.add_argument("--model", type=Path, default=ROOT / "models/whisper/ggml-small-q5_1.bin")
     args = parser.parse_args()
     with args.model.open("rb") as model:
         model.seek(48)

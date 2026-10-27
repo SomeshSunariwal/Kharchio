@@ -1,247 +1,239 @@
-# Build and run from a fresh clone
+# Local setup guide
 
-These instructions start with a **Windows 11 x64 computer with no development tools installed** and build the Android ARM64 application, including all AI dependencies. The S23 Ultra is the tested Android device.
+Follow this guide to set up everything on your local machine, from installing tools and configuring environment variables to preparing dependencies, building, and running Kharchio.
 
-Internet is required during setup. The installed application processes AI offline. Public model and SDK downloads require no AI API key.
+## Setup from a fresh clone (Windows 11 x64)
 
-The repository must contain `setup.ps1`, this guide, and the Gradle wrapper. Commit and push your source changes before expecting another clone to include them. The setup script does not create commits.
+Use **PowerShell 7** for the commands below. Install the prerequisites, configure the paths, then let `setup.ps1` prepare the Android/AI dependencies. The resource inventory and troubleshooting sections below cover individual dependencies and failures.
 
-## 1. Prepare disk space
+### 1. Install prerequisites
 
-Reserve roughly **80–100 GB free** for the project, Android tools, downloads, and Docker. This is a planning allowance: the previous project workspace alone reached about **40 GB**, excluding global SDKs, caches, and Docker images.
+| Tool           | Required selection                                              | Download / instructions                                                                                                                               |
+| -------------- | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PowerShell     | 7 or later                                                      | [Install PowerShell](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows)                                 |
+| Git            | Git for Windows, available on PATH                              | [Install Git](https://git-scm.com/install/windows)                                                                                                    |
+| Python         | **3.12 x64**, including pip                                     | [Python Windows downloads](https://www.python.org/downloads/windows/)                                                                                 |
+| Java           | **JDK 21**, including javac                                     | [Temurin JDK 21](https://adoptium.net/temurin/releases/?version=21)                                                                                   |
+| Flutter        | **3.47.8**, with its bundled Dart SDK                           | [Flutter SDK archive](https://docs.flutter.dev/install/archive)                                                                                       |
+| Android Studio | Install its Android SDK and **SDK Command-line Tools (latest)** | [Android Studio](https://developer.android.com/studio/install)                                                                                        |
+| Docker Desktop | Running with **Linux containers** using WSL 2                   | [Docker Desktop](https://docs.docker.com/desktop/setup/install/windows-install/) · [WSL setup](https://learn.microsoft.com/en-us/windows/wsl/install) |
 
-Git contains application source, model manifests, pinned download metadata, preparation scripts, and the Gradle wrapper. Large model weights, native SDKs, engine checkouts, local paths, and build outputs are regenerated.
+In Android Studio's SDK Manager, note the SDK location and install **Android SDK Command-line Tools (latest)**. The required entry point is `<SDK>/cmdline-tools/latest/bin/sdkmanager.bat`. Setup can then install missing **API 37**, **Build-Tools 36.0.0**, **Platform-Tools**, **NDK 28.2.13676358**, and **CMake 3.22.1**. You can also preinstall these in SDK Manager using Show Package Details. Accept applicable SDK licenses when requested.
 
-## 2. Install Git and PowerShell 7
+For IDE development, enable the **Flutter** and **Dart** plugins. No separate Gradle, Kotlin, Dart, or system C++ compiler installation is needed: the project uses its Gradle wrapper, Flutter's Dart SDK, and a verified project-local Windows compiler.
 
-Install [Git for Windows](https://git-scm.com/install/windows) using its default options, including command-line access. Then install [PowerShell 7](https://learn.microsoft.com/en-us/powershell/scripting/install/install-powershell-on-windows).
+Allow roughly **80–100 GB free disk space** for tools, AI resources, native builds, and Docker storage. This is a planning estimate. Setup needs internet; the installed app's AI processing is offline. Keep Docker running. If WSL/virtualization setup requires a restart, complete it before continuing.
 
-Use **PowerShell 7** for the remaining commands unless a step explicitly asks for an administrator terminal.
+### 2. Configure paths
 
-## 3. Install Python 3.12, 64-bit
-
-Download a **Python 3.12 Windows installer (64-bit)** from [Python's official Windows downloads](https://www.python.org/downloads/windows/). Use Python **3.12** for compatibility with the QAIRT conversion tools.
-
-During installation:
-
-- Include **pip**.
-- Enable **Add Python to PATH**.
-- Note the installation directory and actual `python.exe` path.
-
-The examples below assume:
-
-```text
-C:\Tools\Python312\python.exe
-```
-
-Substitute your actual path if different. Use the installed executable rather than the Windows Store alias.
-
-## 4. Install Java JDK 21
-
-Install [Temurin JDK 21 for Windows x64](https://adoptium.net/temurin/releases/?version=21). Choose **JDK**, and note its installation directory.
-
-The examples below assume:
-
-```text
-C:\Tools\jdk-21
-```
-
-Substitute your actual directory if different.
-
-## 5. Install Flutter 3.47.8
-
-Download **Flutter 3.47.8 for Windows** from the [Flutter SDK archive](https://docs.flutter.dev/install/archive).
-
-Extract it so this file exists:
-
-```text
-C:\Tools\flutter\bin\flutter.bat
-```
-
-In Windows, search **Edit environment variables for your account**, edit your user `Path`, and add:
-
-```text
-C:\Tools\flutter\bin
-```
-
-Close and reopen PowerShell, then verify:
+Replace these examples with your actual installations. Run in PowerShell 7:
 
 ```powershell
-git --version
-flutter --version
-```
-
-Flutter must report **3.47.8**, which `setup.ps1` currently requires. Flutter includes the required Dart SDK; no separate Dart installation is needed.
-
-## 6. Install Android Studio and SDK components
-
-Install [Android Studio](https://developer.android.com/studio/install.html), open it, and complete its setup wizard.
-
-Open **SDK Manager** from the welcome screen's **More Actions** menu or Android Studio's settings. Note the SDK location; normally:
-
-```text
-C:\Users\<your-user>\AppData\Local\Android\Sdk
-```
-
-Install these components, enabling **Show Package Details** where needed:
-
-| Component | Required version |
-|---|---|
-| Android SDK Platform | API 37 |
-| Android SDK Build-Tools | 36.0.0 |
-| Android SDK Platform-Tools | Available version |
-| Android SDK Command-line Tools | Latest |
-| NDK (Side by side) | 28.2.13676358 |
-| CMake | 3.22.1 |
-
-Alternatively, after installing the command-line tools, run their `sdkmanager.bat` with these package arguments:
-
-```powershell
-sdkmanager.bat "platform-tools" "platforms;android-37.0" "build-tools;36.0.0" "ndk;28.2.13676358" "cmake;3.22.1"
-```
-
-This command requires `sdkmanager.bat` on PATH, or invocation using its full installed path. The Android platform may be installed under `android-37.0`; setup also accepts the `android-37` directory name.
-
-Flutter requires its SDK separately from Android Studio's Flutter plugin. Resource: [Flutter Android setup guide](https://docs.flutter.dev/platform-integration/android/setup).
-
-## 7. Configure tool paths and accept Android licenses
-
-In PowerShell 7, set these variables using your actual installation paths:
-
-```powershell
-$pythonPath = 'C:\Tools\Python312\python.exe'
-$env:JAVA_HOME = 'C:\Tools\jdk-21'
+$env:KHARCHIO_PYTHON = 'C:\Users\Somes.Somesh\AppData\Local\Programs\Python\Python312\python.exe'
+$env:JAVA_HOME = 'C:\Program Files\Java\jdk-21.0.12.1'
 $env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
-
-$env:Path = "$env:JAVA_HOME\bin;$env:ANDROID_HOME\platform-tools;$env:Path"
-
-flutter config --jdk-dir "$env:JAVA_HOME"
-flutter config --android-sdk "$env:ANDROID_HOME"
-flutter doctor --android-licenses
+$env:Path = "C:\Users\Somes.Somesh\Development\flutter-3.47.7\bin;$env:JAVA_HOME\bin;$env:ANDROID_HOME\platform-tools;$env:Path"
 ```
 
-Accept the licenses, then verify:
+These values apply to the current terminal. To reuse them across sessions, save `KHARCHIO_PYTHON`, `JAVA_HOME`, and `ANDROID_HOME` in Windows user environment variables and add Flutter's `bin` folder to your user Path. Reopen terminals and Android Studio afterward. Python must point to `python.exe`; Java and Android variables point to their installation roots.
+
+Start Docker Desktop and confirm `docker info --format '{{.OSType}}'` reports `linux`. Check `flutter --version` reports **3.47.8**; a different Flutter already on PATH or Android Studio's bundled Java runtime may not match the required versions.
+
+### 3. Clone and prepare
 
 ```powershell
-& $pythonPath --version
-& $pythonPath -m pip --version
-java -version
-flutter doctor -v
+git clone https://github.com/SomeshSunariwal/Kharchio.git
+cd Kharchio
+.\setup.ps1
 ```
 
-Confirm Python reports **3.12**, Java reports **21**, and Flutter's Android toolchain check passes.
+Setup first checks installed base tools and stops if any fail. It then installs missing Android SDK build packages, prepares the Windows shader compiler, and validates the complete toolchain. Only after validation does it restore Flutter packages, fetch pinned native sources, download models/QAIRT, export Whisper models, and compile Hexagon libraries. SDK Manager can request license acceptance. Initial preparation can take substantial time and memory.
 
-The PowerShell variables above apply to the current terminal session. Keep this terminal open for the remaining steps, or set them again in a new terminal.
-
-## 8. Install and start Docker Desktop
-
-In an **administrator PowerShell**, run:
+**Setup alone prepares dependencies. To also create the release APK:**
 
 ```powershell
-wsl --install
+.\setup.ps1 --build
 ```
 
-Restart Windows when prompted and complete any first-run WSL setup. Resource: [Microsoft WSL installation instructions](https://learn.microsoft.com/en-us/windows/wsl/install).
+PowerShell's usual spelling, `-Build`, is also supported. Building is opt-in; setup does not select a device, install the APK, or launch the app. Output: `build/app/outputs/flutter-apk/app-release.apk`. To inspect tools without downloading or preparing anything, use `.\setup.ps1 -CheckOnly`; a fresh clone can report missing build packages/local compiler until normal setup prepares them.
 
-Install [Docker Desktop for Windows](https://docs.docker.com/desktop/setup/install/windows-install/) using its **WSL 2 backend**. Start Docker Desktop and wait until its engine is running. It must use **Linux containers**.
+If script execution is blocked, run `pwsh -NoProfile -ExecutionPolicy Bypass -File .\setup.ps1 --build`. `pwsh` means PowerShell 7. This option applies to that process, not machine-wide policy.
 
-In your regular PowerShell terminal, verify:
+### 4. Run the app
+
+After setup, open the **repository root** in Android Studio, select the same Flutter SDK and **JDK 21**, open `lib/main.dart`, and use a **Flutter** run configuration with an Android phone/emulator. CLI development uses `flutter devices`, then `flutter run -d DEVICE_ID` with a listed ID.
+
+To install the release APK on a USB-authorized ARM64 phone:
 
 ```powershell
-docker info --format '{{.OSType}}'
+& "$env:ANDROID_HOME\platform-tools\adb.exe" install -r .\build\app\outputs\flutter-apk\app-release.apk
 ```
 
-It must print:
+Open Kharchio and grant microphone permission. Validate Qualcomm NPU features on a compatible physical phone; emulator success does not validate NPU behavior. The S23 Ultra / Snapdragon 8 Gen 2 is the reference device. Release currently uses debug signing for local installation; store distribution needs release signing.
+
+A complete fresh-machine rebuild has not yet been validated end to end. The checker identifies tool readiness; it cannot guarantee remote download availability, memory/storage capacity, or device compatibility. See the troubleshooting and iOS sections below.
+
+## Setup stages
+
+1. **Validate installed base tools.** Check Windows x64, PowerShell 7, Git, Python 3.12 x64/pip, JDK 21/java/javac, Flutter 3.47.8/bundled Dart, the Android SDK root/command-line tools, Gradle wrapper files, and a running Linux Docker engine. Report independent failures together and stop on failure.
+2. **Prepare build tools and validate again.** Use SDK Manager to install missing Android Platform-Tools, API 37, Build-Tools 36.0.0, NDK 28.2.13676358, and CMake 3.22.1. SDK Manager may request license acceptance. Prepare the project-local Windows GPU compiler. Then verify the full Android toolchain and smoke-test Windows C/C++ compilation/linking before AI work starts.
+3. **Prepare AI/native dependencies.** Write local paths, restore Flutter packages, fetch/check engine revisions, download verified models/QAIRT, export generic Whisper DLCs, and build Hexagon libraries through Docker.
+4. **Optional APK build.** Only with `-Build`/`--build`, run `flutter analyze` followed by `flutter build apk --release --target-platform android-arm64`.
+
+Failure at either validation stage prevents model downloads, conversion, and application compilation. Missing system tools are reported; setup does not install/replace global Java, Python, Flutter, Git, PowerShell, Docker, or Android Studio. Broken existing Android packages are reported by the full check rather than silently overwritten.
+
+Tool checks are inside **`setup.ps1`**; there is no separate checker script. Executable probes time out after 45 seconds each. They check versions, executable availability, Android metadata, and Docker readiness. Compiler probes build/run tiny C and C++ programs in a unique temporary directory, then remove their probe files. No application code is built by `-CheckOnly`.
+
+A passing check does not validate network reachability, all future Python imports, SDK licenses, free memory/disk throughout conversion, IDE plugins, signing keys, or phone authorization. Flutter can initialize its own SDK on first use; resolve that initialization before retrying a timed-out version check.
+
+## Paths and host requirements
+
+| Input       | Resolution                                                                                              |
+| ----------- | ------------------------------------------------------------------------------------------------------- |
+| Python      | `-PythonPath`, otherwise `KHARCHIO_PYTHON`, otherwise `python` on PATH                                  |
+| Java        | `-JavaHome`, otherwise `JAVA_HOME`                                                                      |
+| Android SDK | `-AndroidSdkPath`, otherwise `ANDROID_HOME`, then `ANDROID_SDK_ROOT`, then `%LOCALAPPDATA%/Android/Sdk` |
+| Flutter     | `flutter` selected on PATH                                                                              |
+
+Explicit paths are also supported: `.\setup.ps1 -PythonPath 'C:\Tools\Python312\python.exe' -JavaHome 'C:\Tools\jdk-21' -AndroidSdkPath "$env:LOCALAPPDATA\Android\Sdk" --build`.
+
+`android/local.properties` is ignored by Git and receives `flutter.sdk`, `sdk.dir`, and `native.python`. Setup also saves the selected JDK/Android SDK using `flutter config`, so Flutter uses those paths instead of preferring a different bundled IDE runtime. It restores its temporary Java/Android environment changes afterward; it does not persistently rewrite Windows user/system environment variables.
+
+Plan roughly **80–100 GB free storage** across tools, project resources, build output, caches, and Docker. This is an estimate. Earlier workspaces reached about 40 GB before global caches/Docker images. Gradle's configured heap can use 8 GB, separate from Python, Docker, Android Studio, and an emulator. Close the emulator/use a phone if memory is tight.
+
+Use `flutter config --jdk-dir "$env:JAVA_HOME"`, `flutter config --android-sdk "$env:ANDROID_HOME"`, `flutter doctor --android-licenses`, and `flutter doctor -v` to configure/inspect Flutter's Android toolchain. Review license prompts interactively. [Flutter Android setup](https://docs.flutter.dev/platform-integration/android/setup) · [SDK Manager reference](https://developer.android.com/tools/sdkmanager).
+
+## Pinned build resources
+
+The build pins engine revisions in [native/CMakeLists.txt](native/CMakeLists.txt), model downloads in [native/config](native/config), and the Qualcomm adaptation revision in [the generic Whisper exporter](native/tools/models/prepare_whisper_generic.py).
+
+### Gradle and native sources
+
+| Resource                  | Version / revision                         | Source of truth / upstream                                                                           |
+| ------------------------- | ------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| Gradle                    | **9.8.2**                                  | `android/gradle/wrapper/gradle-wrapper.properties`                                                   |
+| Android Gradle Plugin     | **9.4.1**                                  | `android/settings.gradle.kts`                                                                        |
+| Kotlin Android dependency | **2.4.21**                                 | `android/settings.gradle.kts`                                                                        |
+| Flutter plugin loader     | **1.0.0**                                  | `android/settings.gradle.kts`                                                                        |
+| llama.cpp                 | `d854d98bae598388ecea1ed84396587e5edc326d` | `native/CMakeLists.txt`; [llama.cpp](https://github.com/ggml-org/llama.cpp)                          |
+| whisper.cpp               | `231638a0717b7822784297e5980965ffcec05810` | Same CMake file; [whisper.cpp](https://github.com/ggml-org/whisper.cpp)                              |
+| Vulkan-Headers            | `73814d006638aa00bd553215b054f0f02e457e22` | `native/cmake/AndroidVulkan.cmake`; [Vulkan-Headers](https://github.com/KhronosGroup/Vulkan-Headers) |
+| Vulkan-Hpp                | `da4cb2bc27917f3e5ff40346e448f39515248c32` | Same CMake file; [Vulkan-Hpp](https://github.com/KhronosGroup/Vulkan-Hpp)                            |
+| SPIRV-Headers             | `fbf86836a9b1966586faf7be7bb8a6440e156d62` | Same CMake file; [SPIRV-Headers](https://github.com/KhronosGroup/SPIRV-Headers)                      |
+| OpenCL-Headers            | `82f60316cc142e7b21dc1d8983b26de18858fbd9` | `native/cmake/AndroidOpenCL.cmake`; [OpenCL-Headers](https://github.com/KhronosGroup/OpenCL-Headers) |
+
+Use the committed Gradle wrapper; no global Gradle/Kotlin install is needed. Java source compatibility is 17, while setup requires JDK 21 to run the toolchain. These are different settings. Header downloads may occur when CMake configures the native build.
+
+Setup verifies existing llama.cpp/whisper.cpp checkouts match the pins and have no local changes. It stops rather than overwriting modified/wrong engine checkouts. Preserve intentional vendor work before replacing it.
+
+### Windows GPU host compiler
+
+Vulkan shader generation needs a helper that runs on **Windows**, even when the APK targets Android. NDK Clang compiles Android libraries; it does not replace a complete Windows host compiler/linker environment.
+
+- **w64devkit 2.10.1**, prepared by `native/prepare_gpu.ps1`.
+- [Release](https://github.com/skeeto/w64devkit/releases/tag/v2.10.1) · [Pinned archive](https://github.com/skeeto/w64devkit/releases/download/v2.10.1/w64devkit-x64-2.10.1.7z.exe).
+- SHA-256: `ADD1EDF984CE4D473CFEB7C52E0AB38DB73A855BBA6C7F564D5E16648EB2896A`.
+- Required files: `.tmp/gpu-tools/w64devkit/bin/gcc.exe` and `g++.exe`.
+- Compiler discovery: `native/cmake/AndroidVulkan.cmake`.
+
+Keep this directory for later native builds. Its `.tmp` location does not make it disposable while developing. Setup smoke-tests C and C++ compile/link/run before AI preparation.
+
+### Offline base models
+
+All bundled model files and their licenses/manifests live in the root `models/` directory. Shared weights are grouped under `models/whisper/` and `models/qwen/`; Android NPU packages are under `models/whisper/android/whisper-qnn-sm8550/` and `models/whisper/android/whisper-qnn-generic/`. Flutter packages the shared files and Android Gradle packages the NPU subdirectories. Preparation scripts write directly to these locations. Installed app-private model paths are unchanged.
+
+`native/prepare_models.ps1` reads `native/config/models.lock.json` and verifies exact byte counts and SHA-256 before installing files. The manifest contains authoritative hashes/URLs.
+
+| Model                           | Installed under `models/<family>/` | Expected bytes | Resource                                                                                         |
+| ------------------------------- | -------------------------------- | -------------: | ------------------------------------------------------------------------------------------------ |
+| Multilingual Whisper Small Q5_1 | `ggml-small-q5_1.bin`            |    190,085,487 | [Whisper weights](https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small-q5_1.bin) |
+| Qwen3 0.6B Q8_0                 | `Qwen3-0.6B-Q8_0.gguf`           |    639,446,688 | [Qwen weights](https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q8_0.gguf)    |
+
+These total about 830 MB in decimal units. NPU assets/runtime libraries increase APK size; an earlier complete APK was about 2 GB. Allow device space for installation and first-use extraction. The manifest records MIT for Whisper and Apache-2.0 for Qwen; review upstream licenses/notices for distribution.
+
+### Qualcomm Whisper / QAIRT
+
+| Resource              | Selection / output                                                                            |
+| --------------------- | --------------------------------------------------------------------------------------------- |
+| QAIRT SDK             | **2.50.0.260828**; `native/prebuilt/qairt/qairt/2.50.0.260828/`                               |
+| Precompiled model     | `qualcomm/Whisper-Small` **0.65.0**, float; SM8550 / Snapdragon 8 Gen 2 / HTP v73             |
+| Context runtime build | **2.50.0.260828221209**, checked against context metadata                                     |
+| S23 Ultra assets      | `models/whisper/android/whisper-qnn-sm8550/whisper-s23-encoder.bin`, `whisper-s23-decoder.bin`, `manifest.json` |
+| Generic assets        | `models/whisper/android/whisper-qnn-generic/whisper-generic-encoder.dlc`, `whisper-generic-decoder.dlc`, `manifest.json` |
+| Runtime libraries     | `android/app/src/main/jniLibs/arm64-v8a/libQnn*.so`                                           |
+
+`native/config/whisper_qnn.lock.json` pins SDK/context URLs, hashes, device selection, and runtime versions. [QAIRT archive](https://softwarecenter.qualcomm.com/api/download/software/sdks/Qualcomm_AI_Runtime_Community/All/2.50.0.260828/v2.50.0.260828.zip) · [Context archive](https://qaihub-public-assets.s3.us-west-2.amazonaws.com/qai-hub-models/models/whisper_small/releases/v0.65.0/whisper_small-qnn_context_binary-float-qualcomm_qcs8550_proxy.zip) · [Qualcomm adapter sources](https://github.com/qualcomm/ai-hub-models) · [Whisper checkpoint](https://huggingface.co/openai/whisper-small).
+
+`native/prepare_whisper_generic.ps1` provisions both Whisper NPU paths and installs converter dependencies under `.tmp/qnn-export/deps`:
+
+| Dependency                | Version                                                                                          |
+| ------------------------- | ------------------------------------------------------------------------------------------------ |
+| PyTorch CPU               | **2.8.0**, from [CPU wheels](https://download.pytorch.org/whl/cpu)                               |
+| Transformers              | **4.57.1**                                                                                       |
+| ONNX / ONNX Script        | **1.19.0** / **0.5.3**                                                                           |
+| NumPy / Pydantic / pandas | **1.26.4** / **2.11.7** / **2.2.3**                                                              |
+| Additional support        | `pyyaml`, `packaging`, `tqdm`, `tabulate`, `mako`, `lxml`, `jsonschema`; not individually pinned |
+
+Most converter packages come from [PyPI](https://pypi.org/). The exporter pins Qualcomm adapters to `1c23e6d6c6ab2e6edbfb671c07484855d2e2511b` and the checkpoint to `973afd24965f72e36ca33b3055d56a652f456b4d`; see `native/tools/models/prepare_whisper_generic.py`.
+
+Local export can consume substantial RAM/time. No user audio is sent for cloud compilation. Generic DLCs compile for a supported phone HTP on first use and are cached. Runtime/driver support needs physical-device verification; the precompiled S23 contexts remain device-specific.
+
+### Qwen Hexagon
+
+`native/prepare_hexagon.ps1` uses this pinned Linux Docker image; Docker pulls it when absent:
 
 ```text
-linux
+ghcr.io/snapdragon-toolchain/arm64-android@sha256:e39e5e9c0957550a92c0de756b7556d81196c7c7f7328ed80de252bfb4878adf
 ```
 
-Keep Docker running while preparing Qwen's Hexagon backend. If Windows was restarted, reopen PowerShell 7 and set the variables from step 7 again.
+`native/tools/build_hexagon.sh` uses matching llama.cpp sources and the image's Android/Hexagon tools. It produces `native/prebuilt/hexagon/arm64-v8a/libggml-hexagon.a`, `revision.txt`, and `android/app/src/main/jniLibs/arm64-v8a/libggml-htp-v73.so` plus v75/v79/v81 variants. Docker must mount the project directory. Do not mix arbitrary GGML revisions or images with these outputs.
 
-## 9. Open the cloned repository and check prerequisites
+## IDE and device notes
 
-Change to your clone's actual directory. For example:
+Open the **root containing `pubspec.yaml`** in Android Studio, enable Flutter/Dart plugins, configure the selected Flutter SDK and Gradle JDK 21, and use a Flutter run configuration for `lib/main.dart`. Setup must complete before IDE Run; Run does not provision these AI resources. [Flutter IDE guide](https://docs.flutter.dev/tools/android-studio).
 
-```powershell
-cd C:\Projects\Kharchio
-```
+For Gradle tasks, use View → Tool Windows → Gradle. If empty, link `android/settings.gradle.kts` or `android/` as requested by that IDE version and sync. Root IDE settings should link `$PROJECT_DIR$/android`. IDE files are local/ignored. Flutter can invoke Gradle without a File-menu sync action, and successful sync does not prove native/model readiness.
 
-Confirm `setup.ps1` exists in this directory, then run:
+The app config includes ARM64 and x86_64. Emulator builds still need the Windows shader compiler. Validate Qualcomm NPU features on compatible physical hardware; the S23 Ultra is the reference. After installation, grant microphone permission and inspect Profile's model readiness. First-use initialization can take longer.
 
-```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File .\setup.ps1 `
-  -PythonPath "$pythonPath" `
-  -JavaHome "$env:JAVA_HOME" `
-  -AndroidSdkPath "$env:ANDROID_HOME" `
-  -CheckOnly
-```
+For multiple ADB devices, add `-s DEVICE_SERIAL` before `install`; get actual serials with `adb devices`. `unauthorized`/`offline` devices require attention on the phone/cable/ADB connection. Release currently uses debug signing; store distribution requires release signing, and updating existing local data requires signing-key compatibility.
 
-Resolve any reported missing prerequisite before continuing. `-CheckOnly` validates prerequisites without provisioning model or build files.
+## Recovery and cleanup
 
-## 10. Download AI dependencies and build
+Normal recovery is to correct the reported base-tool problem and rerun `.\setup.ps1`. For a single missing resource, the relevant scripts are `native/prepare_gpu.ps1`, `prepare_models.ps1`, `prepare_whisper_qnn.ps1` (S23/QAIRT only), `prepare_whisper_generic.ps1` (both NPU paths), and `prepare_hexagon.ps1`. Some use `exit`; invoke them in a child PowerShell. These scripts assume required source/local paths already exist; full setup handles ordering.
 
-Run from the repository root:
+| Removed location                     | Consequence                                                                             |
+| ------------------------------------ | --------------------------------------------------------------------------------------- |
+| `build/` or Flutter build output     | Rebuild APK/intermediates; restore packages after `flutter clean`                       |
+| `.tmp/gpu-tools/`                    | Removes required Windows compilers                                                      |
+| `.tmp/qnn-export/`                   | Removes converter/checkpoint/intermediates; later export may redownload large resources |
+| `native/vendor/`                     | Removes ignored engine/header sources                                                   |
+| `native/prebuilt/`                   | Removes SDK extraction and Hexagon archive                                              |
+| Ignored model/assets/`jniLibs` files | Removes offline weights, NPU models, runtime libraries                                  |
 
-```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File .\setup.ps1 `
-  -PythonPath "$pythonPath" `
-  -JavaHome "$env:JAVA_HOME" `
-  -AndroidSdkPath "$env:ANDROID_HOME" `
-  -Build
-```
+Avoid broad ignored-file cleanup: it removes essential inputs, not just output. Preserve intentional work first. Global SDKs, Pub/Gradle caches, and Docker images live outside the repository. If CMake cached a wrong compiler, restoring tools may also need a deliberate clean/reconfigure of the affected generated native build.
 
-The script performs these operations:
+## Troubleshooting
 
-1. Writes ignored `android/local.properties` with this machine's tool paths.
-2. Restores Flutter packages using the committed lockfile.
-3. Fetches the exact llama.cpp and whisper.cpp revisions pinned in CMake.
-4. Prepares GPU host tools and verified Whisper/Qwen GGML weights.
-5. Downloads the pinned QAIRT SDK and S23 Ultra Whisper contexts, then exports the generic Qualcomm Whisper DLCs locally. Both speech options are included.
-6. Builds Qwen's Hexagon libraries using the pinned Docker image.
-7. Runs analysis and builds the ARM64 release APK.
+| Failure                                                              | Check                                                                                                         |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| PowerShell/script execution error                                    | Use PowerShell 7 and the process-scoped invocation above                                                      |
+| Version mismatch                                                     | Selected Flutter on PATH, Python 3.12 x64, `JAVA_HOME` JDK 21; bundled IDE JBR can differ                     |
+| Flutter probe timeout                                                | SDK initialization lock, another Flutter process, or first-use/network delay                                  |
+| SDK tools missing                                                    | SDK root and `cmdline-tools/latest`; setup prepares missing build packages after base validation              |
+| Docker unavailable/wrong OS                                          | Running engine, WSL readiness, Linux containers                                                               |
+| API 37 unavailable                                                   | SDK Manager package availability; setup stops instead of substituting another API                             |
+| Plugin directory missing                                             | Named Pub cache path and Flutter package restoration                                                          |
+| `vulkan-shaders-gen` missing `-lkernel32` / `-luser32` / `-lmingw32` | Local w64devkit and generated host toolchain; NDK Clang selected for the Windows helper is the wrong fallback |
+| Model checksum mismatch                                              | Named archive/partial file and lock manifest; preserve valid installed models                                 |
+| QNN/Hexagon mismatch                                                 | Runtime/context versions and matching engine revision/image                                                   |
+| Process killed under load                                            | Free RAM/disk, Python conversion, Docker/emulator resource use                                                |
+| APK builds but NPU unavailable                                       | Physical device/HTP compatibility and Profile model/runtime readiness                                         |
 
-Keep the terminal open. Initial downloads and model conversion can take substantial time. Omit `-Build` to prepare dependencies without building the APK.
+Diagnostic evidence: `build/app/intermediates/cxx/<variant>/<hash>/logs/<abi>/build_stdout_kharchio_ai.txt` and stderr; generated host toolchains under `build/.cxx/`; `%USERPROFILE%/.gradle/daemon/<version>/daemon-*.out.log`; Android Studio Help → Show Log in Explorer; `flutter doctor -v`.
 
-The resulting APK is:
+## iOS and validation limits
 
-```text
-build\app\outputs\flutter-apk\app-release.apk
-```
+Windows setup targets Android. iOS needs macOS, Xcode/command-line tools, Flutter, CocoaPods, CMake, Git, and base GGML/GGUF weights. Deployment target: **iOS 15.0**. PowerShell on macOS can run `native/prepare_models.ps1`. General sequence: `flutter pub get`, `pod install` inside `ios/`, then `flutter build ios` from the root. The Podfile invokes `native/build_ios.sh` to create `ios/Frameworks/KharchioAI.xcframework`. Configure Xcode signing for physical devices. iOS uses Metal/CPU, not Android QNN/Hexagon. [Flutter iOS setup](https://docs.flutter.dev/platform-integration/ios/setup) · [Xcode](https://developer.apple.com/xcode/) · [CocoaPods](https://guides.cocoapods.org/using/getting-started.html) · [CMake](https://cmake.org/download/).
 
-Both Whisper NPU options, OpenCL/CPU fallback, and Qwen are bundled, so the APK is large (about **2 GB** in the last build). Generic NPU support depends on the device's HTP capabilities; the S23 Ultra path was tested on Snapdragon 8 Gen 2.
-
-## 11. Install and use the app
-
-With an authorized Android device already available through ADB, run:
-
-```powershell
-adb install -r .\build\app\outputs\flutter-apk\app-release.apk
-```
-
-Open **Kharchio** on the phone and grant microphone permission when requested. In **Profile**, select:
-
-- **Speech processing → S23 Ultra** for the phone-specific Whisper NPU model.
-- **Speech processing → NPU** to compare the generic Qualcomm Whisper model.
-- **Expense AI processing → NPU** for Qwen's Hexagon backend.
-
-The first AI operation may take longer while bundled models are copied and initialized.
-
-The current release build uses the debug signing key for local installation. Store distribution requires your own release signing configuration. Replacing an installed APK also requires the same signing key to preserve app data.
-
-## Later builds and cleanup
-
-After setup, normal builds use:
-
-```powershell
-flutter pub get
-flutter build apk --release --target-platform android-arm64
-```
-
-Deleting `build/` only removes generated build outputs. Deleting all ignored files also removes downloaded models and native dependencies; rerun the setup command from step 10 with your tool paths to recreate them. Global Flutter, Android, Python, Java, Pub, Gradle, and Docker installations live outside the repository and are not part of its cleanup.
-
-The setup script and instructions are prepared, but a complete fresh-machine rebuild has **not yet been validated end to end**.
-
-## iOS
-
-iOS requires macOS, Xcode, CocoaPods, Flutter, CMake, and the GGML model weights provisioned by `native/prepare_models.ps1` (PowerShell is available on macOS). Run `flutter pub get`, `pod install` in `ios/`, then build/sign with Flutter or Xcode. The pod invokes `native/build_ios.sh` for the native framework. iOS uses Metal/CPU rather than Qualcomm QNN. The complete iOS rebuild has not been validated in this Windows workspace.
+A complete fresh-machine rebuild and iOS rebuild have **not yet been validated end to end**. Syntax/tool checks are not an APK build. Remote availability, unpinned converter/transitive packages, and device drivers mean the process is not fully hermetic. Keep `pubspec.lock` and resource manifests. Update this guide and setup checks together when changing SDK/Gradle versions, native pins, model hashes, converter versions, or Docker digest.

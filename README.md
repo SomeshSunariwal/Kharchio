@@ -74,3 +74,20 @@ Development reference: [build from a fresh clone, including AI](BUILD.md).
 
 - Dashboard, Analysis, and Profile tabs use existing app icons and display the active tab's name beside its icon.
 - Shared animated dropdowns and directional tab transitions follow the selected theme and respect reduced-motion preferences.
+
+## Resources
+
+GitHub projects behind the app's AI models and inference runtimes:
+
+| Project | Used for |
+|---|---|
+| [OpenAI Whisper](https://github.com/openai/whisper) | Multilingual Whisper Small speech recognition. |
+| [whisper.cpp](https://github.com/ggml-org/whisper.cpp) | Native Whisper inference with OpenCL GPU and CPU fallback. |
+| [Qwen3](https://github.com/QwenLM/Qwen3) | Qwen3-0.6B, which extracts structured expenses from transcripts. |
+| [llama.cpp](https://github.com/ggml-org/llama.cpp) | Native Qwen inference, including the GGML Hexagon NPU backend. |
+| [Qualcomm AI Hub Models](https://github.com/qualcomm/ai-hub-models) | Qualcomm's Whisper graph adaptation used by the QNN/QAIRT export tooling. |
+
+The build pins engine revisions in [native/CMakeLists.txt](native/CMakeLists.txt),
+model downloads in [native/config](native/config), and the Qualcomm adaptation
+revision in [the generic Whisper exporter](native/tools/models/prepare_whisper_generic.py).
+See [BUILD.md](BUILD.md) for setup instructions and development-tool downloads.

@@ -1,4 +1,6 @@
 import '../../core/categories.dart';
+import '../../core/expense_summary.dart';
+import '../../core/expense_summary_provider.dart';
 import '../../shared/category_donut.dart';
 import '../../shared/collapsing_expense_overview.dart';
 import '../../shared/app_dropdown.dart';
@@ -34,8 +36,6 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
     date = DateTime(DateTime.now().year.clamp(2026, 2040));
   }
 
-  double _total(Iterable<Expense> values) =>
-      values.fold(0, (sum, e) => sum + e.amount);
   void _open(AnalysisPeriod next, DateTime value) {
     setState(() {
       if (next != period) movingForward = next.index > period.index;
@@ -52,16 +52,16 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final all = ref.watch(expensesProvider);
-    final annual = all.where((e) => e.date.year == date.year).toList();
-    final monthly = annual.where((e) => e.date.month == date.month).toList();
-    final daily = monthly.where((e) => e.date.day == date.day).toList()
-      ..sort((a, b) => b.date.compareTo(a.date));
-    final selected = switch (period) {
-      AnalysisPeriod.year => annual,
-      AnalysisPeriod.month => monthly,
-      AnalysisPeriod.day => daily,
-    };
+    final currencyCode = context.currency.code;
+    final selectedSummary = ref.watch(
+      expenseSummaryProvider((
+        year: date.year,
+        month: period == AnalysisPeriod.year ? null : date.month,
+        day: period == AnalysisPeriod.day ? date.day : null,
+        currencyCode: currencyCode,
+      )),
+    );
+    final selected = selectedSummary.expenses;
     final heading = DateFormat(switch (period) {
       AnalysisPeriod.year => 'yyyy',
       AnalysisPeriod.month => 'MMM yyyy',
@@ -76,12 +76,12 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
     List<Expense> filtered(List<Expense> values) => categoryFilter == null
         ? values
         : values.where((e) => e.category == categoryFilter).toList();
-    final visible = filtered(daily);
+    final visible = filtered(selected);
     final totals = [
       for (final name in context.categoryNames)
-        _total(selected.where((e) => e.category == name)),
+        selectedSummary.categoryTotal(name),
     ];
-    final total = _total(selected);
+    final total = selectedSummary.total;
     void selectCategory(int index) => setState(() {
       final name = context.categoryNames[index];
       selectedCategory = selectedCategory == name ? null : name;
@@ -197,12 +197,12 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
     );
     final results = switch (period) {
       AnalysisPeriod.year => ListView(
-        padding: EdgeInsets.zero,
-        children: [_months(filtered(annual))],
+        padding: const EdgeInsets.only(bottom: 72),
+        children: [_months(filtered(selected))],
       ),
       AnalysisPeriod.month => ListView(
-        padding: EdgeInsets.zero,
-        children: [_days(filtered(monthly))],
+        padding: const EdgeInsets.only(bottom: 72),
+        children: [_days(filtered(selected))],
       ),
       AnalysisPeriod.day => ConnectedListCard(
         child: ListView.separated(
@@ -229,6 +229,7 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
     };
     return SafeArea(
       child: Stack(
+        fit: StackFit.expand,
         children: [
           NestedScrollView(
             headerSliverBuilder: (nestedContext, innerBoxIsScrolled) => [
@@ -266,7 +267,7 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
                 14,
                 total > 0 ? chartHeader.minExtent : 0,
                 14,
-                period == AnalysisPeriod.day ? 0 : 77,
+                0,
               ),
               child: ClipRect(
                 child: AnimatedSwitcher(
@@ -318,6 +319,7 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
                 backgroundColor: green,
                 foregroundColor: Colors.white,
                 shape: const CircleBorder(),
+                elevation: 4,
                 onPressed: () => context.push('/add', extra: date),
                 child: const Icon(Icons.add_rounded, size: 24),
               ),
@@ -332,7 +334,8 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
       75 + (MediaQuery.textScalerOf(context).scale(13) - 13).clamp(0, 30) * 3;
 
   Widget _months(List<Expense> annual) {
-    final total = _total(annual);
+    final summary = ExpenseSummary(annual);
+    final total = summary.total;
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -345,7 +348,7 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
       ),
       itemBuilder: (context, index) {
         final month = index + 1;
-        final sum = _total(annual.where((e) => e.date.month == month));
+        final sum = summary.byMonth[month] ?? 0;
         return Material(
           color: context.appColors.surface,
           shape: RoundedRectangleBorder(
@@ -418,6 +421,7 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
   }
 
   Widget _days(List<Expense> monthly) {
+    final summary = ExpenseSummary(monthly);
     final offset = DateTime(date.year, date.month).weekday - 1;
     final count = DateTime(date.year, date.month + 1, 0).day;
     final weeks = ((offset + count) / 7).ceil();
@@ -462,7 +466,7 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
                       return const SizedBox.shrink();
                     }
                     final day = index - offset + 1;
-                    final sum = _total(monthly.where((e) => e.date.day == day));
+                    final sum = summary.byDay[day] ?? 0;
                     return Semantics(
                       label:
                           '$day ${DateFormat('MMMM yyyy').format(date)}, ${context.money(sum)}',

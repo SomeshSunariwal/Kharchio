@@ -1,0 +1,18 @@
+{
+  "model": "qualcomm/Whisper-Small",
+  "release": "0.65.0",
+  "soc": "SM8550",
+  "qairt": "2.50.0.260828221209",
+  "files": [
+    {
+      "name": "encoder.bin",
+      "bytes": 266624448,
+      "sha256": "70bb34ceeb7b7d18c062327adbc2b68990544af6ddae7b1db6027fc7adbeb75a"
+    },
+    {
+      "name": "decoder.bin",
+      "bytes": 361664864,
+      "sha256": "6e7dff081829c2086339f85e07324519f9a17214e957dacac2f901d312afb569"
+    }
+  ]
+}

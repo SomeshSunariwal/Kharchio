@@ -1,356 +1,531 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../services/ai/model_manager.dart';
+import '../../services/ai/native_ai.dart';
+import '../../services/audio/voice_capture.dart';
+import '../../services/ai/expense_extractor.dart';
+import '../../services/audio/live_transcription_queue.dart';
 
 import '../../core/theme.dart';
 import '../../core/preferences.dart';
 import '../../core/categories.dart';
 import 'add_expense_screen.dart';
+import 'widgets/recording_waveform.dart';
+import 'widgets/recording_transcript.dart';
+import 'widgets/recording_summary_list.dart';
 
-enum RecordingStage { recording, paused, processing, failed }
-
-class RecordExpenseModal extends StatefulWidget {
-  const RecordExpenseModal({super.key});
-  @override
-  State<RecordExpenseModal> createState() => _RecordState();
+enum RecordingStage {
+  initializing,
+  recording,
+  paused,
+  processing,
+  review,
+  failed,
 }
 
-class _RecordState extends State<RecordExpenseModal>
-    with SingleTickerProviderStateMixin {
+class RecordExpenseModal extends ConsumerStatefulWidget {
+  const RecordExpenseModal({super.key});
+  @override
+  ConsumerState<RecordExpenseModal> createState() => _RecordState();
+}
+
+class _RecordState extends ConsumerState<RecordExpenseModal>
+    with WidgetsBindingObserver {
   final text = TextEditingController();
-  late final AnimationController wave;
+  final transcriptScroll = ScrollController();
+  final summaryScroll = ScrollController();
+  final capture = VoiceCapture();
+  final elapsed = Stopwatch();
   Timer? timer;
-  RecordingStage stage = RecordingStage.recording;
-  int seconds = 0;
+  late final liveTranscriptions = LiveTranscriptionQueue(transcribeLive);
+  Future<void>? get liveWork => liveTranscriptions.work;
+  Future<void>? whisperWarmWork;
+  NativeAiJob? warmJob;
+  Object? warmFailure;
+  bool speechModelReady = false;
+  NativeAiJob? liveJob;
+  List<ExtractedExpense> summary = [];
+  int transcribedBytes = 0;
+  NativeAiJob? job;
+  RecordingStage stage = RecordingStage.initializing;
+  final seconds = ValueNotifier<int>(0);
   String? error;
+  String processingLabel = 'Preparing offline models…';
+  bool changingControls = false;
+
   @override
   void initState() {
     super.initState();
-    wave = AnimationController(
-      vsync: this,
-      duration: Duration(milliseconds: 950),
-    )..repeat();
-    timer = Timer.periodic(Duration(seconds: 1), (_) {
-      if (stage == RecordingStage.recording) setState(() => seconds++);
+    WidgetsBinding.instance.addObserver(this);
+    capture.onAudio = () {
+      if (mounted && stage == RecordingStage.paused) {
+        unawaited(liveTranscriptions.request(flush: true));
+      }
+    };
+    Future.microtask(startRecording);
+  }
+
+  Future<void> startRecording() async {
+    if (!mounted) return;
+    setState(() {
+      stage = RecordingStage.initializing;
+      error = null;
+      text.clear();
+      summary = [];
+      transcribedBytes = 0;
+      warmFailure = null;
+      speechModelReady = false;
     });
+    try {
+      final models = await ref.read(offlineModelsProvider.future);
+      if (!mounted) return;
+      await NativeAiJob.setProcessing(
+        mode: ref.read(preferencesProvider).speechProcessing.nativeValue,
+      );
+      if (!mounted) return;
+      await capture.start();
+      if (!mounted) return;
+      elapsed.reset();
+      elapsed.start();
+      setState(() {
+        seconds.value = 0;
+        stage = RecordingStage.recording;
+      });
+      whisperWarmWork = prepareWhisperModel(models.whisper);
+      timer?.cancel();
+      timer = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (!mounted || stage != RecordingStage.recording) return;
+        seconds.value = elapsed.elapsed.inSeconds;
+        if (seconds.value >= 90) {
+          unawaited(process());
+        } else if (seconds.value % 3 == 0 && liveWork == null) {
+          unawaited(liveTranscriptions.request());
+        }
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          stage = RecordingStage.failed;
+          error = e.toString();
+        });
+      }
+    }
+  }
+
+  Future<void> prepareWhisperModel(String path) async {
+    final current = NativeAiJob();
+    warmJob = current;
+    try {
+      await current.prepareWhisper(path);
+      if (mounted) setState(() => speechModelReady = true);
+    } catch (e) {
+      warmFailure = e;
+      if (mounted && stage != RecordingStage.processing) {
+        timer?.cancel();
+        elapsed.stop();
+        try {
+          await capture.stop();
+        } catch (_) {
+          // Preserve the original model-loading error during microphone cleanup.
+        }
+        capture.clearAudio();
+        if (mounted) {
+          setState(() {
+            stage = RecordingStage.failed;
+            error = e.toString();
+          });
+        }
+      }
+    } finally {
+      current.dispose();
+      if (identical(warmJob, current)) warmJob = null;
+    }
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (MediaQuery.disableAnimationsOf(context)) {
-      wave.stop();
-    } else if (stage == RecordingStage.recording && !wave.isAnimating) {
-      wave.repeat();
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed &&
+        stage == RecordingStage.recording) {
+      unawaited(toggle());
     }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    capture.onAudio = null;
+    liveTranscriptions.cancelPending();
+    job?.cancel();
+    liveJob?.cancel();
+    warmJob?.cancel();
     timer?.cancel();
-    wave.dispose();
+    elapsed.stop();
+    seconds.dispose();
     text.dispose();
+    transcriptScroll.dispose();
+    summaryScroll.dispose();
+    unawaited(capture.dispose());
+    unawaited(
+      NativeAiJob.releaseModels().catchError((Object e) {
+        if (kDebugMode) debugPrint('KharchioAI: model cleanup failed: $e');
+      }),
+    );
     super.dispose();
   }
 
-  void toggle() {
-    setState(
-      () => stage = stage == RecordingStage.paused
-          ? RecordingStage.recording
-          : RecordingStage.paused,
-    );
-    if (stage == RecordingStage.recording &&
-        !MediaQuery.disableAnimationsOf(context)) {
-      wave.repeat();
-    } else {
-      wave.stop();
+  Future<void> toggle() async {
+    if (changingControls ||
+        (stage != RecordingStage.recording && stage != RecordingStage.paused)) {
+      return;
+    }
+    changingControls = true;
+    try {
+      final resume = stage == RecordingStage.paused;
+      if (resume) {
+        await capture.resume();
+        elapsed.start();
+      } else {
+        await capture.pause();
+        elapsed.stop();
+      }
+      if (!mounted) return;
+      setState(
+        () => stage = resume ? RecordingStage.recording : RecordingStage.paused,
+      );
+      if (!resume) {
+        // Pause capture only. Finish every sample already buffered, even if
+        // model warm-up or an older preview is still in progress.
+        unawaited(liveTranscriptions.request(flush: true));
+      }
+    } catch (e) {
+      if (mounted) setState(() => error = e.toString());
+    } finally {
+      changingControls = false;
     }
   }
 
+  Future<void> transcribeLive(bool flush) async {
+    await whisperWarmWork;
+    if (!mounted ||
+        (stage != RecordingStage.recording && stage != RecordingStage.paused) ||
+        !speechModelReady ||
+        capture.length < (flush ? 3200 : 32000)) {
+      return;
+    }
+    final bytes = capture.snapshot();
+    if (bytes.length <= transcribedBytes) return;
+    final current = NativeAiJob();
+    liveJob = current;
+    try {
+      final models = await ref.read(offlineModelsProvider.future);
+      final language = ref.read(preferencesProvider).speechLanguage;
+      final recognized = await current.transcribe(
+        models.whisper,
+        bytes,
+        language,
+      );
+      if (mounted && stage != RecordingStage.failed) {
+        transcribedBytes = bytes.length;
+        setState(() {
+          text.text = recognized;
+          error = null;
+        });
+      }
+    } catch (e) {
+      if (mounted && stage == RecordingStage.paused) {
+        setState(() => error = e.toString());
+      }
+      // Stop performs a final transcription and exposes actionable errors.
+    } finally {
+      current.dispose();
+      if (identical(liveJob, current)) liveJob = null;
+    }
+  }
+
+  void createCards() {
+    if (stage != RecordingStage.review || summary.isEmpty) return;
+    final values = [
+      for (var i = 0; i < summary.length; i++)
+        ExpenseDraft(
+          id: '${DateTime.now().microsecondsSinceEpoch}-$i',
+          title: summary[i].title,
+          description: summary[i].description,
+          category: summary[i].category,
+          amount: summary[i].amount.toStringAsFixed(2),
+        ),
+    ];
+    Navigator.pop(context, values);
+  }
+
   Future<void> process() async {
+    if ((stage != RecordingStage.recording && stage != RecordingStage.paused) ||
+        changingControls) {
+      return;
+    }
+    final processingTime = Stopwatch()..start();
+    elapsed.stop();
+    timer?.cancel();
     setState(() {
       stage = RecordingStage.processing;
       error = null;
+      processingLabel = 'Transcribing on this device…';
     });
-    wave.stop();
-    // UI-only processing preview. This is a deterministic text helper, not AI.
-    await Future<void>.delayed(Duration(milliseconds: 1300));
-    if (!mounted) return;
-    final values = <ExpenseDraft>[];
-    for (final part in text.text.split(RegExp(r'[,;\n]'))) {
-      final match = RegExp(
-        r'(?:(?:₹|\$|rs\.?|usd|inr)\s*)?(\d+(?:\.\d{1,2})?)',
-        caseSensitive: false,
-      ).firstMatch(part);
-      if (match == null) continue;
-      final amount = double.tryParse(match.group(1)!);
-      final title = part
-          .replaceFirst(match.group(0)!, '')
-          .replaceAll(
-            RegExp(r'rupees|dollars|रुपये|रुपए', caseSensitive: false),
-            '',
-          )
-          .trim();
-      if (amount == null || amount <= 0 || title.isEmpty) continue;
-      final lower = title.toLowerCase();
-      final category = RegExp('milk|bread|grocery|दूध|सब्जी').hasMatch(lower)
-          ? 'Groceries'
-          : RegExp('lunch|dinner|food|खाना').hasMatch(lower)
-          ? 'Food & Dining'
-          : RegExp('bus|taxi|petrol|बस').hasMatch(lower)
-          ? 'Transport'
-          : RegExp('bill|electric|बिजली').hasMatch(lower)
-          ? 'Utilities'
-          : 'Others';
-      values.add(
-        ExpenseDraft(
-          id: '${DateTime.now().microsecondsSinceEpoch}-${values.length}',
-          title: title,
-          amount: amount.toString(),
-          category: context.categoryNames.contains(category)
-              ? category
-              : context.expenseCategories[context.categoryIndex('Others')].name,
-        ),
+    final currentJob = NativeAiJob();
+    job = currentJob;
+    try {
+      final models = await ref.read(offlineModelsProvider.future);
+      final audio = await capture.stop();
+      await whisperWarmWork;
+      if (warmFailure != null) throw StateError(warmFailure.toString());
+      // Do not finish an obsolete preview before starting the final decode.
+      liveTranscriptions.cancelPending();
+      liveJob?.cancel();
+      await liveWork;
+      if (!mounted) return;
+      final transcriptionTime = Stopwatch()..start();
+      final language = ref.read(preferencesProvider).speechLanguage;
+      final transcript =
+          audio.length == transcribedBytes && text.text.trim().isNotEmpty
+          ? text.text.trim()
+          : await currentJob.transcribe(models.whisper, audio, language);
+      if (kDebugMode) {
+        debugPrint(
+          'KharchioAI: final transcription ${transcriptionTime.elapsedMilliseconds} ms',
+        );
+      }
+      capture.clearAudio();
+      if (!mounted) return;
+      text.text = transcript;
+      setState(() => processingLabel = 'Loading the expense model…');
+      await NativeAiJob.setProcessing(
+        mode: ref.read(preferencesProvider).expenseProcessing.nativeValue,
       );
-    }
-    if (values.isEmpty) {
+      if (!mounted) return;
+      await currentJob.prepareQwen(models.qwen);
+      if (!mounted) return;
+      setState(() => processingLabel = 'Extracting expense details with Qwen…');
+      final result = await ExpenseExtractor().extract(
+        job: currentJob,
+        model: models.qwen,
+        text: transcript,
+        categories: context.categoryNames,
+        currency: context.currency.code,
+        onValidated: (duration) {
+          if (kDebugMode) {
+            debugPrint(
+              'KharchioAI: JSON validation ${duration.inMicroseconds} us',
+            );
+          }
+        },
+      );
+      if (!mounted) return;
       setState(() {
-        stage = RecordingStage.failed;
-        error =
-            'Enter a title and amount, e.g. Milk ${context.currency.symbol}120, Lunch ${context.currency.symbol}450.';
+        summary = result;
+        stage = RecordingStage.review;
       });
-      return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && stage == RecordingStage.review && kDebugMode) {
+          debugPrint(
+            'KharchioAI: summary visible ${processingTime.elapsedMilliseconds} ms after Stop',
+          );
+        }
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          stage = RecordingStage.failed;
+          error = e.toString();
+        });
+      }
+    } finally {
+      capture.clearAudio();
+      currentJob.dispose();
+      if (identical(job, currentJob)) job = null;
+      await NativeAiJob.releaseModels();
     }
-    Navigator.pop(context, values);
   }
 
   @override
   Widget build(BuildContext context) {
-    final processing = stage == RecordingStage.processing;
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        12,
-        12,
-        12,
-        MediaQuery.viewInsetsOf(context).bottom + 12,
-      ),
-      child: Center(
-        heightFactor: 1,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: 650),
-          child: SingleChildScrollView(
-            child: Container(
-              padding: EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: context.appColors.surface,
-                borderRadius: BorderRadius.circular(26),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 38,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: context.appColors.muted.withValues(alpha: .3),
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                    ),
+    final processing =
+        stage == RecordingStage.processing ||
+        stage == RecordingStage.initializing;
+    final expanded = stage == RecordingStage.review;
+    final colors = context.appColors;
+    return Center(
+      heightFactor: 1,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 650),
+        child: AnimatedContainer(
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 250),
+          curve: Curves.easeOutCubic,
+          height: expanded ? MediaQuery.sizeOf(context).height * .94 : null,
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+          decoration: BoxDecoration(
+            color: colors.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            mainAxisSize: expanded ? MainAxisSize.max : MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: colors.line,
+                    borderRadius: BorderRadius.circular(4),
                   ),
-                  SizedBox(height: 12),
-                  Row(
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Record Expense',
+                style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Speak what you spent on. Review the summary, then create expense cards.',
+                style: TextStyle(fontSize: 12, color: colors.muted),
+              ),
+              const SizedBox(height: 10),
+              RecordingTranscript(
+                text: text,
+                scroll: transcriptScroll,
+                preparing:
+                    stage == RecordingStage.recording && !speechModelReady,
+              ),
+              const SizedBox(height: 10),
+              if (processing)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: _box(),
+                  child: Row(
                     children: [
-                      Expanded(
-                        child: Text(
-                          'Record Expense',
-                          style: TextStyle(
-                            fontSize: 23,
-                            fontWeight: FontWeight.w700,
-                          ),
+                      const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          color: red,
+                          strokeWidth: 2,
                         ),
                       ),
-                      IconButton(
-                        tooltip: 'Close recording',
-                        onPressed: processing
-                            ? null
-                            : () => Navigator.pop(context),
-                        icon: Icon(Icons.close),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          processingLabel,
+                          style: const TextStyle(fontSize: 12, color: red),
+                        ),
                       ),
                     ],
                   ),
-                  Text(
-                    'Speak or type what you spent on. Review expense details before saving.',
-                    style: TextStyle(
-                      color: context.appColors.muted,
-                      fontSize: 14,
-                      height: 1.45,
-                    ),
-                  ),
-                  SizedBox(height: 12),
-                  Container(
-                    padding: EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: context.appColors.noticeBackground,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      'UI preview: microphone and offline AI are not connected. Type comma-separated items to preview editable cards.',
-                      style: TextStyle(
-                        color: context.appColors.noticeForeground,
-                        fontSize: 11,
-                        height: 1.4,
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: 14),
-                  TextField(
-                    controller: text,
-                    minLines: 5,
-                    maxLines: 7,
-                    maxLength: 500,
-                    readOnly: processing,
-                    decoration: InputDecoration(
-                      hintText:
-                          'Milk ${context.currency.symbol}120, Lunch ${context.currency.symbol}450, Bus ${context.currency.symbol}30',
-                      fillColor: context.appColors.field,
-                    ),
-                  ),
-                  SizedBox(height: 16),
-                  AnimatedSize(
-                    duration: MediaQuery.disableAnimationsOf(context)
-                        ? Duration.zero
-                        : Duration(milliseconds: 250),
-                    curve: Curves.easeOutCubic,
-                    child: processing
-                        ? Container(
-                            width: double.infinity,
-                            padding: EdgeInsets.all(20),
-                            decoration: _box(),
-                            child: Row(
-                              children: [
-                                SizedBox(
-                                  width: 32,
-                                  height: 32,
-                                  child: CircularProgressIndicator(
-                                    color: red,
-                                    strokeWidth: 3,
-                                  ),
-                                ),
-                                SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Processing preview…',
-                                        style: TextStyle(
-                                          color: red,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                      SizedBox(height: 5),
-                                      Text(
-                                        'Preparing typed text for editable cards',
-                                        style: TextStyle(
-                                          color: context.appColors.muted,
-                                          fontSize: 11,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )
-                        : Container(
-                            height: 86,
-                            padding: EdgeInsets.symmetric(horizontal: 12),
-                            decoration: _box(),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Semantics(
-                                    label: 'Recording waveform preview',
-                                    child: RepaintBoundary(
-                                      child: CustomPaint(
-                                        size: Size(double.infinity, 58),
-                                        painter: _WavePainter(
-                                          wave,
-                                          stage == RecordingStage.recording,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                SizedBox(width: 10),
-                                IconButton.filled(
-                                  tooltip: stage == RecordingStage.paused
-                                      ? 'Resume recording preview'
-                                      : 'Pause recording preview',
-                                  onPressed: toggle,
-                                  style: IconButton.styleFrom(
-                                    backgroundColor: red.withValues(alpha: .12),
-                                    foregroundColor: red,
-                                  ),
-                                  icon: Icon(
-                                    stage == RecordingStage.paused
-                                        ? Icons.play_arrow
-                                        : Icons.pause,
-                                  ),
-                                ),
-                                SizedBox(width: 8),
-                                IconButton.filled(
-                                  tooltip: 'Stop and process typed text',
-                                  onPressed: process,
-                                  style: IconButton.styleFrom(
-                                    backgroundColor: red,
-                                    foregroundColor: Colors.white,
-                                  ),
-                                  icon: Icon(Icons.stop_rounded),
-                                ),
-                              ],
-                            ),
-                          ),
-                  ),
-                  SizedBox(height: 12),
-                  if (!processing)
-                    Center(
-                      child: Text(
-                        '${stage == RecordingStage.paused
-                            ? 'Ⅱ Paused'
-                            : stage == RecordingStage.failed
-                            ? 'Try again'
-                            : '● Recording preview'} · ${_time(seconds)}',
-                        style: TextStyle(color: red, fontSize: 13),
-                      ),
-                    ),
-                  if (error != null)
-                    Padding(
-                      padding: EdgeInsets.only(top: 10),
-                      child: Text(
-                        error!,
-                        style: TextStyle(color: red, fontSize: 12),
-                      ),
-                    ),
-                  if (!processing)
-                    Padding(
-                      padding: EdgeInsets.only(top: 12),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: TextButton.icon(
-                          onPressed: process,
-                          icon: Icon(Icons.auto_awesome_outlined, size: 18),
-                          label: Text('Create cards from typed text'),
+                )
+              else if (stage == RecordingStage.recording ||
+                  stage == RecordingStage.paused) ...[
+                Container(
+                  height: 68,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: _box(),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: RecordingWaveform(
+                          active: stage == RecordingStage.recording,
+                          level: capture.level,
                         ),
                       ),
+                      IconButton.filled(
+                        tooltip: stage == RecordingStage.paused
+                            ? 'Resume recording'
+                            : 'Pause recording',
+                        onPressed: toggle,
+                        style: IconButton.styleFrom(
+                          backgroundColor: red.withValues(alpha: .12),
+                          foregroundColor: red,
+                        ),
+                        icon: Icon(
+                          stage == RecordingStage.paused
+                              ? Icons.play_arrow
+                              : Icons.pause,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      IconButton.filled(
+                        tooltip: 'Stop and process recording',
+                        onPressed: process,
+                        style: IconButton.styleFrom(
+                          backgroundColor: red,
+                          foregroundColor: Colors.white,
+                        ),
+                        icon: const Icon(Icons.stop_rounded),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 5),
+                ValueListenableBuilder<int>(
+                  valueListenable: seconds,
+                  builder: (context, value, _) => Text(
+                    '${stage == RecordingStage.paused ? 'Paused' : 'Recording'} · ${_time(value)}',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: red, fontSize: 12),
+                  ),
+                ),
+              ],
+              if (stage == RecordingStage.review) ...[
+                Text(
+                  'Expense summary (${summary.length})',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 7),
+                Expanded(
+                  child: RecordingSummaryList(
+                    expenses: summary,
+                    scroll: summaryScroll,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 46,
+                  child: FilledButton.icon(
+                    onPressed: createCards,
+                    icon: const Icon(Icons.check_rounded, size: 20),
+                    label: Text('Create Expense Cards (${summary.length})'),
+                  ),
+                ),
+              ] else ...[
+                if (error != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      error!,
+                      style: const TextStyle(fontSize: 12, color: red),
                     ),
-                ],
-              ),
-            ),
+                  ),
+                const SizedBox(height: 8),
+                if (stage == RecordingStage.failed)
+                  TextButton.icon(
+                    onPressed: startRecording,
+                    icon: const Icon(Icons.mic_rounded),
+                    label: const Text('Record again'),
+                  ),
+                Text(
+                  'Offline processing · Audio is never saved',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 10, color: colors.muted),
+                ),
+              ],
+            ],
           ),
         ),
       ),
@@ -364,41 +539,4 @@ class _RecordState extends State<RecordExpenseModal>
     border: Border.all(color: red.withValues(alpha: .22)),
     borderRadius: BorderRadius.circular(14),
   );
-}
-
-class _WavePainter extends CustomPainter {
-  final Animation<double> phase;
-  final bool active;
-  _WavePainter(this.phase, this.active) : super(repaint: phase);
-  @override
-  void paint(Canvas canvas, Size size) {
-    const count = 35;
-    for (var i = 0; i < count; i++) {
-      final envelope = math.sin(math.pi * i / (count - 1));
-      final h = active
-          ? 5 +
-                envelope *
-                    (9 +
-                        24 *
-                            (.5 +
-                                .5 *
-                                    math.sin(
-                                      i * 1.7 + phase.value * 2 * math.pi,
-                                    )))
-          : 5.0;
-      final x = (i + .5) * size.width / count;
-      canvas.drawLine(
-        Offset(x, (size.height - h) / 2),
-        Offset(x, (size.height + h) / 2),
-        Paint()
-          ..color = red.withValues(alpha: .35 + .65 * envelope)
-          ..strokeWidth = 2.5
-          ..strokeCap = StrokeCap.round,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _WavePainter old) =>
-      old.phase != phase || old.active != active;
 }

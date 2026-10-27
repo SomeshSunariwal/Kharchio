@@ -56,6 +56,7 @@ class _AddExpenseState extends ConsumerState<AddExpenseScreen> {
   final scroll = ScrollController();
   late List<ExpenseDraft> drafts;
   late DateTime date;
+  bool saving = false;
   bool get editing => widget.expense is Expense;
 
   @override
@@ -109,33 +110,46 @@ class _AddExpenseState extends ConsumerState<AddExpenseScreen> {
     });
   }
 
-  void save() {
+  Future<void> save() async {
     FocusManager.instance.primaryFocus?.unfocus();
     if (!form.currentState!.validate()) return;
+    if (saving) return;
+    setState(() => saving = true);
     final now = DateTime.now();
-    ref
-        .read(expensesProvider.notifier)
-        .save(
-          drafts
-              .map(
-                (d) => Expense(
-                  id: d.id,
-                  title: d.title.text.trim(),
-                  description: d.description.text.trim(),
-                  category: d.category,
-                  amount: double.parse(d.amount.text),
-                  date: DateTime(
-                    date.year,
-                    date.month,
-                    date.day,
-                    editing ? date.hour : now.hour,
-                    editing ? date.minute : now.minute,
+    try {
+      await ref
+          .read(expensesProvider.notifier)
+          .save(
+            drafts
+                .map(
+                  (d) => Expense(
+                    id: d.id,
+                    title: d.title.text.trim(),
+                    description: d.description.text.trim(),
+                    category: d.category,
+                    amount: double.parse(d.amount.text),
+                    currencyCode: editing
+                        ? (widget.expense as Expense).currencyCode
+                        : context.currency.code,
+                    date: DateTime(
+                      date.year,
+                      date.month,
+                      date.day,
+                      editing ? date.hour : now.hour,
+                      editing ? date.minute : now.minute,
+                    ),
                   ),
-                ),
-              )
-              .toList(),
-        );
-    context.pop();
+                )
+                .toList(),
+          );
+      if (mounted) context.pop();
+    } catch (_) {
+      if (mounted) {
+        notice(context, 'Could not save expenses. Please try again.');
+      }
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
   }
 
   Future<void> record() async {
@@ -164,7 +178,7 @@ class _AddExpenseState extends ConsumerState<AddExpenseScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text('Delete expense?'),
-        content: Text('This removes the expense from this preview session.'),
+        content: Text('This permanently removes the saved expense.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -178,10 +192,16 @@ class _AddExpenseState extends ConsumerState<AddExpenseScreen> {
       ),
     );
     if (confirmed == true && mounted) {
-      ref
-          .read(expensesProvider.notifier)
-          .delete((widget.expense as Expense).id);
-      context.pop();
+      try {
+        await ref
+            .read(expensesProvider.notifier)
+            .delete((widget.expense as Expense).id);
+        if (mounted) context.pop();
+      } catch (_) {
+        if (mounted) {
+          notice(context, 'Could not delete the expense. Please try again.');
+        }
+      }
     }
   }
 
@@ -191,18 +211,9 @@ class _AddExpenseState extends ConsumerState<AddExpenseScreen> {
       toolbarHeight: 52,
       leadingWidth: 40,
       titleSpacing: 0,
-      title: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            editing ? 'Edit Expense' : 'Add Expense',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-          ),
-          Text(
-            DateFormat('MMMM yyyy').format(date),
-            style: TextStyle(fontSize: 11, color: context.appColors.muted),
-          ),
-        ],
+      title: Text(
+        editing ? 'Edit Expense' : 'Add Expense',
+        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
       ),
       actions: [
         TextButton.icon(
@@ -213,7 +224,11 @@ class _AddExpenseState extends ConsumerState<AddExpenseScreen> {
           icon: Icon(Icons.calendar_today_outlined, size: 16),
           label: Text(
             DateFormat('dd MMM yy').format(date),
-            style: TextStyle(color: context.appColors.ink, fontSize: 11),
+            style: TextStyle(
+              color: context.appColors.ink,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ),
         if (editing)
@@ -282,7 +297,7 @@ class _AddExpenseState extends ConsumerState<AddExpenseScreen> {
                       SizedBox(height: 6),
                       _action(
                         editing
-                            ? 'Save Changes'
+                            ? (saving ? 'Saving…' : 'Save Changes')
                             : 'Add Expenses (${drafts.length})',
                         Icons.check_circle,
                         Colors.white,
@@ -310,7 +325,7 @@ class _AddExpenseState extends ConsumerState<AddExpenseScreen> {
     width: double.infinity,
     height: 46,
     child: FilledButton.icon(
-      onPressed: onTap,
+      onPressed: saving ? null : onTap,
       icon: Icon(icon, size: 20),
       label: Text(label, style: TextStyle(fontSize: 13)),
       style: FilledButton.styleFrom(

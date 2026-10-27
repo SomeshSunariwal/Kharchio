@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import 'native_settings.dart';
+import '../database/local_store.dart';
 
 enum AppCurrency {
   inr('INR', '₹', 'en_IN'),
@@ -43,25 +43,58 @@ enum AppCurrency {
       '$symbol ${_compactNumber(amount) ?? _number(amount, '')}';
 }
 
+enum ProcessingMode {
+  gpu(1),
+  cpu(0),
+  npu(2),
+  s23Ultra(3);
+
+  final int nativeValue;
+  const ProcessingMode(this.nativeValue);
+}
+
 class AppPreferences {
   final AppCurrency currency;
   final String speechLanguage;
+  final ProcessingMode speechProcessing, expenseProcessing;
   const AppPreferences({
     this.currency = AppCurrency.inr,
     this.speechLanguage = 'auto',
+    this.speechProcessing = ProcessingMode.npu,
+    this.expenseProcessing = ProcessingMode.npu,
   });
 
   factory AppPreferences.fromMap(Map<String, String> values) => AppPreferences(
     currency: values['currency'] == 'USD' ? AppCurrency.usd : AppCurrency.inr,
+    speechProcessing: ProcessingMode.values.firstWhere(
+      (mode) =>
+          mode.name == (values['speechProcessing'] ?? values['processing']),
+      orElse: () => ProcessingMode.npu,
+    ),
+    expenseProcessing: ProcessingMode.values.firstWhere(
+      (mode) =>
+          mode != ProcessingMode.s23Ultra &&
+          mode.name == (values['expenseProcessing'] ?? values['processing']),
+      orElse: () => ProcessingMode.npu,
+    ),
     speechLanguage:
-        const {
-          'auto',
-          'hi',
-          'en',
-          'hinglish',
-        }.contains(values['speechLanguage'])
+        const {'auto', 'en', 'hinglish'}.contains(values['speechLanguage'])
         ? values['speechLanguage']!
+        : values['speechLanguage'] == 'hi'
+        ? 'hinglish'
         : 'auto',
+  );
+
+  AppPreferences copyWith({
+    AppCurrency? currency,
+    String? speechLanguage,
+    ProcessingMode? speechProcessing,
+    ProcessingMode? expenseProcessing,
+  }) => AppPreferences(
+    currency: currency ?? this.currency,
+    speechLanguage: speechLanguage ?? this.speechLanguage,
+    speechProcessing: speechProcessing ?? this.speechProcessing,
+    expenseProcessing: expenseProcessing ?? this.expenseProcessing,
   );
 }
 
@@ -77,16 +110,31 @@ class PreferencesStore extends Notifier<AppPreferences> {
   AppPreferences build() => ref.read(initialPreferencesProvider);
 
   Future<void> setCurrency(AppCurrency currency) async {
-    await NativeSettings.writePreference('currency', currency.code);
-    state = AppPreferences(
-      currency: currency,
-      speechLanguage: state.speechLanguage,
-    );
+    await ref
+        .read(localStoreProvider)
+        .writeSetting('default_currency', currency.code);
+    state = state.copyWith(currency: currency);
   }
 
   Future<void> setSpeechLanguage(String language) async {
-    await NativeSettings.writePreference('speechLanguage', language);
-    state = AppPreferences(currency: state.currency, speechLanguage: language);
+    await ref
+        .read(localStoreProvider)
+        .writeSetting('speech_language', language);
+    state = state.copyWith(speechLanguage: language);
+  }
+
+  Future<void> setSpeechProcessing(ProcessingMode mode) async {
+    await ref
+        .read(localStoreProvider)
+        .writeSetting('speech_processing', mode.name);
+    state = state.copyWith(speechProcessing: mode);
+  }
+
+  Future<void> setExpenseProcessing(ProcessingMode mode) async {
+    await ref
+        .read(localStoreProvider)
+        .writeSetting('expense_processing', mode.name);
+    state = state.copyWith(expenseProcessing: mode);
   }
 }
 

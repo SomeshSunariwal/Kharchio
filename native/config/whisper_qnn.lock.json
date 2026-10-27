@@ -1,0 +1,16 @@
+{
+  "model": "qualcomm/Whisper-Small",
+  "release": "0.65.0",
+  "precision": "float",
+  "chipset": "qualcomm-qcs8550-proxy",
+  "target_chipset": "qualcomm-snapdragon-8gen2",
+  "soc": "SM8550",
+  "soc_model": 43,
+  "htp": "v73",
+  "qairt": "2.50.0.260828",
+  "qairt_build": "2.50.0.260828221209",
+  "sdk_url": "https://softwarecenter.qualcomm.com/api/download/software/sdks/Qualcomm_AI_Runtime_Community/All/2.50.0.260828/v2.50.0.260828.zip",
+  "sdk_sha256": "a346ea0e2c8631b46d57261a4969994cd9cc34124a8355bbc7b08b2c8bd859a5",
+  "model_url": "https://qaihub-public-assets.s3.us-west-2.amazonaws.com/qai-hub-models/models/whisper_small/releases/v0.65.0/whisper_small-qnn_context_binary-float-qualcomm_qcs8550_proxy.zip",
+  "model_sha256": "b48651f2232610e0a38436ca6bc438405f066f5eeadae872c44154cd6a84ecad"
+}

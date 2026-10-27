@@ -4,9 +4,11 @@
 
 Kharchio is a personal expense tracker for recording spending, exploring category breakdowns, and reviewing yearly, monthly, and daily expenses. Its compact interface supports light and dark themes and works without a login or backend.
 
-The current app uses temporary demo transactions and session-based expense storage. Settings and categories persist locally. The recording flow currently previews typed-text extraction; microphone recording, offline AI inference, and persistent expense storage are not yet connected.
+Expenses, categories, and preferences are stored locally in SQLite through Drift. The same demo transactions are seeded once on first setup and survive restarts. Bundled Whisper and Qwen models process speech offline. Audio stays in memory; transcripts and extraction summaries are temporary and are never saved to the database.
 
 ## Functionality
+
+Development references: [code map](docs/ai/CODE_MAP.md), [AI setup](docs/ai/SETUP.md), [responsiveness checks](docs/PERFORMANCE.md).
 
 ### Dashboard
 
@@ -36,7 +38,7 @@ The current app uses temporary demo transactions and session-based expense stora
 ### Preferences and Categories
 
 - Choose System (default), Dark, or Light appearance.
-- Select Automatic, Hindi, English, or Hinglish speech language.
+- Select Automatic, English, or Hinglish speech language.
 - Choose INR or USD display currency; existing amounts are not exchanged or converted.
 - Add categories with a name and a colored icon from the shared icon collection.
 - Remove categories and reassign their expenses to a remaining category; retain at least one category.
@@ -50,12 +52,24 @@ The current app uses temporary demo transactions and session-based expense stora
 - Calendar values show whole amounts through 99,999, then currency-specific lakh/crore or million notation.
 - Donut labels avoid fixed trailing decimals. The center separates the currency sign, amount, and Total label, abbreviating larger amounts.
 
-### Recording Preview
+### Offline Voice Expenses
 
-- Provides editable text, an animated waveform, pause/resume controls, timer, and processing/error states.
-- Converts typed items such as `Milk 120, Lunch 450` into editable expense cards through a basic parser.
-- Requires review and an explicit save before adding generated cards to the ledger.
+- Capture English or Hinglish speech with pause/resume controls and a 90-second limit using bundled multilingual Whisper Small.
+- Compare S23 Ultra's precompiled QNN model with the generic Qualcomm NPU option, which compiles portable DLCs locally and caches them. Both use OpenCL, then CPU fallback. GPU/CPU retain Q5_1 weights; Qwen is unchanged. See [AI setup](docs/ai/SETUP.md) and the [code map](docs/ai/CODE_MAP.md).
+- Update a disabled, read-only transcript box during recording using local Whisper inference.
+- Pausing stops microphone capture while Whisper finishes all buffered speech; resuming continues the same recording.
+- On Stop, finish transcription and use Qwen3-0.6B to produce a grammar-constrained JSON array. Each item contains title, description, numeric amount, and a category from the app's current category enum.
+- Validate model output and show a summary list of expenses for review.
+- Create editable Add Expense cards only when Create Expense Cards is pressed. Saving the cards writes the final expenses to SQLite.
+- Keep audio, transcript, and summary out of the database; clear temporary audio buffers after processing or cancellation.
+- Show actual offline model readiness in Profile.
 
+### Local Data
+
+- Store categories, expenses, and app settings in three SQLite tables.
+- Store amounts as integer minor currency units, such as paise or cents, with no recording/source column.
+- Preserve expense date separately from record creation/update timestamps.
+- Update related screens through Drift streams and retain the same mock data without re-seeding on restart.
 ### Navigation
 
 - Dashboard, Analysis, and Profile tabs use existing app icons and display the active tab's name beside its icon.

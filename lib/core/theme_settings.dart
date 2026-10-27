@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'native_settings.dart';
+import '../database/local_store.dart';
 
 final initialThemeModeProvider = Provider<ThemeMode>((ref) => ThemeMode.system);
 final themeModeProvider = NotifierProvider<ThemeModeStore, ThemeMode>(
@@ -19,7 +19,7 @@ class ThemeModeStore extends Notifier<ThemeMode> {
   ThemeMode build() => ref.read(initialThemeModeProvider);
 
   Future<void> select(ThemeMode mode) async {
-    await NativeSettings.writeThemeMode(mode.name);
+    await ref.read(localStoreProvider).writeSetting('theme_mode', mode.name);
     state = mode;
   }
 }

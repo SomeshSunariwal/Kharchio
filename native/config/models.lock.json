@@ -1,0 +1,16 @@
+{
+  "whisper": {
+    "filename": "ggml-small-q5_1.bin",
+    "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small-q5_1.bin",
+    "bytes": 190085487,
+    "sha256": "ae85e4a935d7a567bd102fe55afc16bb595bdb618e11b2fc7591bc08120411bb",
+    "license": "MIT"
+  },
+  "qwen": {
+    "filename": "Qwen3-0.6B-Q8_0.gguf",
+    "url": "https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q8_0.gguf",
+    "bytes": 639446688,
+    "sha256": "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031",
+    "license": "Apache-2.0"
+  }
+}

@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 import '../core/theme.dart';
 import '../core/preview_data.dart';
+import 'swipe_delete_expense.dart';
 
 class AppIcon extends StatelessWidget {
   final double size;
@@ -97,74 +98,85 @@ class ExpenseTile extends StatelessWidget {
     final textColor = context.appColors.dark
         ? Color.lerp(color, Colors.white, .32)!
         : color;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: EdgeInsets.symmetric(vertical: 8),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 60,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    DateFormat('dd MMM yy').format(expense.date),
-                    style: TextStyle(
-                      color: context.appColors.muted,
-                      fontSize: 10,
+    return SwipeDeleteExpense(
+      key: ValueKey(expense.id),
+      expense: expense,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 60,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      DateFormat('dd MMM yy').format(expense.date),
+                      style: TextStyle(
+                        color: context.appColors.muted,
+                        fontSize: 10,
+                      ),
                     ),
-                  ),
-                  SizedBox(height: 3),
-                  Text(
-                    DateFormat('hh:mm a').format(expense.date),
-                    style: TextStyle(
-                      color: context.appColors.muted,
-                      fontSize: 10,
+                    SizedBox(height: 3),
+                    Text(
+                      DateFormat('hh:mm a').format(expense.date),
+                      style: TextStyle(
+                        color: context.appColors.muted,
+                        fontSize: 10,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            CategoryIcon(expense.category, size: 30),
-            SizedBox(width: 9),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    expense.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
-                  ),
-                  SizedBox(height: 3),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: .1),
-                      borderRadius: BorderRadius.circular(5),
+              CategoryIcon(expense.category, size: 30),
+              SizedBox(width: 9),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      expense.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
                     ),
-                    child: Text(
-                      expense.category,
-                      style: TextStyle(color: textColor, fontSize: 10),
+                    SizedBox(height: 3),
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: .1),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                      child: Text(
+                        expense.category,
+                        style: TextStyle(color: textColor, fontSize: 10),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            SizedBox(width: 5),
-            Text(
-              context.money(expense.amount),
-              style: TextStyle(
-                color: textColor,
-                fontWeight: FontWeight.w700,
-                fontSize: 13,
+              SizedBox(width: 5),
+              Text(
+                context.money(expense.amount),
+                style: TextStyle(
+                  color: textColor,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                ),
               ),
-            ),
-            Icon(Icons.chevron_right, color: context.appColors.muted, size: 16),
-          ],
+              Icon(
+                Icons.chevron_right,
+                color: context.appColors.muted,
+                size: 16,
+              ),
+            ],
+          ),
         ),
       ),
     );

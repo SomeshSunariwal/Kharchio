@@ -13,10 +13,12 @@ public class MainActivity extends FlutterActivity {
     private static final String SETTINGS_CHANNEL = "com.expense.kharchio/settings";
     private static final String THEME_KEY = "appearance.themeMode";
     private MethodChannel settingsChannel;
+    private ModelAssetBridge modelAssets;
 
     @Override
     public void configureFlutterEngine(@NonNull FlutterEngine flutterEngine) {
         super.configureFlutterEngine(flutterEngine);
+        modelAssets = new ModelAssetBridge(getApplicationContext(), flutterEngine);
         SharedPreferences settings = ((KharchioApplication) getApplication()).getSettings();
         settingsChannel = new MethodChannel(
                 flutterEngine.getDartExecutor().getBinaryMessenger(), SETTINGS_CHANNEL);
@@ -74,6 +76,7 @@ public class MainActivity extends FlutterActivity {
 
     @Override
     public void cleanUpFlutterEngine(@NonNull FlutterEngine flutterEngine) {
+        if (modelAssets != null) { modelAssets.close(); modelAssets = null; }
         if (settingsChannel != null) {
             settingsChannel.setMethodCallHandler(null);
             settingsChannel = null;

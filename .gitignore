@@ -7,6 +7,7 @@
 .pub/
 build/
 .tmp/
+__pycache__/
 .idea/
 .DS_Store
 android/local.properties
@@ -15,3 +16,12 @@ android/local.properties
 .cxx/
 # Widget Preview related
 .widget_preview/
+native/vendor/
+native/prebuilt/
+android/app/src/main/jniLibs/*/libggml-htp-*.so
+assets/models/*.bin
+assets/models/*.gguf
+android/app/src/main/assets/whisper-qnn-sm8550/*.bin
+android/app/src/main/assets/whisper-qnn-generic/*.dlc
+android/app/src/main/jniLibs/*/libQnn*.so
+ios/Frameworks/

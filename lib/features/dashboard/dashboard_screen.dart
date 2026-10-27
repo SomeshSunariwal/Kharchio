@@ -2,6 +2,7 @@ import '../../shared/collapsing_expense_overview.dart';
 import '../../shared/category_donut.dart';
 import '../../core/preferences.dart';
 import '../../core/categories.dart';
+import '../../core/expense_summary_provider.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -55,38 +56,46 @@ class _DashboardState extends ConsumerState<DashboardScreen>
     final monthName = DateFormat('MMM').format(month);
     final dateRange =
         '1st $monthName – $lastDay${lastDay == 31 ? 'st' : 'th'} $monthName';
-    final all = ref.watch(expensesProvider);
+    final currencyCode = context.currency.code;
+    final currentSummary = ref.watch(
+      expenseSummaryProvider((
+        year: month.year,
+        month: month.month,
+        day: null,
+        currencyCode: currencyCode,
+      )),
+    );
     final categoryFilter = context.categoryNames.contains(selectedCategory)
         ? selectedCategory
         : null;
     final selectedIndex = categoryFilter == null
         ? null
         : context.categoryNames.indexOf(categoryFilter);
-    final expenses = all
-        .where((e) => e.date.year == month.year && e.date.month == month.month)
-        .toList();
-    final total = expenses.fold<double>(0, (v, e) => v + e.amount);
+    final expenses = currentSummary.expenses;
+    final total = currentSummary.total;
     final previous = DateTime(month.year, month.month - 1);
-    final previousTotal = all
-        .where(
-          (e) => e.date.year == previous.year && e.date.month == previous.month,
+    final previousTotal = ref
+        .watch(
+          expenseSummaryProvider((
+            year: previous.year,
+            month: previous.month,
+            day: null,
+            currencyCode: currencyCode,
+          )),
         )
-        .fold<double>(0, (v, e) => v + e.amount);
+        .total;
+    final normalizedQuery = query.toLowerCase();
     final visible = expenses
         .where(
           (e) =>
               (categoryFilter == null || e.category == categoryFilter) &&
               '${e.title} ${e.description} ${e.category}'
                   .toLowerCase()
-                  .contains(query.toLowerCase()),
+                  .contains(normalizedQuery),
         )
         .toList();
     final totals = context.categoryNames
-        .map(
-          (c) => expenses
-              .where((e) => e.category == c)
-              .fold<double>(0, (v, e) => v + e.amount),
-        )
+        .map(currentSummary.categoryTotal)
         .toList();
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -184,22 +193,6 @@ class _DashboardState extends ConsumerState<DashboardScreen>
                       icon: const Icon(Icons.close_rounded, size: 17),
                     ),
                   ),
-                TextButton(
-                  onPressed: () => context.go('/analysis'),
-                  style: TextButton.styleFrom(
-                    minimumSize: const Size(0, 30),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  child: Text(
-                    'View All ›',
-                    style: TextStyle(color: context.appColors.actionBlue),
-                  ),
-                ),
               ],
             ),
             SizedBox(height: 4),

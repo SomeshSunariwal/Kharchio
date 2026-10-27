@@ -1,0 +1,4 @@
+# Shell scripts must retain Unix line endings for Docker and macOS builds.
+*.sh text eol=lf
+android/gradlew text eol=lf
+*.bat text eol=crlf

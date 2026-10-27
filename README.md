@@ -8,7 +8,7 @@ Expenses, categories, and preferences are stored locally in SQLite through Drift
 
 ## Functionality
 
-Development references: [code map](docs/ai/CODE_MAP.md), [AI setup](docs/ai/SETUP.md), [responsiveness checks](docs/PERFORMANCE.md).
+Development reference: [build from a fresh clone, including AI](BUILD.md).
 
 ### Dashboard
 
@@ -55,7 +55,7 @@ Development references: [code map](docs/ai/CODE_MAP.md), [AI setup](docs/ai/SETU
 ### Offline Voice Expenses
 
 - Capture English or Hinglish speech with pause/resume controls and a 90-second limit using bundled multilingual Whisper Small.
-- Compare S23 Ultra's precompiled QNN model with the generic Qualcomm NPU option, which compiles portable DLCs locally and caches them. Both use OpenCL, then CPU fallback. GPU/CPU retain Q5_1 weights; Qwen is unchanged. See [AI setup](docs/ai/SETUP.md) and the [code map](docs/ai/CODE_MAP.md).
+- Compare S23 Ultra's precompiled QNN model with the generic Qualcomm NPU option, which compiles portable DLCs locally and caches them. Both use OpenCL, then CPU fallback. GPU/CPU retain Q5_1 weights; Qwen is unchanged. See [AI build setup](BUILD.md).
 - Update a disabled, read-only transcript box during recording using local Whisper inference.
 - Pausing stops microphone capture while Whisper finishes all buffered speech; resuming continues the same recording.
 - On Stop, finish transcription and use Qwen3-0.6B to produce a grammar-constrained JSON array. Each item contains title, description, numeric amount, and a category from the app's current category enum.

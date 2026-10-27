@@ -143,6 +143,8 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
                   AnalysisPeriod.month => 'Your Days at a glance',
                   AnalysisPeriod.day => 'Expenses',
                 },
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w700,
@@ -176,19 +178,28 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
       summaryHeight: scale.scale(11) * 1.5 + 2 + scale.scale(24) * 1.5,
       footer: resultsHeading,
       footerHeight: 56 + (scale.scale(17) - 17).clamp(0, 40),
-      expanded: CategoryDonut(
-        totals: totals,
-        selectedIndex: selectedIndex,
-        onCategorySelected: selectCategory,
-      ),
-      expandedHeight: CategoryDonut.heightFor(
-        (MediaQuery.sizeOf(context).width.clamp(0.0, 700.0) - 54).clamp(
-          0.0,
-          double.infinity,
-        ),
-        totals,
-        scale,
-      ),
+      expanded: total > 0
+          ? CategoryDonut(
+              totals: totals,
+              selectedIndex: selectedIndex,
+              onCategorySelected: selectCategory,
+            )
+          : Center(
+              child: Text(
+                'No expenses in this period',
+                style: TextStyle(color: context.appColors.muted, fontSize: 12),
+              ),
+            ),
+      expandedHeight: total <= 0
+          ? 120
+          : CategoryDonut.heightFor(
+              (MediaQuery.sizeOf(context).width.clamp(0.0, 700.0) - 54).clamp(
+                0.0,
+                double.infinity,
+              ),
+              totals,
+              scale,
+            ),
       totals: totals,
       colors: context.categoryColors,
       names: context.categoryNames,
@@ -236,36 +247,18 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
           children: [
             NestedScrollView(
               headerSliverBuilder: (nestedContext, innerBoxIsScrolled) => [
-                if (total > 0)
-                  SliverOverlapAbsorber(
-                    handle: NestedScrollView.sliverOverlapAbsorberHandleFor(
-                      nestedContext,
-                    ),
-                    sliver: SliverPersistentHeader(
-                      pinned: true,
-                      delegate: chartHeader,
-                    ),
-                  )
-                else
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      child: Column(
-                        children: [
-                          CategoryPieChart(expenses: selected),
-                          resultsHeading,
-                        ],
-                      ),
-                    ),
+                SliverOverlapAbsorber(
+                  handle: NestedScrollView.sliverOverlapAbsorberHandleFor(
+                    nestedContext,
                   ),
+                  sliver: SliverPersistentHeader(
+                    pinned: true,
+                    delegate: chartHeader,
+                  ),
+                ),
               ],
               body: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  14,
-                  total > 0 ? chartHeader.minExtent : 0,
-                  14,
-                  0,
-                ),
+                padding: EdgeInsets.fromLTRB(14, chartHeader.minExtent, 14, 0),
                 child: ClipRect(
                   child: AnimatedSwitcher(
                     duration: MediaQuery.disableAnimationsOf(context)

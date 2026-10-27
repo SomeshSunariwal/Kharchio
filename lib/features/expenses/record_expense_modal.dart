@@ -13,6 +13,7 @@ import '../../services/audio/live_transcription_queue.dart';
 import '../../core/theme.dart';
 import '../../core/preferences.dart';
 import '../../core/categories.dart';
+import '../../shared/app_notification.dart';
 import 'add_expense_screen.dart';
 import 'widgets/recording_waveform.dart';
 import 'widgets/recording_transcript.dart';
@@ -81,7 +82,14 @@ class _RecordState extends ConsumerState<RecordExpenseModal>
       speechModelReady = false;
     });
     try {
-      final models = await ref.read(offlineModelsProvider.future);
+      final models = await ref
+          .read(offlineModelsProvider.notifier)
+          .requireAvailable(
+            speechMode: ref
+                .read(preferencesProvider)
+                .speechProcessing
+                .nativeValue,
+          );
       if (!mounted) return;
       await NativeAiJob.setProcessing(
         mode: ref.read(preferencesProvider).speechProcessing.nativeValue,
@@ -110,7 +118,7 @@ class _RecordState extends ConsumerState<RecordExpenseModal>
       if (mounted) {
         setState(() {
           stage = RecordingStage.failed;
-          error = e.toString();
+          error = _errorMessage(e);
         });
       }
     }
@@ -136,7 +144,7 @@ class _RecordState extends ConsumerState<RecordExpenseModal>
         if (mounted) {
           setState(() {
             stage = RecordingStage.failed;
-            error = e.toString();
+            error = _errorMessage(e);
           });
         }
       }
@@ -202,7 +210,7 @@ class _RecordState extends ConsumerState<RecordExpenseModal>
         unawaited(liveTranscriptions.request(flush: true));
       }
     } catch (e) {
-      if (mounted) setState(() => error = e.toString());
+      if (mounted) setState(() => error = _errorMessage(e));
     } finally {
       changingControls = false;
     }
@@ -237,7 +245,7 @@ class _RecordState extends ConsumerState<RecordExpenseModal>
       }
     } catch (e) {
       if (mounted && stage == RecordingStage.paused) {
-        setState(() => error = e.toString());
+        setState(() => error = _errorMessage(e));
       }
       // Stop performs a final transcription and exposes actionable errors.
     } finally {
@@ -280,11 +288,15 @@ class _RecordState extends ConsumerState<RecordExpenseModal>
       final models = await ref.read(offlineModelsProvider.future);
       final audio = await capture.stop();
       await whisperWarmWork;
-      if (warmFailure != null) throw StateError(warmFailure.toString());
+      if (warmFailure != null) throw StateError(_errorMessage(warmFailure!));
       // Do not finish an obsolete preview before starting the final decode.
       liveTranscriptions.cancelPending();
       liveJob?.cancel();
       await liveWork;
+      if (!mounted) return;
+      await ref
+          .read(offlineModelsProvider.notifier)
+          .requireAvailable(expense: true);
       if (!mounted) return;
       final transcriptionTime = Stopwatch()..start();
       final language = ref.read(preferencesProvider).speechLanguage;
@@ -338,7 +350,7 @@ class _RecordState extends ConsumerState<RecordExpenseModal>
       if (mounted) {
         setState(() {
           stage = RecordingStage.failed;
-          error = e.toString();
+          error = _errorMessage(e);
         });
       }
     } finally {
@@ -507,18 +519,20 @@ class _RecordState extends ConsumerState<RecordExpenseModal>
                 if (error != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      error!,
-                      style: const TextStyle(fontSize: 12, color: red),
-                    ),
+                    child: AppNotificationCard(message: error!, isError: true),
                   ),
                 const SizedBox(height: 8),
                 if (stage == RecordingStage.failed)
-                  TextButton.icon(
-                    onPressed: startRecording,
-                    icon: const Icon(Icons.mic_rounded),
-                    label: const Text('Record again'),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 46,
+                    child: FilledButton.icon(
+                      onPressed: startRecording,
+                      icon: const Icon(Icons.mic_rounded),
+                      label: const Text('Record again'),
+                    ),
                   ),
+                const SizedBox(height: 10),
                 Text(
                   'Offline processing · Audio is never saved',
                   textAlign: TextAlign.center,
@@ -531,6 +545,12 @@ class _RecordState extends ConsumerState<RecordExpenseModal>
       ),
     );
   }
+
+  String _errorMessage(Object error) => error is StateError
+      ? error.message
+      : error is FormatException
+      ? error.message
+      : error.toString();
 
   String _time(int value) =>
       '${(value ~/ 60).toString().padLeft(2, '0')}:${(value % 60).toString().padLeft(2, '0')}';

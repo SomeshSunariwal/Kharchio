@@ -323,7 +323,7 @@ namespace whisper_qnn
             AudioMetadata audio;
             Runtime runtime;
             Graph encoder{runtime}, decoder{runtime};
-            Session(const char *ggml, int32_t *cancel, bool generic) : path(ggml), portable(generic), audio(ggml)
+            Session(const char *ggml, int32_t *cancel, bool generic) : path(ggml), portable(generic), audio(audio_metadata_path(ggml).c_str())
             {
                 const auto root = path.substr(0, path.find_last_of("/\\") + 1);
                 if (portable) {

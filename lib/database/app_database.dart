@@ -50,6 +50,7 @@ class AppSettings extends Table {
 @DriftDatabase(tables: [Categories, Expenses, AppSettings])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(driftDatabase(name: 'kharchio'));
+  AppDatabase.forTesting(super.executor);
   @override
   int get schemaVersion => 1;
   @override

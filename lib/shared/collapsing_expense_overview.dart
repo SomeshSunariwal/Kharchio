@@ -34,12 +34,18 @@ class CollapsingExpenseOverview extends SliverPersistentHeaderDelegate {
   static const _chartGap = 7.0;
   static const _borderSpace = 2.0;
   static const _barHeight = 28.0;
+  bool get _hasChart => totals.any((amount) => amount > 0);
   double get _fixedHeight =>
-      summaryHeight + _padding * 2 + _chartGap + _borderSpace + footerHeight;
+      summaryHeight +
+      _padding * 2 +
+      (_hasChart ? _chartGap : 0) +
+      _borderSpace +
+      footerHeight;
   @override
-  double get minExtent => _fixedHeight + _barHeight;
+  double get minExtent => _fixedHeight + (_hasChart ? _barHeight : 0);
   @override
-  double get maxExtent => _fixedHeight + math.max(_barHeight, expandedHeight);
+  double get maxExtent =>
+      _fixedHeight + (_hasChart ? math.max(_barHeight, expandedHeight) : 0);
 
   @override
   Widget build(
@@ -84,43 +90,47 @@ class CollapsingExpenseOverview extends SliverPersistentHeaderDelegate {
                         height: summaryHeight,
                         child: RepaintBoundary(child: summary),
                       ),
-                      Positioned(
-                        top: summaryHeight + _padding + _chartGap,
-                        left: _padding,
-                        right: _padding,
-                        bottom: _padding,
-                        child: ClipRect(
-                          child: Stack(
-                            children: [
-                              if (fade < 1)
-                                Positioned(
-                                  top: 0,
-                                  left: 0,
-                                  right: 0,
-                                  height: expandedHeight,
-                                  child: chartLayer(expanded, isCompact: false),
-                                ),
-                              if (fade > 0)
-                                Positioned(
-                                  left: 0,
-                                  right: 0,
-                                  bottom: 0,
-                                  height: _barHeight,
-                                  child: chartLayer(
-                                    CategoryPercentageBar(
-                                      totals: totals,
-                                      colors: colors,
-                                      names: names,
-                                      selectedIndex: selectedIndex,
-                                      onCategorySelected: onCategorySelected,
+                      if (_hasChart)
+                        Positioned(
+                          top: summaryHeight + _padding + _chartGap,
+                          left: _padding,
+                          right: _padding,
+                          bottom: _padding,
+                          child: ClipRect(
+                            child: Stack(
+                              children: [
+                                if (fade < 1)
+                                  Positioned(
+                                    top: 0,
+                                    left: 0,
+                                    right: 0,
+                                    height: expandedHeight,
+                                    child: chartLayer(
+                                      expanded,
+                                      isCompact: false,
                                     ),
-                                    isCompact: true,
                                   ),
-                                ),
-                            ],
+                                if (fade > 0)
+                                  Positioned(
+                                    left: 0,
+                                    right: 0,
+                                    bottom: 0,
+                                    height: _barHeight,
+                                    child: chartLayer(
+                                      CategoryPercentageBar(
+                                        totals: totals,
+                                        colors: colors,
+                                        names: names,
+                                        selectedIndex: selectedIndex,
+                                        onCategorySelected: onCategorySelected,
+                                      ),
+                                      isCompact: true,
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
                     ],
                   ),
                 ),

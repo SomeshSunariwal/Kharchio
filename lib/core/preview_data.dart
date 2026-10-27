@@ -24,6 +24,11 @@ class ExpenseStore extends Notifier<List<Expense>> {
       ref.read(localStoreProvider).saveExpenses(values);
   Future<void> delete(String id) =>
       ref.read(localStoreProvider).deleteExpense(id);
+
+  Future<void> reset() async {
+    await ref.read(localStoreProvider).clearExpenses();
+    state = [];
+  }
 }
 
 final selectedMonthProvider = NotifierProvider<MonthStore, DateTime>(

@@ -16,6 +16,8 @@ class AppDropdown<T> extends StatefulWidget {
   final List<AppDropdownOption<T>> options;
   final ValueChanged<T> onChanged;
   final bool compact;
+  final bool enabled;
+  final bool fitMenuToContent;
   final IconData? leadingIcon;
   const AppDropdown({
     super.key,
@@ -24,6 +26,8 @@ class AppDropdown<T> extends StatefulWidget {
     required this.options,
     required this.onChanged,
     this.compact = false,
+    this.enabled = true,
+    this.fitMenuToContent = false,
     this.leadingIcon,
   });
 
@@ -50,11 +54,29 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
         1.0,
         300.0,
       );
-      final menuWidth = constraints.maxWidth.clamp(
+      var menuWidth = constraints.maxWidth.clamp(
         maxMenuWidth < 180 ? maxMenuWidth : 180.0,
         maxMenuWidth,
       );
+      if (widget.fitMenuToContent) {
+        var width = 0.0;
+        for (final option in widget.options) {
+          final text = TextPainter(
+            text: TextSpan(
+              text: option.label,
+              style: const TextStyle(fontSize: 13),
+            ),
+            textDirection: Directionality.of(context),
+            textScaler: MediaQuery.textScalerOf(context),
+          )..layout();
+          final optionWidth = text.width + 62 + (option.icon == null ? 0 : 26);
+          text.dispose();
+          if (optionWidth > width) width = optionWidth;
+        }
+        menuWidth = width.ceilToDouble().clamp(64.0, maxMenuWidth);
+      }
       return PopupMenuButton<T>(
+        enabled: widget.enabled,
         tooltip: widget.label,
         position: PopupMenuPosition.under,
         offset: const Offset(0, 4),
@@ -94,6 +116,7 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
           ),
         ],
         child: Semantics(
+          enabled: widget.enabled,
           label: widget.label,
           value: selection?.label,
           button: true,

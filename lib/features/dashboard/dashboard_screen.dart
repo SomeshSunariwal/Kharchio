@@ -198,35 +198,6 @@ class _DashboardState extends ConsumerState<DashboardScreen>
             SizedBox(height: 4),
           ],
         );
-        final overview = SurfaceCard(
-          color: context.appColors.dark
-              ? context.appColors.surface
-              : context.appColors.tint,
-          padding: EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              summary,
-              SizedBox(height: 7),
-              if (total > 0)
-                CategoryDonut(
-                  totals: totals,
-                  selectedIndex: selectedIndex,
-                  onCategorySelected: selectCategory,
-                )
-              else
-                SizedBox(
-                  height: 120,
-                  child: Center(
-                    child: Text(
-                      'No spending yet. Add your first expense.',
-                      style: TextStyle(color: context.appColors.muted),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        );
         final chartHeight = CategoryDonut.heightFor(
           (constraints.maxWidth - 54).clamp(0.0, double.infinity),
           totals,
@@ -235,7 +206,6 @@ class _DashboardState extends ConsumerState<DashboardScreen>
         final scale = MediaQuery.textScalerOf(context);
         final summaryHeight =
             scale.scale(12) * 1.5 + 2 + scale.scale(26) + scale.scale(13) + 4;
-        final collapsible = expenses.length > 6 && total > 0;
         final chartHeader = CollapsingExpenseOverview(
           summary: summary,
           footer: recentHeading,
@@ -243,14 +213,21 @@ class _DashboardState extends ConsumerState<DashboardScreen>
               42 +
               (MediaQuery.textScalerOf(context).scale(17) - 17).clamp(0, 40),
           summaryHeight: summaryHeight,
-          expanded: CategoryDonut(
-            totals: totals,
-            selectedIndex: selectedIndex,
-            onCategorySelected: selectCategory,
-          ),
+          expanded: total > 0
+              ? CategoryDonut(
+                  totals: totals,
+                  selectedIndex: selectedIndex,
+                  onCategorySelected: selectCategory,
+                )
+              : Center(
+                  child: Text(
+                    'No spending yet. Add your first expense.',
+                    style: TextStyle(color: context.appColors.muted),
+                  ),
+                ),
           selectedIndex: selectedIndex,
           onCategorySelected: selectCategory,
-          expandedHeight: chartHeight,
+          expandedHeight: total > 0 ? chartHeight : 120,
           totals: totals,
           colors: context.categoryColors,
           names: context.categoryNames,
@@ -343,34 +320,21 @@ class _DashboardState extends ConsumerState<DashboardScreen>
             headerPadding: const EdgeInsets.fromLTRB(14, 6, 14, 0),
             child: NestedScrollView(
               headerSliverBuilder: (nestedContext, innerBoxIsScrolled) => [
-                if (collapsible)
-                  SliverOverlapAbsorber(
-                    handle: NestedScrollView.sliverOverlapAbsorberHandleFor(
-                      nestedContext,
-                    ),
-                    sliver: SliverPersistentHeader(
-                      pinned: true,
-                      delegate: chartHeader,
-                    ),
-                  )
-                else
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      child: Column(children: [overview, recentHeading]),
-                    ),
+                SliverOverlapAbsorber(
+                  handle: NestedScrollView.sliverOverlapAbsorberHandleFor(
+                    nestedContext,
                   ),
+                  sliver: SliverPersistentHeader(
+                    pinned: true,
+                    delegate: chartHeader,
+                  ),
+                ),
               ],
               // Absorb the pinned header's obstruction, then reserve that space
               // OUTSIDE the inner list. Its rounded card can never scroll beneath
               // the header. NestedScrollView consumes header travel before rows.
               body: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  14,
-                  collapsible ? chartHeader.minExtent : 0,
-                  14,
-                  0,
-                ),
+                padding: EdgeInsets.fromLTRB(14, chartHeader.minExtent, 14, 0),
                 child: ConnectedListCard(
                   child: visible.isEmpty
                       ? const Center(child: Text('No transactions found'))

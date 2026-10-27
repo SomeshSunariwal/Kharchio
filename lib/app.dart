@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import 'shared/app_notification.dart';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -76,7 +79,10 @@ class KharchioApp extends ConsumerWidget {
         categories: ref.watch(categoriesProvider),
         child: CurrencyScope(
           currency: ref.watch(preferencesProvider.select((p) => p.currency)),
-          child: child ?? const SizedBox.shrink(),
+          child: TooltipVisibility(
+            visible: false,
+            child: child ?? const SizedBox.shrink(),
+          ),
         ),
       ),
     ),
@@ -89,10 +95,12 @@ class MainShell extends StatelessWidget {
   const MainShell({super.key, required this.navigationShell});
   @override
   Widget build(BuildContext context) => Scaffold(
-    body: Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 700),
-        child: navigationShell,
+    body: AppNotificationHost(
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 700),
+          child: navigationShell,
+        ),
       ),
     ),
     bottomNavigationBar: ActiveTextNavigation(

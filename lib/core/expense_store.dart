@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../database/local_store.dart';
 import 'expense.dart';
+
 export 'expense.dart';
 
 final expensesProvider = NotifierProvider<ExpenseStore, List<Expense>>(

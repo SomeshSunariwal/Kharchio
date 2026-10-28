@@ -1,17 +1,17 @@
-import '../../core/preferences.dart';
-import '../../core/categories.dart';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/categories.dart';
+import '../../core/expense_store.dart';
+import '../../core/preferences.dart';
 import '../../core/theme.dart';
-import '../../core/preview_data.dart';
-import '../../shared/widgets.dart';
 import '../../shared/app_dropdown.dart';
+import '../../shared/destructive_confirmation.dart';
 import '../../shared/expense_date_picker.dart';
+import '../../shared/widgets.dart';
 import 'record_expense_modal.dart';
 
 class ExpenseDraft {
@@ -101,7 +101,12 @@ class _AddExpenseState extends ConsumerState<AddExpenseScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (scroll.hasClients) {
         scroll.animateTo(
-          scroll.position.maxScrollExtent,
+          // Reveal the new card above the actions without consuming the extra
+          // scroll space reserved for opening its dropdown.
+          (scroll.position.maxScrollExtent -
+                  scroll.position.viewportDimension / 2 +
+                  8)
+              .clamp(0.0, scroll.position.maxScrollExtent),
           duration: MediaQuery.disableAnimationsOf(context)
               ? Duration.zero
               : Duration(milliseconds: 250),
@@ -177,27 +182,10 @@ class _AddExpenseState extends ConsumerState<AddExpenseScreen> {
 
   Future<void> deleteExpense() async {
     if (saving) return;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Delete expense?'),
-        content: Text('This permanently removes the saved expense.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(
-              backgroundColor: red,
-              foregroundColor: Colors.white,
-              textStyle: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-            child: Text('Delete'),
-          ),
-        ],
-      ),
+    final confirmed = await confirmDestructiveAction(
+      context,
+      title: 'Delete expense?',
+      message: 'This permanently removes the saved expense.',
     );
     if (confirmed == true && mounted) {
       setState(() => saving = true);
@@ -254,20 +242,29 @@ class _AddExpenseState extends ConsumerState<AddExpenseScreen> {
             child: Column(
               children: [
                 Expanded(
-                  child: SingleChildScrollView(
-                    controller: scroll,
-                    keyboardDismissBehavior:
-                        ScrollViewKeyboardDismissBehavior.onDrag,
-                    padding: EdgeInsets.fromLTRB(14, 8, 14, 8),
-                    // Keep every field mounted so Save validates offscreen cards too.
-                    child: Column(
-                      children: [
-                        for (var i = 0; i < drafts.length; i++)
-                          Padding(
-                            padding: EdgeInsets.only(bottom: 8),
-                            child: _card(drafts[i], i),
-                          ),
-                      ],
+                  child: LayoutBuilder(
+                    builder: (context, constraints) => SingleChildScrollView(
+                      controller: scroll,
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
+                      // The last card can move into the middle of the viewport,
+                      // leaving space below its category dropdown.
+                      padding: EdgeInsets.fromLTRB(
+                        14,
+                        8,
+                        14,
+                        constraints.maxHeight / 2,
+                      ),
+                      // Keep every field mounted so Save validates offscreen cards too.
+                      child: Column(
+                        children: [
+                          for (var i = 0; i < drafts.length; i++)
+                            Padding(
+                              padding: EdgeInsets.only(bottom: 8),
+                              child: _card(drafts[i], i),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -432,6 +429,7 @@ class _AddExpenseState extends ConsumerState<AddExpenseScreen> {
               child: AppDropdown<String>(
                 value: d.category,
                 label: 'Category',
+                scrollIntoViewOnOpen: true,
                 options: [
                   for (var i = 0; i < context.categoryNames.length; i++)
                     AppDropdownOption(

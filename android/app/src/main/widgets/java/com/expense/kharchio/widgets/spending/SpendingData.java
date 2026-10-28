@@ -53,7 +53,9 @@ final class SpendingData {
                 + "FROM expenses e JOIN categories c ON c.id = e.category_id "
                 + "JOIN monthly_budgets m ON m.id = e.month_id "
                 + "WHERE m.year = ? AND m.month = ? AND e.currency_code = ? "
-                + "GROUP BY c.id, c.name, c.color_value HAVING spent > 0 ORDER BY spent DESC, c.name";
+                + "GROUP BY c.id, c.name, c.color_value HAVING spent > 0 "
+                + "ORDER BY CASE WHEN LOWER(TRIM(c.name)) IN ('other', 'others') THEN 1 ELSE 0 END, "
+                + "TRIM(c.name) COLLATE NOCASE";
             String[] args = { Integer.toString(month.get(Calendar.YEAR)), Integer.toString(month.get(Calendar.MONTH) + 1), currency };
             try (Cursor rows = db.rawQuery(sql, args)) {
                 while (rows.moveToNext()) {
@@ -75,6 +77,6 @@ final class SpendingData {
         return format.format(BigDecimal.valueOf(total, 2));
     }
     String amount(long minor) {
-        return ("USD".equals(currency) ? "$ " : "₹ ") + amounts.format(BigDecimal.valueOf(minor, 2));
+        return (symbol() + " ") + amounts.format(BigDecimal.valueOf(minor, 2));
     }
 }

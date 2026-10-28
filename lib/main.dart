@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
-import 'core/theme_settings.dart';
 import 'core/native_settings.dart';
 import 'core/preferences.dart';
-import 'core/categories.dart';
+import 'core/theme_settings.dart';
 import 'database/app_database.dart';
 import 'database/local_store.dart';
 
@@ -65,7 +64,6 @@ Future<void> main() async {
               'expenseProcessing': mode,
           }),
         ),
-        initialCategoriesProvider.overrideWithValue(store.initialCategories),
       ],
       child: const KharchioApp(),
     ),

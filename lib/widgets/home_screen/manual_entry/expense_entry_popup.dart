@@ -11,8 +11,8 @@ import '../../../shared/app_dropdown.dart';
 import '../../../shared/app_notification.dart';
 import '../../../shared/widgets.dart';
 import '../quick_expense_batch.dart';
-import '../widget_action_host.dart';
 import '../spending_widget_updates.dart';
+import '../widget_action_host.dart';
 
 /// Runs in a translucent Android task, with the launcher visible behind it.
 class ExpenseEntryPopup extends ConsumerStatefulWidget {
@@ -54,12 +54,14 @@ class _ExpenseEntryPopupState extends ConsumerState<ExpenseEntryPopup> {
     }
   }
 
+  ExpenseCategory _selectedCategory(List<ExpenseCategory> categories) =>
+      categories.where((c) => c.name == category).firstOrNull ??
+      categories.first;
+
   Future<void> _save() async {
     if (saving || !form.currentState!.validate()) return;
     final categories = ref.read(categoriesProvider);
-    final selected =
-        categories.where((c) => c.name == category).firstOrNull ??
-        categories.first;
+    final selected = _selectedCategory(categories);
     final currency = ref.read(preferencesProvider).currency;
     setState(() {
       saving = true;
@@ -99,9 +101,7 @@ class _ExpenseEntryPopupState extends ConsumerState<ExpenseEntryPopup> {
   Widget build(BuildContext context) {
     final categories = ref.watch(categoriesProvider);
     final currency = ref.watch(preferencesProvider).currency;
-    final selected =
-        categories.where((c) => c.name == category).firstOrNull ??
-        categories.first;
+    final selected = _selectedCategory(categories);
     return PopScope(
       canPop: !saving,
       child: Scaffold(

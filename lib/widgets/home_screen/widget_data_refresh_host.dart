@@ -4,8 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/preview_data.dart';
 import '../../core/categories.dart';
+import '../../core/expense_store.dart';
 import '../../core/preferences.dart';
 import 'spending_widget_updates.dart';
 

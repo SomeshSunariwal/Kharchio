@@ -19,6 +19,7 @@ class AppDropdown<T> extends StatefulWidget {
   final ValueChanged<T> onChanged;
   final bool compact;
   final bool enabled;
+  final bool scrollIntoViewOnOpen;
   final IconData? leadingIcon;
   const AppDropdown({
     super.key,
@@ -28,6 +29,7 @@ class AppDropdown<T> extends StatefulWidget {
     required this.onChanged,
     this.compact = false,
     this.enabled = true,
+    this.scrollIntoViewOnOpen = false,
     this.leadingIcon,
   });
 
@@ -59,9 +61,21 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
         onTap: !widget.enabled
             ? null
             : () async {
+                if (open) return;
+                setOpen(true);
+                if (widget.scrollIntoViewOnOpen) {
+                  await Scrollable.ensureVisible(
+                    context,
+                    alignment: .25,
+                    duration: reducedMotion
+                        ? Duration.zero
+                        : const Duration(milliseconds: 200),
+                    curve: Curves.easeOutCubic,
+                  );
+                  if (!context.mounted) return;
+                }
                 final box = context.findRenderObject()! as RenderBox;
                 final anchor = box.localToGlobal(Offset.zero) & box.size;
-                setOpen(true);
                 final value = await Navigator.of(context).push<T>(
                   _DropdownRoute<T>(
                     anchor: anchor,

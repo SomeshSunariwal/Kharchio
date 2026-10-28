@@ -50,24 +50,28 @@ class ExpenseCategory {
   });
   Color get color => Color(colorValue);
   IconData get icon => categoryIconOptions[iconKey] ?? Icons.more_horiz;
-  Map<String, Object> toJson() => {
-    'name': name,
-    'color': colorValue,
-    'icon': iconKey,
-  };
+}
+
+/// Category ordering shared by every database-backed selection and chart.
+int compareExpenseCategories(ExpenseCategory a, ExpenseCategory b) {
+  final left = a.name.trim().toLowerCase();
+  final right = b.name.trim().toLowerCase();
+  bool isOther(String name) => name == 'other' || name == 'others';
+  if (isOther(left) != isOther(right)) return isOther(left) ? 1 : -1;
+  return left.compareTo(right);
 }
 
 const defaultCategories = [
-  ExpenseCategory('Groceries', 0xFF00AE87, 'groceries'),
-  ExpenseCategory('Food & Dining', 0xFF365CFF, 'food'),
-  ExpenseCategory('Transport', 0xFFFFAB00, 'transport'),
-  ExpenseCategory('Shopping', 0xFFFF3891, 'shopping'),
-  ExpenseCategory('Utilities', 0xFF8D51FF, 'utilities'),
-  ExpenseCategory('Others', 0xFF9BA7B7, 'others'),
-  ExpenseCategory('Health', 0xFF009DC4, 'health'),
   ExpenseCategory('Education', 0xFFDB6D38, 'education'),
   ExpenseCategory('Entertainment', 0xFF9A60B4, 'entertainment'),
+  ExpenseCategory('Food & Dining', 0xFF365CFF, 'food'),
+  ExpenseCategory('Groceries', 0xFF00AE87, 'groceries'),
+  ExpenseCategory('Health', 0xFF009DC4, 'health'),
+  ExpenseCategory('Shopping', 0xFFFF3891, 'shopping'),
   ExpenseCategory('Technology', 0xFF587BFF, 'technology'),
+  ExpenseCategory('Transport', 0xFFFFAB00, 'transport'),
+  ExpenseCategory('Utilities', 0xFF8D51FF, 'utilities'),
+  ExpenseCategory('Others', 0xFF9BA7B7, 'others'),
 ];
 
 List<ExpenseCategory> categoriesFromJson(String? text) {
@@ -100,12 +104,10 @@ List<ExpenseCategory> categoriesFromJson(String? text) {
   } catch (_) {
     // Retain the built-in categories if saved metadata is invalid.
   }
-  return result.isEmpty ? [...defaultCategories] : result;
+  return (result.isEmpty ? [...defaultCategories] : result)
+    ..sort(compareExpenseCategories);
 }
 
-final initialCategoriesProvider = Provider<List<ExpenseCategory>>(
-  (ref) => defaultCategories,
-);
 final categoriesProvider =
     NotifierProvider<CategoriesStore, List<ExpenseCategory>>(
       CategoriesStore.new,

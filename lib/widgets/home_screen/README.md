@@ -2,7 +2,7 @@
 
 This folder owns Flutter entry points, quick-capture UI, and capture persistence.
 Native Android widget code and resources live in `android/app/src/main/widgets/`.
-Widgets available: **Kharchio Quick Expense** (two actions) and **Kharchio Add Expense** (a compact 2 by 1 button).
+Widgets available: **Kharchio Quick Expense** (two actions), **Kharchio Add Expense** (a compact 2 by 1 button), and **Kharchio Spending Pie** (a 4 by 2 donut chart).
 
 ## Try it
 
@@ -49,8 +49,8 @@ donut with slice percentages and total spending in its centre on the left, scrol
 It uses the current device month, the selected app currency, and actual expense
 amounts. Unused categories are omitted. Tiny slices are listed on the right but
 omit in-pie labels to avoid overlap. Whole percentages use largest-remainder
-rounding so their numeric shares total 100; nonzero shares rounded to zero read
-<1%. An empty month shows a neutral 0% pie and an empty-state message.
+rounding so their numeric shares total 100. An empty month shows a neutral donut,
+a zero total and an empty-state message.
 
 Native code is isolated under `widgets/spending/`. It opens the existing SQLite
 ledger read-only on a worker thread and uses the persisted month links. It does
@@ -89,7 +89,8 @@ Create a provider under a new `widgets/<widgetname>` Java package and prefix all
 its resources with `widget_<widgetname>_`. Register it in AndroidManifest.xml.
 Add its allowed action to WidgetActionBridge and widgetActionRoute, then implement
 its Flutter screen under a sibling widget folder. Keep persistence through
-LocalStore rather than introducing a second SQLite connection in the native widget.
+LocalStore for writes. Display-only native widgets may read the existing SQLite
+ledger using a read-only connection, as Spending Pie does.
 Widget receivers should launch activities directly for capture actions.
 
 ## Verification

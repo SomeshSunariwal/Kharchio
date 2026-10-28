@@ -1,9 +1,7 @@
 import 'package:drift/drift.dart';
-
-import '../database/app_database.dart';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../database/app_database.dart';
 import '../database/local_store.dart';
 
 class MonthlyBudget {
@@ -17,12 +15,6 @@ class MonthlyBudget {
     required this.currency,
   });
   String get key => '$currency-$year-$month';
-  Map<String, Object> toJson() => {
-    'year': year,
-    'month': month,
-    'amount': amount,
-    'currency': currency,
-  };
 }
 
 final monthlyBudgetsProvider =

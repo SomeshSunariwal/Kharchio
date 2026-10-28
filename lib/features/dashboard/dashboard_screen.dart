@@ -1,17 +1,16 @@
-import '../../shared/collapsing_expense_overview.dart';
-import '../../shared/category_donut.dart';
-import '../../core/preferences.dart';
-import '../../core/monthly_budgets.dart';
-import '../../core/categories.dart';
-import '../../core/expense_summary_provider.dart';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/categories.dart';
+import '../../core/expense_store.dart';
+import '../../core/expense_summary_provider.dart';
+import '../../core/monthly_budgets.dart';
+import '../../core/preferences.dart';
 import '../../core/theme.dart';
-import '../../core/preview_data.dart';
+import '../../shared/category_donut.dart';
+import '../../shared/collapsing_expense_overview.dart';
 import '../../shared/widgets.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {

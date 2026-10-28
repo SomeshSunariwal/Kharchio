@@ -18,6 +18,10 @@ import 'features/analysis/analysis_screen.dart';
 import 'features/profile/profile_screen.dart';
 import 'shared/directional_tab_view.dart';
 import 'shared/active_text_navigation.dart';
+import 'widgets/home_screen/widget_action_host.dart';
+import 'widgets/home_screen/quick_expense_screen.dart';
+import 'widgets/home_screen/manual_entry/expense_entry_popup.dart';
+import 'widgets/home_screen/widget_data_refresh_host.dart';
 
 final _router = GoRouter(
   routes: [
@@ -53,6 +57,20 @@ final _router = GoRouter(
     GoRoute(
       path: '/add',
       builder: (_, state) => AddExpenseScreen(expense: state.extra),
+    ),
+    GoRoute(
+      path: '/widgets/add',
+      builder: (_, _) => const QuickExpenseScreen(record: false),
+    ),
+    GoRoute(
+      path: '/widgets/entry',
+      builder: (_, state) => ExpenseEntryPopup(
+        focus: state.uri.queryParameters['focus'] ?? 'title',
+      ),
+    ),
+    GoRoute(
+      path: '/widgets/record',
+      builder: (_, _) => const QuickExpenseScreen(record: true),
     ),
     GoRoute(
       path: '/categories',
@@ -133,7 +151,12 @@ class KharchioApp extends ConsumerWidget {
           currency: ref.watch(preferencesProvider.select((p) => p.currency)),
           child: TooltipVisibility(
             visible: false,
-            child: child ?? const SizedBox.shrink(),
+            child: WidgetDataRefreshHost(
+              child: HomeWidgetActionHost(
+                router: _router,
+                child: child ?? const SizedBox.shrink(),
+              ),
+            ),
           ),
         ),
       ),

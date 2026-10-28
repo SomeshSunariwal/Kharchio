@@ -1,0 +1,8 @@
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="260dp" android:minHeight="160dp"
+    android:targetCellWidth="4" android:targetCellHeight="2"
+    android:minResizeWidth="260dp" android:minResizeHeight="140dp"
+    android:resizeMode="horizontal|vertical" android:updatePeriodMillis="1800000"
+    android:initialLayout="@layout/widget_spending_chart"
+    android:previewLayout="@layout/widget_spending_preview"
+    android:description="@string/widget_spending_description" android:widgetCategory="home_screen" />

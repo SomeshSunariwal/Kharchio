@@ -1,0 +1,10 @@
+<resources>
+    <color name="widget_quick_surface">#333333</color>
+    <color name="widget_quick_line">#494949</color>
+    <color name="widget_quick_ink">#F3F5F8</color>
+    <color name="widget_quick_muted">#BAC1CD</color>
+    <color name="widget_quick_add_fill">#263C36</color>
+    <color name="widget_quick_record_fill">#442E34</color>
+    <color name="widget_quick_add_ink">#52DBB7</color>
+    <color name="widget_quick_record_ink">#FF8193</color>
+</resources>

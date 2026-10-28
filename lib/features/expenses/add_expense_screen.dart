@@ -46,7 +46,8 @@ class ExpenseDraft {
 
 class AddExpenseScreen extends ConsumerStatefulWidget {
   final Object? expense;
-  const AddExpenseScreen({super.key, this.expense});
+  final Future<void> Function(List<Expense>)? onSave;
+  const AddExpenseScreen({super.key, this.expense, this.onSave});
   @override
   ConsumerState<AddExpenseScreen> createState() => _AddExpenseState();
 }
@@ -117,32 +118,33 @@ class _AddExpenseState extends ConsumerState<AddExpenseScreen> {
     setState(() => saving = true);
     final now = DateTime.now();
     try {
-      await ref
-          .read(expensesProvider.notifier)
-          .save(
-            drafts
-                .map(
-                  (d) => Expense(
-                    id: d.id,
-                    title: d.title.text.trim(),
-                    description: d.description.text.trim(),
-                    category: d.category,
-                    amount: double.parse(d.amount.text),
-                    currencyCode: editing
-                        ? (widget.expense as Expense).currencyCode
-                        : context.currency.code,
-                    date: DateTime(
-                      date.year,
-                      date.month,
-                      date.day,
-                      editing ? date.hour : now.hour,
-                      editing ? date.minute : now.minute,
-                    ),
-                  ),
-                )
-                .toList(),
-          );
-      if (mounted) context.pop();
+      final values = drafts
+          .map(
+            (d) => Expense(
+              id: d.id,
+              title: d.title.text.trim(),
+              description: d.description.text.trim(),
+              category: d.category,
+              amount: double.parse(d.amount.text),
+              currencyCode: editing
+                  ? (widget.expense as Expense).currencyCode
+                  : context.currency.code,
+              date: DateTime(
+                date.year,
+                date.month,
+                date.day,
+                editing ? date.hour : now.hour,
+                editing ? date.minute : now.minute,
+              ),
+            ),
+          )
+          .toList();
+      if (widget.onSave != null) {
+        await widget.onSave!(values);
+      } else {
+        await ref.read(expensesProvider.notifier).save(values);
+        if (mounted) context.pop();
+      }
     } catch (_) {
       if (mounted) {
         notice(context, 'Could not save expenses. Please try again.');

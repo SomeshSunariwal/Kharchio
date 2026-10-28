@@ -15,6 +15,11 @@ extensions.configure<com.android.build.api.dsl.ApplicationExtension> {
     namespace = "com.expense.kharchio"
     compileSdk = 37
     ndkVersion = flutter.ndkVersion
+    // Home-screen widgets stay isolated from the main Android application code.
+    sourceSets.getByName("main") {
+        java.srcDir("src/main/widgets/java")
+        res.srcDir("src/main/widgets/res")
+    }
     // Model weights are downloaded to app-private storage, not bundled.
     // FastRPC opens bundled DSP libraries by filesystem path.
     packaging { jniLibs { useLegacyPackaging = true } }

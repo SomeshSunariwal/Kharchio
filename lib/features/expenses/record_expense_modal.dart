@@ -29,7 +29,9 @@ enum RecordingStage {
 }
 
 class RecordExpenseModal extends ConsumerStatefulWidget {
-  const RecordExpenseModal({super.key});
+  final Future<void> Function(List<ExtractedExpense>)? onExtracted;
+  final VoidCallback? onOpenSettings;
+  const RecordExpenseModal({super.key, this.onExtracted, this.onOpenSettings});
   @override
   ConsumerState<RecordExpenseModal> createState() => _RecordState();
 }
@@ -85,6 +87,7 @@ class _RecordState extends ConsumerState<RecordExpenseModal>
       final models = await ref
           .read(offlineModelsProvider.notifier)
           .requireAvailable(
+            expense: widget.onExtracted != null,
             speechMode: ref
                 .read(preferencesProvider)
                 .speechProcessing
@@ -335,6 +338,11 @@ class _RecordState extends ConsumerState<RecordExpenseModal>
         },
       );
       if (!mounted) return;
+      if (widget.onExtracted != null) {
+        setState(() => processingLabel = 'Saving expenses on this device…');
+        await widget.onExtracted!(result);
+        return;
+      }
       setState(() {
         summary = result;
         stage = RecordingStage.review;
@@ -404,7 +412,9 @@ class _RecordState extends ConsumerState<RecordExpenseModal>
               ),
               const SizedBox(height: 8),
               Text(
-                'Speak what you spent on. Review the summary, then create expense cards.',
+                widget.onExtracted == null
+                    ? 'Speak what you spent on. Review the summary, then create expense cards.'
+                    : 'Speak what you spent on. Stop to process and save automatically. You can undo after saving.',
                 style: TextStyle(fontSize: 12, color: colors.muted),
               ),
               const SizedBox(height: 10),
@@ -529,6 +539,12 @@ class _RecordState extends ConsumerState<RecordExpenseModal>
                       icon: const Icon(Icons.mic_rounded),
                       label: const Text('Record again'),
                     ),
+                  ),
+                if (stage == RecordingStage.failed &&
+                    widget.onOpenSettings != null)
+                  TextButton(
+                    onPressed: widget.onOpenSettings,
+                    child: const Text('Open Offline AI settings'),
                   ),
                 const SizedBox(height: 10),
                 Text(

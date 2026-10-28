@@ -1,0 +1,6 @@
+<resources>
+    <string name="widget_form_name">Kharchio Add Expense</string>
+    <string name="widget_form_description">Open a quick-entry popup to add an expense.</string>
+    <string name="widget_form_add">Add Expense</string>
+    <string name="widget_form_saved">Expense added</string>
+</resources>

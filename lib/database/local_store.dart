@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../core/categories.dart';
-import '../core/demo_data.dart';
 import '../core/expense.dart';
 import 'app_database.dart';
 
@@ -45,26 +44,12 @@ class LocalStore {
           'speech_language',
           legacy['speechLanguage'] ?? 'auto',
         );
-        final mapped = await readCategories();
-        final fallback =
-            mapped.where((c) => c.name == 'Others').firstOrNull ?? mapped.first;
-        final demo = createDemoExpenses()
-            .map(
-              (e) => Expense(
-                id: e.id,
-                title: e.title,
-                description: e.description,
-                amount: e.amount,
-                date: e.date,
-                currencyCode: 'INR',
-                category: mapped.any((c) => c.name == e.category)
-                    ? e.category
-                    : fallback.name,
-              ),
-            )
-            .toList();
-        await saveExpenses(demo);
         await writeSetting('initialized', '1');
+      }
+      // Remove fixtures from older installs without touching user-created UUIDs.
+      if (await setting('demo_expenses_removed') != '1') {
+        await (db.delete(db.expenses)..where((e) => e.id.like('demo-%'))).go();
+        await writeSetting('demo_expenses_removed', '1');
       }
       if (await setting('speech_language') == 'hi') {
         await writeSetting('speech_language', 'hinglish');
@@ -149,6 +134,10 @@ class LocalStore {
   JoinedSelectStatement<HasResultSet, dynamic> _expenseQuery() =>
       db.select(db.expenses).join([
         innerJoin(
+          db.monthlyBudgetsTable,
+          db.monthlyBudgetsTable.id.equalsExp(db.expenses.monthId),
+        ),
+        innerJoin(
           db.categories,
           db.categories.id.equalsExp(db.expenses.categoryId),
         ),
@@ -161,6 +150,9 @@ class LocalStore {
     final e = row.readTable(db.expenses);
     return Expense(
       id: e.id,
+      monthId: e.monthId,
+      accountingYear: row.readTable(db.monthlyBudgetsTable).year,
+      accountingMonth: row.readTable(db.monthlyBudgetsTable).month,
       title: e.title,
       description: e.description,
       category: row.readTable(db.categories).name,
@@ -192,11 +184,25 @@ class LocalStore {
       final old = await (db.select(
         db.expenses,
       )..where((e) => e.id.equals(expense.id))).getSingleOrNull();
+      final monthId =
+          '${expense.currencyCode}-${expense.date.year}-${expense.date.month}';
+      await db
+          .into(db.monthlyBudgetsTable)
+          .insert(
+            MonthlyBudgetsTableCompanion.insert(
+              id: monthId,
+              month: expense.date.month,
+              year: expense.date.year,
+              currencyCode: expense.currencyCode,
+            ),
+            mode: InsertMode.insertOrIgnore,
+          );
       await db
           .into(db.expenses)
           .insertOnConflictUpdate(
             ExpensesCompanion.insert(
               id: expense.id,
+              monthId: monthId,
               categoryId: category.id,
               title: expense.title.trim(),
               description: Value(expense.description.trim()),
@@ -212,5 +218,10 @@ class LocalStore {
 
   Future<void> deleteExpense(String id) async {
     await (db.delete(db.expenses)..where((e) => e.id.equals(id))).go();
+  }
+
+  Future<void> clearExpenses() async {
+    await db.delete(db.expenses).go();
+    initialExpenses = [];
   }
 }

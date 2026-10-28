@@ -26,3 +26,4 @@ models/**/*.partial.*
 android/app/src/main/jniLibs/*/libggml-htp-*.so
 android/app/src/main/jniLibs/*/libQnn*.so
 ios/Frameworks/
+test

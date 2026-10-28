@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../core/theme.dart';
 import '../core/preview_data.dart';
 import 'swipe_delete_expense.dart';
+import 'app_notification.dart';
 
 /// Keeps page controls outside the scrolling content without a fixed height.
 class FixedHeaderPage extends StatelessWidget {
@@ -206,6 +207,5 @@ class ExpenseTile extends StatelessWidget {
   }
 }
 
-void notice(BuildContext context, String message) =>
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+void notice(BuildContext context, String message, {bool isError = false}) =>
+    showAppNotification(context, message, isError: isError);

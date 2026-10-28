@@ -140,7 +140,13 @@ Keep this directory for later native builds. Its `.tmp` location does not make i
 
 ### Offline base models
 
-All bundled model files and their licenses/manifests live in the root `models/` directory. Shared weights are grouped under `models/whisper/` and `models/qwen/`; Android NPU packages are under `models/whisper/android/whisper-qnn-sm8550/` and `models/whisper/android/whisper-qnn-generic/`. Flutter packages the shared files and Android Gradle packages the NPU subdirectories. Preparation scripts write directly to these locations. Installed app-private model paths are unchanged.
+Local model files and their licenses/manifests live in the root `models/` directory. Shared weights are grouped under `models/whisper/` and `models/qwen/`; Android NPU packages are under `models/whisper/android/whisper-qnn-sm8550/` and `models/whisper/android/whisper-qnn-generic/`. Preparation scripts write to these locations for model preparation and release publishing. Model binaries are ignored by Git and excluded from the APK; only the download manifest and licenses are bundled. Native runtime libraries remain bundled.
+
+`models/manifest.json` pins the six GitHub Release URLs, installed relative paths, exact byte counts, and SHA-256 hashes. Publish binaries to the `model` release with these exact unique filenames. Keep this manifest in Git; when changing model releases, update it together with the preparation manifests. Downloads are streamed to private `.partial` files and are promoted only after size/hash verification. Interrupted downloads can resume; unavailable URLs and checksum/storage errors remain visible with Retry. Existing installed models are reused after verification.
+
+Settings → Offline AI has independent GPU speech, NPU speech, and Qwen downloads. The NPU option downloads only the four generic/SM8550 encoder/decoder files. The app bundles `models/whisper/whisper-small-metadata.dat` (572,465 bytes of mel filters and vocabulary, with no tensor weights) so NPU inference does not need the GPU model. To regenerate it from verified local Whisper weights: `python native/tools/models/extract_whisper_metadata.py models/whisper/ggml-small-q5_1.bin models/whisper/whisper-small-metadata.dat`.
+
+Each processing dropdown requires its own model family, and each Check requires the selected backend's files. Ready rows show a green status and red Delete button. Deleting NPU models also clears compiled contexts, without touching GPU weights; deleting GPU weights does not disable NPU speech. GPU/CPU fallback from NPU needs the separate GPU model; without it, unsupported NPU hardware produces an actionable error. Recording starts when the selected speech model is ready. Stop checks for Qwen before expense extraction and shows a model-download error if it is missing. Downloads run while the app process is alive; tap Resume after an interruption.
 
 `native/prepare_models.ps1` reads `native/config/models.lock.json` and verifies exact byte counts and SHA-256 before installing files. The manifest contains authoritative hashes/URLs.
 
@@ -149,7 +155,7 @@ All bundled model files and their licenses/manifests live in the root `models/` 
 | Multilingual Whisper Small Q5_1 | `ggml-small-q5_1.bin`            |    190,085,487 | [Whisper weights](https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small-q5_1.bin) |
 | Qwen3 0.6B Q8_0                 | `Qwen3-0.6B-Q8_0.gguf`           |    639,446,688 | [Qwen weights](https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q8_0.gguf)    |
 
-These total about 830 MB in decimal units. NPU assets/runtime libraries increase APK size; an earlier complete APK was about 2 GB. Allow device space for installation and first-use extraction. The manifest records MIT for Whisper and Apache-2.0 for Qwen; review upstream licenses/notices for distribution.
+These total about 830 MB in decimal units. Downloaded models and compiled NPU contexts need additional device storage, separate from the APK. An earlier APK with bundled weights was about 2 GB; current builds exclude those weights. The manifest records MIT for Whisper and Apache-2.0 for Qwen; review upstream licenses/notices for distribution.
 
 ### Qualcomm Whisper / QAIRT
 

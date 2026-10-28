@@ -16,6 +16,7 @@
 #include <chrono>
 #include <cstdio>
 #include <cctype>
+#include <fstream>
 #ifdef __ANDROID__
 #include <android/log.h>
 #endif
@@ -149,6 +150,11 @@ struct ModelSession {
 static ModelSession & model_session() { static ModelSession session; return session; }
 
 static whisper_context * load_whisper(const char * path, GpuSelection gpu, int32_t * cancel) {
+    if (!std::ifstream(path, std::ios::binary).good()) {
+        throw std::runtime_error((processing_mode == 2 || processing_mode == 3)
+            ? "NPU speech is unavailable on this device. Download the Speech Model for GPU to enable GPU/CPU fallback."
+            : "Download the Speech Model for GPU first.");
+    }
     auto & session = model_session();
     session.unload_qwen();
     if (session.whisper && session.whisper_path == path && session.whisper_device == gpu.device) return session.whisper.get();

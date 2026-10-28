@@ -11,6 +11,14 @@
 
 namespace whisper_qnn
 {
+    inline std::string audio_metadata_path(const char *model)
+    {
+        const std::string path(model);
+        const auto root = path.substr(0, path.find_last_of("/\\") + 1);
+        const auto metadata = root + "whisper-small-metadata.dat";
+        return std::ifstream(metadata, std::ios::binary).good() ? metadata : path;
+    }
+
     inline void check_cancel(int32_t *cancel)
     {
         if (cancel && *static_cast<volatile int32_t *>(cancel))

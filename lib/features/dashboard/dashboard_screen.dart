@@ -1,6 +1,7 @@
 import '../../shared/collapsing_expense_overview.dart';
 import '../../shared/category_donut.dart';
 import '../../core/preferences.dart';
+import '../../core/monthly_budgets.dart';
 import '../../core/categories.dart';
 import '../../core/expense_summary_provider.dart';
 
@@ -73,6 +74,16 @@ class _DashboardState extends ConsumerState<DashboardScreen>
         : context.categoryNames.indexOf(categoryFilter);
     final expenses = currentSummary.expenses;
     final total = currentSummary.total;
+    final budget = ref.watch(
+      monthBudgetProvider((
+        year: month.year,
+        month: month.month,
+        currencyCode: currencyCode,
+      )),
+    );
+    final displayedTotal = budget == null
+        ? total
+        : remainingMonthlyBudget(budget, total);
     final previous = DateTime(month.year, month.month - 1);
     final previousTotal = ref
         .watch(
@@ -100,14 +111,14 @@ class _DashboardState extends ConsumerState<DashboardScreen>
     return LayoutBuilder(
       builder: (context, constraints) {
         final summary = Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Total Spent',
+                    budget == null ? 'Total Spent' : 'Remaining Budget',
                     style: TextStyle(
                       color: context.appColors.muted,
                       fontSize: 12,
@@ -117,8 +128,11 @@ class _DashboardState extends ConsumerState<DashboardScreen>
                   SizedBox(height: 2),
                   FittedBox(
                     child: Text(
-                      context.money(total),
+                      context.money(displayedTotal),
                       style: TextStyle(
+                        color: budget != null && displayedTotal < 0
+                            ? red
+                            : context.appColors.ink,
                         fontSize: 26,
                         height: 1,
                         fontWeight: FontWeight.w800,
@@ -131,7 +145,7 @@ class _DashboardState extends ConsumerState<DashboardScreen>
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        if (previousTotal > 0) ...[
+                        if (budget == null && previousTotal > 0) ...[
                           Icon(
                             total >= previousTotal
                                 ? Icons.north_east_rounded
@@ -142,7 +156,9 @@ class _DashboardState extends ConsumerState<DashboardScreen>
                           const SizedBox(width: 3),
                         ],
                         Text(
-                          previousTotal == 0
+                          budget != null
+                              ? 'Spent ${context.money(total)} of ${context.money(budget)}'
+                              : previousTotal == 0
                               ? 'No expenses in the previous month'
                               : '${((total - previousTotal).abs() / previousTotal * 100).toStringAsFixed(0)}% ${total >= previousTotal ? 'more' : 'less'} than last month',
                           style: const TextStyle(
@@ -198,35 +214,6 @@ class _DashboardState extends ConsumerState<DashboardScreen>
             SizedBox(height: 4),
           ],
         );
-        final overview = SurfaceCard(
-          color: context.appColors.dark
-              ? context.appColors.surface
-              : context.appColors.tint,
-          padding: EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              summary,
-              SizedBox(height: 7),
-              if (total > 0)
-                CategoryDonut(
-                  totals: totals,
-                  selectedIndex: selectedIndex,
-                  onCategorySelected: selectCategory,
-                )
-              else
-                SizedBox(
-                  height: 120,
-                  child: Center(
-                    child: Text(
-                      'No spending yet. Add your first expense.',
-                      style: TextStyle(color: context.appColors.muted),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        );
         final chartHeight = CategoryDonut.heightFor(
           (constraints.maxWidth - 54).clamp(0.0, double.infinity),
           totals,
@@ -235,7 +222,6 @@ class _DashboardState extends ConsumerState<DashboardScreen>
         final scale = MediaQuery.textScalerOf(context);
         final summaryHeight =
             scale.scale(12) * 1.5 + 2 + scale.scale(26) + scale.scale(13) + 4;
-        final collapsible = expenses.length > 6 && total > 0;
         final chartHeader = CollapsingExpenseOverview(
           summary: summary,
           footer: recentHeading,
@@ -243,14 +229,21 @@ class _DashboardState extends ConsumerState<DashboardScreen>
               42 +
               (MediaQuery.textScalerOf(context).scale(17) - 17).clamp(0, 40),
           summaryHeight: summaryHeight,
-          expanded: CategoryDonut(
-            totals: totals,
-            selectedIndex: selectedIndex,
-            onCategorySelected: selectCategory,
-          ),
+          expanded: total > 0
+              ? CategoryDonut(
+                  totals: totals,
+                  selectedIndex: selectedIndex,
+                  onCategorySelected: selectCategory,
+                )
+              : Center(
+                  child: Text(
+                    'No spending yet. Add your first expense.',
+                    style: TextStyle(color: context.appColors.muted),
+                  ),
+                ),
           selectedIndex: selectedIndex,
           onCategorySelected: selectCategory,
-          expandedHeight: chartHeight,
+          expandedHeight: total > 0 ? chartHeight : 120,
           totals: totals,
           colors: context.categoryColors,
           names: context.categoryNames,
@@ -343,34 +336,21 @@ class _DashboardState extends ConsumerState<DashboardScreen>
             headerPadding: const EdgeInsets.fromLTRB(14, 6, 14, 0),
             child: NestedScrollView(
               headerSliverBuilder: (nestedContext, innerBoxIsScrolled) => [
-                if (collapsible)
-                  SliverOverlapAbsorber(
-                    handle: NestedScrollView.sliverOverlapAbsorberHandleFor(
-                      nestedContext,
-                    ),
-                    sliver: SliverPersistentHeader(
-                      pinned: true,
-                      delegate: chartHeader,
-                    ),
-                  )
-                else
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      child: Column(children: [overview, recentHeading]),
-                    ),
+                SliverOverlapAbsorber(
+                  handle: NestedScrollView.sliverOverlapAbsorberHandleFor(
+                    nestedContext,
                   ),
+                  sliver: SliverPersistentHeader(
+                    pinned: true,
+                    delegate: chartHeader,
+                  ),
+                ),
               ],
               // Absorb the pinned header's obstruction, then reserve that space
               // OUTSIDE the inner list. Its rounded card can never scroll beneath
               // the header. NestedScrollView consumes header travel before rows.
               body: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  14,
-                  collapsible ? chartHeader.minExtent : 0,
-                  14,
-                  0,
-                ),
+                padding: EdgeInsets.fromLTRB(14, chartHeader.minExtent, 14, 0),
                 child: ConnectedListCard(
                   child: visible.isEmpty
                       ? const Center(child: Text('No transactions found'))

@@ -37,6 +37,10 @@ class CategoryPercentageBar extends StatelessWidget {
                     selected: selectedIndex == i,
                     button: onCategorySelected != null,
                     child: Material(
+                      borderRadius: BorderRadius.circular(
+                        selectedIndex == i ? 6 : 0,
+                      ),
+                      clipBehavior: Clip.antiAlias,
                       color: selectedIndex == null || selectedIndex == i
                           ? colors[i]
                           : colors[i].withValues(alpha: .3),
@@ -46,6 +50,7 @@ class CategoryPercentageBar extends StatelessWidget {
                             : () => onCategorySelected!(i),
                         child: DecoratedBox(
                           decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(6),
                             border: selectedIndex == i
                                 ? Border.all(color: Colors.white, width: 2)
                                 : null,

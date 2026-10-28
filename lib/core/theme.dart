@@ -32,6 +32,9 @@ ThemeData appTheme({Brightness brightness = Brightness.light}) {
   final colors = AppColors(brightness == Brightness.dark);
   final base = ThemeData(useMaterial3: true, brightness: brightness);
   return base.copyWith(
+    listTileTheme: ListTileThemeData(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ),
     scaffoldBackgroundColor: colors.background,
     colorScheme: ColorScheme.fromSeed(
       seedColor: green,

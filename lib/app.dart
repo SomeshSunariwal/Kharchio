@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import 'shared/app_notification.dart';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,6 +11,7 @@ import 'core/theme_settings.dart';
 import 'core/preferences.dart';
 import 'core/categories.dart';
 import 'features/profile/categories_screen.dart';
+import 'features/profile/budget_planner_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
 import 'features/expenses/add_expense_screen.dart';
 import 'features/analysis/analysis_screen.dart';
@@ -50,7 +54,58 @@ final _router = GoRouter(
       path: '/add',
       builder: (_, state) => AddExpenseScreen(expense: state.extra),
     ),
-    GoRoute(path: '/categories', builder: (_, _) => const CategoriesScreen()),
+    GoRoute(
+      path: '/categories',
+      pageBuilder: (context, state) {
+        final reducedMotion = MediaQuery.disableAnimationsOf(context);
+        return CustomTransitionPage<void>(
+          key: state.pageKey,
+          transitionDuration: reducedMotion
+              ? Duration.zero
+              : const Duration(milliseconds: 280),
+          reverseTransitionDuration: reducedMotion
+              ? Duration.zero
+              : const Duration(milliseconds: 220),
+          child: const CategoriesScreen(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+              SlideTransition(
+                position: animation.drive(
+                  Tween<Offset>(
+                    begin: const Offset(1, 0),
+                    end: Offset.zero,
+                  ).chain(CurveTween(curve: Curves.easeInOutCubic)),
+                ),
+                child: child,
+              ),
+        );
+      },
+    ),
+    GoRoute(
+      path: '/budget-planner',
+      pageBuilder: (context, state) {
+        final reducedMotion = MediaQuery.disableAnimationsOf(context);
+        return CustomTransitionPage<void>(
+          key: state.pageKey,
+          transitionDuration: reducedMotion
+              ? Duration.zero
+              : const Duration(milliseconds: 280),
+          reverseTransitionDuration: reducedMotion
+              ? Duration.zero
+              : const Duration(milliseconds: 220),
+          child: const BudgetPlannerScreen(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+              SlideTransition(
+                position: animation.drive(
+                  Tween<Offset>(
+                    begin: const Offset(1, 0),
+                    end: Offset.zero,
+                  ).chain(CurveTween(curve: Curves.easeInOutCubic)),
+                ),
+                child: child,
+              ),
+        );
+      },
+    ),
   ],
 );
 
@@ -76,7 +131,10 @@ class KharchioApp extends ConsumerWidget {
         categories: ref.watch(categoriesProvider),
         child: CurrencyScope(
           currency: ref.watch(preferencesProvider.select((p) => p.currency)),
-          child: child ?? const SizedBox.shrink(),
+          child: TooltipVisibility(
+            visible: false,
+            child: child ?? const SizedBox.shrink(),
+          ),
         ),
       ),
     ),
@@ -89,10 +147,12 @@ class MainShell extends StatelessWidget {
   const MainShell({super.key, required this.navigationShell});
   @override
   Widget build(BuildContext context) => Scaffold(
-    body: Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 700),
-        child: navigationShell,
+    body: AppNotificationHost(
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 700),
+          child: navigationShell,
+        ),
       ),
     ),
     bottomNavigationBar: ActiveTextNavigation(

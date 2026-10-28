@@ -16,7 +16,7 @@ class ExpenseSummary {
         ifAbsent: () => expense.amount,
       );
       byMonth.update(
-        expense.date.month,
+        expense.month,
         (v) => v + expense.amount,
         ifAbsent: () => expense.amount,
       );

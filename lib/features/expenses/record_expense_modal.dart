@@ -516,12 +516,10 @@ class _RecordState extends ConsumerState<RecordExpenseModal>
                   ),
                 ),
               ] else ...[
-                if (error != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: AppNotificationCard(message: error!, isError: true),
-                  ),
-                const SizedBox(height: 8),
+                if (error != null) ...[
+                  AppNotificationCard(message: error!, isError: true),
+                  const SizedBox(height: 10),
+                ],
                 if (stage == RecordingStage.failed)
                   SizedBox(
                     width: double.infinity,

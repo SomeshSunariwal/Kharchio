@@ -19,15 +19,20 @@ Future<bool> confirmExpenseDeletion(BuildContext context, String title) async =>
           ),
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('OK', style: TextStyle(color: red)),
+            style: TextButton.styleFrom(
+              backgroundColor: red,
+              foregroundColor: Colors.white,
+              textStyle: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            child: const Text('OK'),
           ),
         ],
       ),
     ) ==
     true;
 
-/// Reveals an action without dismissing the row or changing its height.
-class SwipeDeleteExpense extends ConsumerStatefulWidget {
+/// Expense actions use the same reveal interaction as other deletable rows.
+class SwipeDeleteExpense extends ConsumerWidget {
   final Expense expense;
   final Widget child;
   const SwipeDeleteExpense({
@@ -35,12 +40,34 @@ class SwipeDeleteExpense extends ConsumerStatefulWidget {
     required this.expense,
     required this.child,
   });
-
   @override
-  ConsumerState<SwipeDeleteExpense> createState() => _SwipeDeleteExpenseState();
+  Widget build(BuildContext context, WidgetRef ref) => SwipeRevealDelete(
+    onDelete: () async {
+      if (await confirmExpenseDeletion(context, expense.title)) {
+        await ref.read(expensesProvider.notifier).delete(expense.id);
+      }
+    },
+    errorMessage: 'Could not delete the expense. Please try again.',
+    child: child,
+  );
 }
 
-class _SwipeDeleteExpenseState extends ConsumerState<SwipeDeleteExpense>
+/// Reveals an action without dismissing the row or changing its height.
+class SwipeRevealDelete extends StatefulWidget {
+  final Widget child;
+  final Future<void> Function() onDelete;
+  final String errorMessage;
+  const SwipeRevealDelete({
+    super.key,
+    required this.child,
+    required this.onDelete,
+    this.errorMessage = 'Could not delete this item. Please try again.',
+  });
+  @override
+  State<SwipeRevealDelete> createState() => _SwipeRevealDeleteState();
+}
+
+class _SwipeRevealDeleteState extends State<SwipeRevealDelete>
     with SingleTickerProviderStateMixin {
   static const actionWidth = 76.0;
   late final slide = AnimationController(
@@ -74,21 +101,11 @@ class _SwipeDeleteExpenseState extends ConsumerState<SwipeDeleteExpense>
     if (busy) return;
     setState(() => busy = true);
     try {
-      final confirmed = await confirmExpenseDeletion(
-        context,
-        widget.expense.title,
-      );
-      if (!mounted) return;
-      if (confirmed) {
-        await ref.read(expensesProvider.notifier).delete(widget.expense.id);
-      }
+      await widget.onDelete();
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not delete the expense. Please try again.'),
-          ),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(widget.errorMessage)));
       }
     } finally {
       if (mounted) {
@@ -128,13 +145,10 @@ class _SwipeDeleteExpenseState extends ConsumerState<SwipeDeleteExpense>
                       child: Padding(
                         padding: const EdgeInsets.all(1),
                         child: Material(
-                          color: red.withValues(alpha: .12),
+                          color: red,
                           shape: RoundedSuperellipseBorder(
                             borderRadius: BorderRadius.circular(16),
-                            side: BorderSide(
-                              color: red.withValues(alpha: .3),
-                              width: 1,
-                            ),
+                            side: BorderSide(color: red, width: 1),
                           ),
                           clipBehavior: Clip.antiAlias,
                           child: InkWell(
@@ -144,13 +158,17 @@ class _SwipeDeleteExpenseState extends ConsumerState<SwipeDeleteExpense>
                               children: [
                                 Icon(
                                   Icons.delete_outline_rounded,
-                                  color: red,
+                                  color: Colors.white,
                                   size: 21,
                                 ),
                                 SizedBox(height: 3),
                                 Text(
                                   'Delete',
-                                  style: TextStyle(color: red, fontSize: 11),
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
                               ],
                             ),

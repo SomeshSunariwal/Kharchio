@@ -16,7 +16,7 @@ ExpenseSummary _summarize(Ref ref, ExpensePeriod period) {
             .watch(expensesProvider)
             .where(
               (e) =>
-                  e.date.year == period.year &&
+                  e.year == period.year &&
                   e.currencyCode == period.currencyCode,
             )
       : ref
@@ -32,7 +32,7 @@ ExpenseSummary _summarize(Ref ref, ExpensePeriod period) {
   final filtered = values
       .where(
         (e) =>
-            (period.month == null || e.date.month == period.month) &&
+            (period.month == null || e.month == period.month) &&
             (period.day == null || e.date.day == period.day),
       )
       .toList();

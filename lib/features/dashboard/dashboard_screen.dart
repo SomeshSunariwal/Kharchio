@@ -1,6 +1,7 @@
 import '../../shared/collapsing_expense_overview.dart';
 import '../../shared/category_donut.dart';
 import '../../core/preferences.dart';
+import '../../core/monthly_budgets.dart';
 import '../../core/categories.dart';
 import '../../core/expense_summary_provider.dart';
 
@@ -73,6 +74,16 @@ class _DashboardState extends ConsumerState<DashboardScreen>
         : context.categoryNames.indexOf(categoryFilter);
     final expenses = currentSummary.expenses;
     final total = currentSummary.total;
+    final budget = ref.watch(
+      monthBudgetProvider((
+        year: month.year,
+        month: month.month,
+        currencyCode: currencyCode,
+      )),
+    );
+    final displayedTotal = budget == null
+        ? total
+        : remainingMonthlyBudget(budget, total);
     final previous = DateTime(month.year, month.month - 1);
     final previousTotal = ref
         .watch(
@@ -100,14 +111,14 @@ class _DashboardState extends ConsumerState<DashboardScreen>
     return LayoutBuilder(
       builder: (context, constraints) {
         final summary = Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Total Spent',
+                    budget == null ? 'Total Spent' : 'Remaining Budget',
                     style: TextStyle(
                       color: context.appColors.muted,
                       fontSize: 12,
@@ -117,8 +128,11 @@ class _DashboardState extends ConsumerState<DashboardScreen>
                   SizedBox(height: 2),
                   FittedBox(
                     child: Text(
-                      context.money(total),
+                      context.money(displayedTotal),
                       style: TextStyle(
+                        color: budget != null && displayedTotal < 0
+                            ? red
+                            : context.appColors.ink,
                         fontSize: 26,
                         height: 1,
                         fontWeight: FontWeight.w800,
@@ -131,7 +145,7 @@ class _DashboardState extends ConsumerState<DashboardScreen>
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        if (previousTotal > 0) ...[
+                        if (budget == null && previousTotal > 0) ...[
                           Icon(
                             total >= previousTotal
                                 ? Icons.north_east_rounded
@@ -142,7 +156,9 @@ class _DashboardState extends ConsumerState<DashboardScreen>
                           const SizedBox(width: 3),
                         ],
                         Text(
-                          previousTotal == 0
+                          budget != null
+                              ? 'Spent ${context.money(total)} of ${context.money(budget)}'
+                              : previousTotal == 0
                               ? 'No expenses in the previous month'
                               : '${((total - previousTotal).abs() / previousTotal * 100).toStringAsFixed(0)}% ${total >= previousTotal ? 'more' : 'less'} than last month',
                           style: const TextStyle(

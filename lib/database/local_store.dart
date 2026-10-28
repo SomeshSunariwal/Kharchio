@@ -134,6 +134,10 @@ class LocalStore {
   JoinedSelectStatement<HasResultSet, dynamic> _expenseQuery() =>
       db.select(db.expenses).join([
         innerJoin(
+          db.monthlyBudgetsTable,
+          db.monthlyBudgetsTable.id.equalsExp(db.expenses.monthId),
+        ),
+        innerJoin(
           db.categories,
           db.categories.id.equalsExp(db.expenses.categoryId),
         ),
@@ -146,6 +150,9 @@ class LocalStore {
     final e = row.readTable(db.expenses);
     return Expense(
       id: e.id,
+      monthId: e.monthId,
+      accountingYear: row.readTable(db.monthlyBudgetsTable).year,
+      accountingMonth: row.readTable(db.monthlyBudgetsTable).month,
       title: e.title,
       description: e.description,
       category: row.readTable(db.categories).name,
@@ -177,11 +184,25 @@ class LocalStore {
       final old = await (db.select(
         db.expenses,
       )..where((e) => e.id.equals(expense.id))).getSingleOrNull();
+      final monthId =
+          '${expense.currencyCode}-${expense.date.year}-${expense.date.month}';
+      await db
+          .into(db.monthlyBudgetsTable)
+          .insert(
+            MonthlyBudgetsTableCompanion.insert(
+              id: monthId,
+              month: expense.date.month,
+              year: expense.date.year,
+              currencyCode: expense.currencyCode,
+            ),
+            mode: InsertMode.insertOrIgnore,
+          );
       await db
           .into(db.expenses)
           .insertOnConflictUpdate(
             ExpensesCompanion.insert(
               id: expense.id,
+              monthId: monthId,
               categoryId: category.id,
               title: expense.title.trim(),
               description: Value(expense.description.trim()),

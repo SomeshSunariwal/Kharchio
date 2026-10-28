@@ -5,6 +5,7 @@ import '../../shared/category_donut.dart';
 import '../../shared/collapsing_expense_overview.dart';
 import '../../shared/app_dropdown.dart';
 import '../../core/preferences.dart';
+import '../../core/monthly_budgets.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -33,7 +34,7 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
   @override
   void initState() {
     super.initState();
-    date = DateTime(DateTime.now().year.clamp(2026, 2040));
+    date = DateTime(DateTime.now().year);
   }
 
   void _open(AnalysisPeriod next, DateTime value) {
@@ -45,7 +46,7 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
   }
 
   void _selectYear(int year) {
-    if (year < 2026 || year > 2040) return;
+    if (year < 1900 || year > 9999) return;
     final lastDay = DateTime(year, date.month + 1, 0).day;
     _open(period, DateTime(year, date.month, date.day.clamp(1, lastDay)));
   }
@@ -53,6 +54,12 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
   @override
   Widget build(BuildContext context) {
     final currencyCode = context.currency.code;
+    final currentYear = DateTime.now().year;
+    final years = {
+      for (var y = currentYear - 10; y <= currentYear + 20; y++) y,
+      for (final expense in ref.watch(expensesProvider)) expense.year,
+      date.year,
+    }.toList()..sort();
     final selectedSummary = ref.watch(
       expenseSummaryProvider((
         year: date.year,
@@ -82,6 +89,30 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
         selectedSummary.categoryTotal(name),
     ];
     final total = selectedSummary.total;
+    final budget = period == AnalysisPeriod.year
+        ? null
+        : ref.watch(
+            monthBudgetProvider((
+              year: date.year,
+              month: date.month,
+              currencyCode: currencyCode,
+            )),
+          );
+    final monthlySpent = budget == null
+        ? total
+        : ref
+              .watch(
+                expenseSummaryProvider((
+                  year: date.year,
+                  month: date.month,
+                  day: null,
+                  currencyCode: currencyCode,
+                )),
+              )
+              .total;
+    final displayedTotal = budget == null
+        ? total
+        : remainingMonthlyBudget(budget, monthlySpent);
     void selectCategory(int index) => setState(() {
       final name = context.categoryNames[index];
       selectedCategory = selectedCategory == name ? null : name;
@@ -103,8 +134,7 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
             compact: true,
             leadingIcon: Icons.calendar_month_outlined,
             options: [
-              for (var year = 2026; year <= 2040; year++)
-                AppDropdownOption(year, '$year'),
+              for (final year in years) AppDropdownOption(year, '$year'),
             ],
             onChanged: _selectYear,
           ),
@@ -174,7 +204,11 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
     );
     final scale = MediaQuery.textScalerOf(context);
     final chartHeader = CollapsingExpenseOverview(
-      summary: CategorySpendingSummary(total: total),
+      summary: CategorySpendingSummary(
+        total: displayedTotal,
+        label: budget == null ? 'Total Spent' : 'Remaining Budget',
+        overBudget: budget != null && displayedTotal < 0,
+      ),
       summaryHeight: scale.scale(11) * 1.5 + 2 + scale.scale(24) * 1.5,
       footer: resultsHeading,
       footerHeight: 56 + (scale.scale(17) - 17).clamp(0, 40),

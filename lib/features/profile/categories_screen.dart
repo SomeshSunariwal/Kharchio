@@ -43,7 +43,12 @@ class CategoriesScreen extends ConsumerWidget {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Remove', style: TextStyle(color: red)),
+            style: TextButton.styleFrom(
+              backgroundColor: red,
+              foregroundColor: Colors.white,
+              textStyle: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            child: const Text('Remove'),
           ),
         ],
       ),
@@ -114,6 +119,10 @@ class CategoriesScreen extends ConsumerWidget {
                                     const SizedBox(width: 8),
                                     IconButton(
                                       tooltip: 'Remove ${categories[i].name}',
+                                      style: IconButton.styleFrom(
+                                        backgroundColor: red,
+                                        foregroundColor: Colors.white,
+                                      ),
                                       visualDensity: VisualDensity.compact,
                                       constraints: const BoxConstraints(
                                         minWidth: 32,
@@ -128,10 +137,10 @@ class CategoriesScreen extends ConsumerWidget {
                                               categories[i],
                                             ),
                                       icon: const Icon(
-                                        Icons.remove_circle_outline,
+                                        Icons.remove_rounded,
                                         size: 19,
                                       ),
-                                      color: red,
+                                      color: Colors.white,
                                     ),
                                   ],
                                 ),

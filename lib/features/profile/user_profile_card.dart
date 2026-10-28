@@ -218,6 +218,13 @@ class _UserProfileCardState extends ConsumerState<UserProfileCard> {
     }
   }
 
+  ButtonStyle get _nameActionStyle => TextButton.styleFrom(
+    minimumSize: const Size(0, 24),
+    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    padding: EdgeInsets.zero,
+    textStyle: const TextStyle(fontSize: 12),
+  );
+
   @override
   Widget build(BuildContext context) {
     final profileState = ref.watch(userProfileProvider);
@@ -294,86 +301,112 @@ class _UserProfileCardState extends ConsumerState<UserProfileCard> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (editingName) ...[
-                  TextField(
-                    controller: name,
-                    autofocus: true,
-                    enabled: !savingName,
-                    maxLength: 50,
-                    textInputAction: TextInputAction.done,
-                    onSubmitted: (_) => _saveName(),
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: 'Your name',
-                      counterText: '',
-                      isDense: true,
-                      errorText: nameError,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 8,
-                      ),
-                      enabledBorder: OutlineInputBorder(
+                  SizedBox(
+                    height: 48,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          color: context.appColors.line,
+                        border: Border.all(
+                          color: nameError == null ? green : red,
                           width: 1,
                         ),
                       ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: green, width: 1),
-                      ),
-                      errorBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: red, width: 1),
-                      ),
-                      focusedErrorBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: red, width: 1),
-                      ),
-                      disabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          color: context.appColors.line,
-                          width: 1,
-                        ),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: TextField(
+                              controller: name,
+                              autofocus: true,
+                              enabled: !savingName,
+                              maxLength: 50,
+                              textInputAction: TextInputAction.done,
+                              onSubmitted: (_) => _saveName(),
+                              style: const TextStyle(
+                                fontSize: 24,
+                                height: 1.15,
+                                fontWeight: FontWeight.w700,
+                              ),
+                              decoration: const InputDecoration(
+                                hintText: 'Your name',
+                                counterText: '',
+                                isCollapsed: true,
+                                filled: false,
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                ),
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                disabledBorder: InputBorder.none,
+                              ),
+                            ),
+                          ),
+                          if (nameError != null)
+                            Positioned(
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              child: Text(
+                                nameError!,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  height: 1,
+                                  color: red,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                   ),
-                  Row(
-                    children: [
-                      TextButton(
-                        onPressed: savingName ? null : _saveName,
-                        child: Text(savingName ? 'Saving…' : 'Save'),
+                  SizedBox(
+                    height: 24,
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 10),
+                      child: Row(
+                        children: [
+                          TextButton(
+                            style: _nameActionStyle,
+                            onPressed: savingName ? null : _saveName,
+                            child: Text(savingName ? 'Saving…' : 'Save'),
+                          ),
+                          const SizedBox(width: 16),
+                          TextButton(
+                            style: _nameActionStyle,
+                            onPressed: savingName
+                                ? null
+                                : () {
+                                    FocusScope.of(context).unfocus();
+                                    setState(() => editingName = false);
+                                  },
+                            child: const Text('Cancel'),
+                          ),
+                        ],
                       ),
-                      TextButton(
-                        onPressed: savingName
-                            ? null
-                            : () {
-                                FocusScope.of(context).unfocus();
-                                setState(() => editingName = false);
-                              },
-                        child: const Text('Cancel'),
-                      ),
-                    ],
+                    ),
                   ),
                 ] else ...[
                   SizedBox(
                     height: 48,
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      child: Align(
                         alignment: Alignment.centerLeft,
-                        child: Text(
-                          profile.name,
-                          maxLines: 1,
-                          style: const TextStyle(
-                            fontSize: 24,
-                            height: 1.15,
-                            fontWeight: FontWeight.w700,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            profile.name,
+                            maxLines: 1,
+                            style: const TextStyle(
+                              fontSize: 24,
+                              height: 1.15,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                       ),

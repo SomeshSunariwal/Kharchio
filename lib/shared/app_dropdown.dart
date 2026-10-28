@@ -17,7 +17,6 @@ class AppDropdown<T> extends StatefulWidget {
   final ValueChanged<T> onChanged;
   final bool compact;
   final bool enabled;
-  final bool fitMenuToContent;
   final IconData? leadingIcon;
   const AppDropdown({
     super.key,
@@ -27,7 +26,6 @@ class AppDropdown<T> extends StatefulWidget {
     required this.onChanged,
     this.compact = false,
     this.enabled = true,
-    this.fitMenuToContent = false,
     this.leadingIcon,
   });
 
@@ -54,67 +52,38 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
         1.0,
         300.0,
       );
-      var menuWidth = constraints.maxWidth.clamp(
-        maxMenuWidth < 180 ? maxMenuWidth : 180.0,
-        maxMenuWidth,
-      );
-      if (widget.fitMenuToContent) {
-        var width = 0.0;
-        for (final option in widget.options) {
-          final text = TextPainter(
-            text: TextSpan(
-              text: option.label,
-              style: const TextStyle(fontSize: 13),
-            ),
-            textDirection: Directionality.of(context),
-            textScaler: MediaQuery.textScalerOf(context),
-          )..layout();
-          final optionWidth = text.width + 62 + (option.icon == null ? 0 : 26);
-          text.dispose();
-          if (optionWidth > width) width = optionWidth;
-        }
-        menuWidth = width.ceilToDouble().clamp(64.0, maxMenuWidth);
-      }
-      return PopupMenuButton<T>(
-        enabled: widget.enabled,
-        tooltip: widget.label,
-        position: PopupMenuPosition.under,
-        offset: const Offset(0, 4),
-        padding: EdgeInsets.zero,
-        color: colors.surface,
-        surfaceTintColor: Colors.transparent,
-        elevation: 6,
+      final menuWidth = constraints.maxWidth.clamp(1.0, maxMenuWidth);
+      return InkWell(
+        onTap: !widget.enabled
+            ? null
+            : () async {
+                final box = context.findRenderObject()! as RenderBox;
+                final anchor = box.localToGlobal(Offset.zero) & box.size;
+                setOpen(true);
+                final value = await Navigator.of(context).push<T>(
+                  _DropdownRoute<T>(
+                    anchor: anchor,
+                    width: menuWidth,
+                    reducedMotion: reducedMotion,
+                    barrierText: MaterialLocalizations.of(context)
+                        .modalBarrierDismissLabel,
+                    content: InheritedTheme.captureAll(
+                      context,
+                      _ScrollableDropdownEntry<T>(
+                        options: widget.options,
+                        value: widget.value,
+                        width: menuWidth,
+                      ),
+                    ),
+                    color: colors.surface,
+                    border: colors.line,
+                  ),
+                );
+                if (!mounted) return;
+                setOpen(false);
+                if (value != null) widget.onChanged(value);
+              },
         borderRadius: BorderRadius.circular(12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-          side: BorderSide(color: colors.line),
-        ),
-        constraints: BoxConstraints(
-          minWidth: menuWidth,
-          maxWidth: menuWidth,
-          maxHeight: 300,
-        ),
-        popUpAnimationStyle: reducedMotion
-            ? AnimationStyle.noAnimation
-            : AnimationStyle(
-                duration: const Duration(milliseconds: 200),
-                reverseDuration: const Duration(milliseconds: 150),
-                curve: Curves.easeOutCubic,
-                reverseCurve: Curves.easeInCubic,
-              ),
-        onOpened: () => setOpen(true),
-        onCanceled: () => setOpen(false),
-        onSelected: (value) {
-          setOpen(false);
-          widget.onChanged(value);
-        },
-        itemBuilder: (context) => [
-          _ScrollableDropdownEntry<T>(
-            options: widget.options,
-            value: widget.value,
-            width: menuWidth,
-          ),
-        ],
         child: Semantics(
           enabled: widget.enabled,
           label: widget.label,
@@ -236,7 +205,7 @@ class _ScrollableDropdownEntryState<T>
         child: ListView.builder(
           controller: controller,
           primary: false,
-          padding: const EdgeInsets.only(left: 8, right: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
           itemExtent: 42,
           itemCount: widget.options.length,
           itemBuilder: (context, index) {
@@ -288,6 +257,90 @@ class _ScrollableDropdownEntryState<T>
           },
         ),
       ),
+    );
+  }
+}
+
+/// Reveals every menu vertically from its top edge, without horizontal scaling.
+class _DropdownRoute<T> extends PopupRoute<T> {
+  final Rect anchor;
+  final double width;
+  final bool reducedMotion;
+  final String barrierText;
+  final Widget content;
+  final Color color;
+  final Color border;
+  _DropdownRoute({
+    required this.anchor,
+    required this.width,
+    required this.reducedMotion,
+    required this.barrierText,
+    required this.content,
+    required this.color,
+    required this.border,
+  });
+  @override
+  Color? get barrierColor => null;
+  @override
+  bool get barrierDismissible => true;
+  @override
+  String get barrierLabel => barrierText;
+  @override
+  Duration get transitionDuration =>
+      reducedMotion ? Duration.zero : const Duration(milliseconds: 200);
+  @override
+  Duration get reverseTransitionDuration =>
+      reducedMotion ? Duration.zero : const Duration(milliseconds: 150);
+  @override
+  Widget buildPage(
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+  ) {
+    final media = MediaQuery.of(context);
+    final bottom =
+        media.size.height - media.padding.bottom - media.viewInsets.bottom - 8;
+    final top = (anchor.bottom + 4)
+        .clamp(media.padding.top + 8, bottom - 48)
+        .toDouble();
+    final left = (anchor.right - width)
+        .clamp(8.0, media.size.width - width - 8)
+        .toDouble();
+    return Stack(
+      children: [
+        Positioned(
+          // Leave room around the reveal so its clip does not cut the shadow.
+          top: top - 12,
+          left: left - 12,
+          width: width + 24,
+          child: SizeTransition(
+            sizeFactor: animation.drive(CurveTween(curve: Curves.easeOutCubic)),
+            alignment: Alignment.topCenter,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Material(
+                key: const ValueKey('dropdown-menu-surface'),
+                color: color,
+                surfaceTintColor: Colors.transparent,
+                elevation: 4,
+                shadowColor: Colors.black.withValues(alpha: .2),
+                clipBehavior: Clip.antiAlias,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  side: BorderSide(color: border),
+                ),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxHeight: bottom - top),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: content,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

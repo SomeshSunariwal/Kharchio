@@ -64,13 +64,20 @@ class CategoryPieChart extends StatelessWidget {
 
 class CategorySpendingSummary extends StatelessWidget {
   final double total;
-  const CategorySpendingSummary({super.key, required this.total});
+  final String label;
+  final bool overBudget;
+  const CategorySpendingSummary({
+    super.key,
+    required this.total,
+    this.label = 'Total Spent',
+    this.overBudget = false,
+  });
   @override
   Widget build(BuildContext context) => Column(
     mainAxisSize: MainAxisSize.min,
     children: [
       Text(
-        'Total Spent',
+        label,
         style: TextStyle(fontSize: 11, color: context.appColors.muted),
       ),
       const SizedBox(height: 2),
@@ -79,7 +86,11 @@ class CategorySpendingSummary extends StatelessWidget {
         child: Text(
           context.money(total),
           textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w800,
+            color: overBudget ? red : context.appColors.ink,
+          ),
         ),
       ),
     ],

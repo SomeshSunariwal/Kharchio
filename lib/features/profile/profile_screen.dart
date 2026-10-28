@@ -42,7 +42,11 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
               child: const Text('Cancel'),
             ),
             TextButton(
-              style: TextButton.styleFrom(foregroundColor: red),
+              style: TextButton.styleFrom(
+                backgroundColor: red,
+                foregroundColor: Colors.white,
+                textStyle: const TextStyle(fontWeight: FontWeight.w700),
+              ),
               onPressed: () => Navigator.pop(context, true),
               child: const Text('Reset All'),
             ),
@@ -237,6 +241,45 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
                     child: ListTile(
                       contentPadding: EdgeInsets.zero,
                       dense: true,
+                      minTileHeight: 54,
+                      minVerticalPadding: 0,
+                      minLeadingWidth: 18,
+                      horizontalTitleGap: 8,
+                      leading: const Icon(
+                        Icons.account_balance_wallet_outlined,
+                        size: 18,
+                        color: green,
+                      ),
+                      visualDensity: VisualDensity.standard,
+                      title: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Budget Planner',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                          Text(
+                            'Set monthly spending budgets',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: context.appColors.muted,
+                            ),
+                          ),
+                        ],
+                      ),
+                      trailing: const Icon(Icons.chevron_right, size: 18),
+                      onTap: () => context.push('/budget-planner'),
+                    ),
+                  ),
+                  Divider(height: 1, color: context.appColors.line),
+                  Material(
+                    type: MaterialType.transparency,
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
                       visualDensity: VisualDensity.standard,
                       minTileHeight: 54,
                       minVerticalPadding: 0,
@@ -326,20 +369,14 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
                     enabled: controlsEnabled && inventory?.speechReady == true,
                     value: ref.watch(preferencesProvider).speechProcessing,
                     label: 'Speech Processing',
+                    description: inventory?.speechIssue(
+                      preferences.speechProcessing.nativeValue,
+                    ),
+                    descriptionError: true,
                     icon: Icons.graphic_eq,
                     options: _speechProcessingOptions,
                     onChanged: (mode) => _setProcessing(mode, speech: true),
                   ),
-                  if (inventory?.anyReady == true &&
-                      inventory!.speechIssue(
-                            preferences.speechProcessing.nativeValue,
-                          ) !=
-                          null)
-                    _modelIssue(
-                      inventory.speechIssue(
-                        preferences.speechProcessing.nativeValue,
-                      )!,
-                    ),
                   Divider(height: 1, color: context.appColors.line),
                   PreferenceDropdownRow<ProcessingMode>(
                     matchModelRows: true,
@@ -348,13 +385,12 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
                         inventory?.ready.contains('qwen') == true,
                     value: ref.watch(preferencesProvider).expenseProcessing,
                     label: 'Expense AI Processing',
+                    description: inventory?.expenseIssue,
+                    descriptionError: true,
                     icon: Icons.memory_outlined,
                     options: _processingOptions,
                     onChanged: (mode) => _setProcessing(mode, speech: false),
                   ),
-                  if (inventory?.anyReady == true &&
-                      inventory!.expenseIssue != null)
-                    _modelIssue(inventory.expenseIssue!),
                   Divider(height: 1, color: context.appColors.line),
                   _model(
                     OfflineModelKind.whisper,
@@ -621,7 +657,11 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
             child: const Text('Cancel'),
           ),
           TextButton(
-            style: TextButton.styleFrom(foregroundColor: red),
+            style: TextButton.styleFrom(
+              backgroundColor: red,
+              foregroundColor: Colors.white,
+              textStyle: const TextStyle(fontWeight: FontWeight.w700),
+            ),
             onPressed: () => Navigator.pop(context, true),
             child: const Text('Delete'),
           ),
@@ -643,7 +683,8 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
 
   ButtonStyle _actionButtonStyle({bool destructive = false}) =>
       OutlinedButton.styleFrom(
-        foregroundColor: destructive ? red : null,
+        foregroundColor: destructive ? Colors.white : null,
+        backgroundColor: destructive ? red : null,
         minimumSize: const Size(56, 32),
         padding: const EdgeInsets.symmetric(horizontal: 10),
         side: BorderSide(
@@ -651,7 +692,10 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
           width: 1,
         ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        textStyle: const TextStyle(fontSize: 11),
+        textStyle: TextStyle(
+          fontSize: 11,
+          fontWeight: destructive ? FontWeight.w700 : FontWeight.w500,
+        ),
       );
 
   Widget _modelActionRow(
@@ -666,65 +710,69 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
     bool subtitleError = false,
     String? disabledMessage,
     VoidCallback? onDelete,
-  }) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 10),
-    child: Row(
-      children: [
-        Icon(icon, size: 20, color: iconColor),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
+  }) => ConstrainedBox(
+    constraints: const BoxConstraints(minHeight: 74),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: iconColor),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: subtitleError ? red : context.appColors.muted,
+                const SizedBox(height: 3),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: subtitleError ? red : context.appColors.muted,
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 8),
-        if (ready) ...[
-          const Text(
-            'Ready',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: green,
+              ],
             ),
           ),
           const SizedBox(width: 8),
-        ],
-        Tooltip(
-          message: onPressed == null
-              ? disabledMessage ?? 'Download the required model first, or wait for the current operation.'
-              : '$actionLabel $title',
-          child: OutlinedButton(
-            style: _actionButtonStyle(destructive: destructive),
-            onPressed: onPressed,
-            child: Text(actionLabel),
+          if (ready) ...[
+            const Text(
+              'Ready',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: green,
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
+          Tooltip(
+            message: onPressed == null
+                ? disabledMessage ?? 'Download the required model first, or wait for the current operation.'
+                : '$actionLabel $title',
+            child: OutlinedButton(
+              style: _actionButtonStyle(destructive: destructive),
+              onPressed: onPressed,
+              child: Text(actionLabel),
+            ),
           ),
-        ),
-        if (onDelete != null) ...[
-          const SizedBox(width: 8),
-          OutlinedButton(
-            onPressed: onDelete,
-            style: _actionButtonStyle(destructive: true),
-            child: const Text('Delete'),
-          ),
+          if (onDelete != null) ...[
+            const SizedBox(width: 8),
+            OutlinedButton(
+              onPressed: onDelete,
+              style: _actionButtonStyle(destructive: true),
+              child: const Text('Delete'),
+            ),
+          ],
         ],
-      ],
+      ),
     ),
   );
 }

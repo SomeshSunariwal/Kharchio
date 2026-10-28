@@ -186,7 +186,12 @@ class _AddExpenseState extends ConsumerState<AddExpenseScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Delete', style: TextStyle(color: red)),
+            style: TextButton.styleFrom(
+              backgroundColor: red,
+              foregroundColor: Colors.white,
+              textStyle: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            child: Text('Delete'),
           ),
         ],
       ),
@@ -234,8 +239,12 @@ class _AddExpenseState extends ConsumerState<AddExpenseScreen> {
         if (editing)
           IconButton(
             tooltip: 'Delete expense',
+            style: IconButton.styleFrom(
+              backgroundColor: red,
+              foregroundColor: Colors.white,
+            ),
             onPressed: deleteExpense,
-            icon: Icon(Icons.delete_outline, color: red, size: 20),
+            icon: Icon(Icons.delete_outline, color: Colors.white, size: 20),
           ),
       ],
     ),
@@ -367,6 +376,10 @@ class _AddExpenseState extends ConsumerState<AddExpenseScreen> {
             ),
             IconButton(
               tooltip: 'Remove expense card',
+              style: IconButton.styleFrom(
+                backgroundColor: red,
+                foregroundColor: Colors.white,
+              ),
               visualDensity: VisualDensity.compact,
               constraints: BoxConstraints(minWidth: 32, minHeight: 32),
               padding: EdgeInsets.zero,
@@ -379,7 +392,7 @@ class _AddExpenseState extends ConsumerState<AddExpenseScreen> {
                       });
                     }),
               icon: Icon(Icons.delete_outline, size: 18),
-              color: red,
+              color: Colors.white,
             ),
           ],
         ),

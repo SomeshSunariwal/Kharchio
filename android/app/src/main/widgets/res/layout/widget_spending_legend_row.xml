@@ -1,0 +1,5 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="26dp" android:paddingEnd="6dp" android:orientation="horizontal" android:clickable="false" android:longClickable="false" android:focusable="false" android:enabled="false" android:gravity="center_vertical">
+    <TextView android:id="@+id/widget_spending_dot" android:layout_width="12dp" android:layout_height="wrap_content" android:text="●" android:textSize="10sp" android:importantForAccessibility="no"/>
+    <TextView android:id="@+id/widget_spending_category" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:textSize="11sp" android:maxLines="1" android:ellipsize="end" android:textColor="@color/widget_quick_ink"/>
+    <TextView android:id="@+id/widget_spending_amount" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:textSize="11sp" android:textStyle="bold" android:textColor="@color/widget_quick_ink"/>
+</LinearLayout>

@@ -1,13 +1,12 @@
-import '../core/preferences.dart';
-import '../core/categories.dart';
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../core/categories.dart';
+import '../core/expense_store.dart';
+import '../core/preferences.dart';
 import '../core/theme.dart';
-import '../core/preview_data.dart';
-import 'swipe_delete_expense.dart';
 import 'app_notification.dart';
+import 'swipe_delete_expense.dart';
 
 /// Keeps page controls outside the scrolling content without a fixed height.
 class FixedHeaderPage extends StatelessWidget {

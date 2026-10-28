@@ -2,17 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/expense_store.dart';
+import '../../core/preferences.dart';
 import '../../core/theme.dart';
 import '../../core/theme_settings.dart';
-import '../../core/preferences.dart';
-import '../../core/preview_data.dart';
-import '../../shared/app_dropdown.dart';
-import '../../shared/preference_dropdown_row.dart';
-import '../../shared/widgets.dart';
-import '../../services/ai/model_manager.dart';
 import '../../services/ai/model_download_manager.dart';
 import '../../services/ai/model_download_store.dart';
+import '../../services/ai/model_manager.dart';
 import '../../services/ai/model_validator.dart';
+import '../../shared/app_dropdown.dart';
+import '../../shared/destructive_confirmation.dart';
+import '../../shared/preference_dropdown_row.dart';
+import '../../shared/widgets.dart';
 import 'model_check_dialog.dart';
 import 'user_profile_card.dart';
 
@@ -29,29 +30,11 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
     if (resettingExpenses) return;
     setState(() => resettingExpenses = true);
     try {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Reset all expense data?'),
-          content: const Text(
-            'This permanently deletes all recorded expenses. Categories, settings and downloaded models will be kept. This cannot be undone.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              style: TextButton.styleFrom(
-                backgroundColor: red,
-                foregroundColor: Colors.white,
-                textStyle: const TextStyle(fontWeight: FontWeight.w700),
-              ),
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Reset All'),
-            ),
-          ],
-        ),
+      final confirmed = await confirmDestructiveAction(
+        context,
+        title: 'Reset all expense data?',
+        message: 'This permanently deletes all recorded expenses. Categories, settings and downloaded models will be kept. This cannot be undone.',
+        confirmLabel: 'Reset All',
       );
       if (confirmed != true || !mounted) return;
       await ref.read(expensesProvider.notifier).reset();
@@ -640,33 +623,15 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _deleteModel(ModelGroup group, String title) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Delete $title?'),
-        content: Text(
-          group == ModelGroup.speechGpu
-              ? 'This removes GPU/CPU speech weights. NPU speech models will be kept.'
-              : group == ModelGroup.speechNpu
-              ? 'This removes both NPU variants and their compiled cache. GPU/CPU speech weights will be kept.'
-              : 'Expense AI will be unavailable until you download Qwen again.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            style: TextButton.styleFrom(
-              backgroundColor: red,
-              foregroundColor: Colors.white,
-              textStyle: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+    final confirmed = await confirmDestructiveAction(
+      context,
+      title: 'Delete $title?',
+      message: switch (group) {
+        ModelGroup.speechGpu => 'This removes GPU/CPU speech weights. NPU speech models will be kept.',
+        ModelGroup.speechNpu => 'This removes both NPU variants and their compiled cache. GPU/CPU speech weights will be kept.',
+        ModelGroup.qwen =>
+          'Expense AI will be unavailable until you download Qwen again.',
+      },
     );
     if (confirmed == true && mounted) {
       await ref.read(modelDownloadsProvider.notifier).delete(group);

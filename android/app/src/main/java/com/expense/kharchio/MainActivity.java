@@ -1,6 +1,8 @@
 package com.expense.kharchio;
 
 import android.content.SharedPreferences;
+import android.content.Intent;
+import com.expense.kharchio.widgets.WidgetActionBridge;
 import java.util.HashMap;
 import java.util.Map;
 import androidx.annotation.NonNull;
@@ -14,10 +16,12 @@ public class MainActivity extends FlutterActivity {
     private static final String THEME_KEY = "appearance.themeMode";
     private MethodChannel settingsChannel;
     private ModelAssetBridge modelAssets;
+    private WidgetActionBridge widgetActions;
 
     @Override
     public void configureFlutterEngine(@NonNull FlutterEngine flutterEngine) {
         super.configureFlutterEngine(flutterEngine);
+        widgetActions = new WidgetActionBridge(this, flutterEngine);
         modelAssets = new ModelAssetBridge(getApplicationContext(), flutterEngine);
         SharedPreferences settings = ((KharchioApplication) getApplication()).getSettings();
         settingsChannel = new MethodChannel(
@@ -75,7 +79,15 @@ public class MainActivity extends FlutterActivity {
     }
 
     @Override
+    protected void onNewIntent(@NonNull Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        if (widgetActions != null) widgetActions.onNewIntent(intent);
+    }
+
+    @Override
     public void cleanUpFlutterEngine(@NonNull FlutterEngine flutterEngine) {
+        if (widgetActions != null) { widgetActions.close(); widgetActions = null; }
         if (modelAssets != null) { modelAssets.close(); modelAssets = null; }
         if (settingsChannel != null) {
             settingsChannel.setMethodCallHandler(null);

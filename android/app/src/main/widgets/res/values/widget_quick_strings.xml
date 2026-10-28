@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_quick_name">Kharchio Quick Expense</string>
+    <string name="widget_quick_description">Add an expense or start an offline voice recording.</string>
+    <string name="widget_quick_title">Kharchio</string>
+    <string name="widget_quick_subtitle">Quick expense capture</string>
+    <string name="widget_quick_add">Add Expense</string>
+    <string name="widget_quick_record">Record Expense</string>
+</resources>

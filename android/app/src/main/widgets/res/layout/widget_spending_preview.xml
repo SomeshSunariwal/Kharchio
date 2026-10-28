@@ -1,0 +1,9 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="12dp" android:background="@drawable/widget_quick_background">
+    <TextView android:layout_width="match_parent" android:layout_height="24dp" android:text="@string/widget_spending_title" android:textStyle="bold" android:textSize="12sp" android:textColor="@color/widget_quick_ink"/>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal" android:gravity="center_vertical">
+        <ImageView android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:scaleType="fitCenter" android:src="@drawable/widget_spending_preview_pie" android:importantForAccessibility="no"/>
+        <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:layout_marginStart="10dp" android:text="Groceries  ₹ 600.00
+Transport  ₹ 250.00
+Food &amp; Dining  ₹ 150.00" android:lineSpacingExtra="8dp" android:textSize="11sp" android:textColor="@color/widget_quick_ink"/>
+    </LinearLayout>
+</LinearLayout>

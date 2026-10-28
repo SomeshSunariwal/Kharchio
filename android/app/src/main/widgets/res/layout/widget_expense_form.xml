@@ -1,0 +1,18 @@
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:padding="4dp">
+    <LinearLayout android:id="@+id/widget_form_add"
+        android:layout_width="match_parent" android:layout_height="match_parent"
+        android:orientation="horizontal" android:gravity="center"
+        android:background="@drawable/widget_form_add"
+        android:contentDescription="@string/widget_form_add"
+        android:clickable="true" android:focusable="true">
+        <ImageView android:layout_width="20dp" android:layout_height="20dp"
+            android:src="@drawable/widget_quick_add_icon" android:tint="#FFFFFF"
+            android:importantForAccessibility="no" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginStart="6dp" android:text="@string/widget_form_add"
+            android:textColor="#FFFFFF" android:textSize="14sp" android:textStyle="bold"
+            android:importantForAccessibility="no" />
+    </LinearLayout>
+</FrameLayout>

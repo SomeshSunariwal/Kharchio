@@ -4,9 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/monthly_budgets.dart';
+import '../../core/planning_years.dart';
 import '../../core/preferences.dart';
 import '../../core/theme.dart';
 import '../../shared/app_dropdown.dart';
+import '../../shared/destructive_confirmation.dart';
 import '../../shared/swipe_delete_expense.dart';
 import '../../shared/widgets.dart';
 
@@ -20,29 +22,12 @@ class BudgetPlannerScreen extends ConsumerWidget {
     WidgetRef ref,
     MonthlyBudget budget,
   ) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete monthly budget?'),
-        content: Text(
+    final confirmed = await confirmDestructiveAction(
+      context,
+      title: 'Delete monthly budget?',
+      message:
           'Delete the budget for ${budgetMonth(budget)}? The month and its expenses will be kept.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: red,
-              foregroundColor: Colors.white,
-              textStyle: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+      filledAction: true,
     );
     if (confirmed == true) {
       await ref.read(monthlyBudgetsProvider.notifier).delete(budget);
@@ -212,7 +197,8 @@ class _BudgetDialogState extends ConsumerState<_BudgetDialog> {
     text: widget.budget?.amount.toStringAsFixed(2) ?? '',
   );
   late int month = widget.budget?.month ?? DateTime.now().month;
-  late int year = widget.budget?.year ?? DateTime.now().year.clamp(2026, 2046);
+  late int year =
+      widget.budget?.year ?? PlanningYears.clamp(DateTime.now().year);
   bool saving = false;
   String? error;
   @override
@@ -261,7 +247,7 @@ class _BudgetDialogState extends ConsumerState<_BudgetDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final years = [for (var year = 2026; year <= 2046; year++) year];
+    final years = PlanningYears.values;
     return PopScope(
       canPop: !saving,
       child: Dialog(
@@ -363,7 +349,7 @@ class _BudgetDialogState extends ConsumerState<_BudgetDialog> {
                                 const SizedBox(width: 12),
                                 Expanded(
                                   flex: 2,
-                                  child: year < 2026 || year > 2046
+                                  child: !PlanningYears.contains(year)
                                       ? InputDecorator(
                                           decoration: const InputDecoration(
                                             labelText: 'Year',

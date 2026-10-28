@@ -1,20 +1,20 @@
-import '../../core/categories.dart';
-import '../../core/expense_summary.dart';
-import '../../core/expense_summary_provider.dart';
-import '../../shared/category_donut.dart';
-import '../../shared/collapsing_expense_overview.dart';
-import '../../shared/app_dropdown.dart';
-import '../../core/preferences.dart';
-import '../../core/monthly_budgets.dart';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/categories.dart';
+import '../../core/expense_store.dart';
+import '../../core/expense_summary.dart';
+import '../../core/expense_summary_provider.dart';
+import '../../core/monthly_budgets.dart';
+import '../../core/planning_years.dart';
+import '../../core/preferences.dart';
 import '../../core/theme.dart';
-import '../../core/preview_data.dart';
-import '../../shared/category_pie_chart.dart';
+import '../../shared/app_dropdown.dart';
+import '../../shared/category_donut.dart';
+import '../../shared/category_spending_summary.dart';
+import '../../shared/collapsing_expense_overview.dart';
 import '../../shared/widgets.dart';
 
 enum AnalysisPeriod { year, month, day }
@@ -34,7 +34,7 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
   @override
   void initState() {
     super.initState();
-    date = DateTime(DateTime.now().year.clamp(2026, 2046));
+    date = DateTime(PlanningYears.clamp(DateTime.now().year));
   }
 
   void _open(AnalysisPeriod next, DateTime value) {
@@ -46,7 +46,7 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
   }
 
   void _selectYear(int year) {
-    if (year < 2026 || year > 2046) return;
+    if (!PlanningYears.contains(year)) return;
     final lastDay = DateTime(year, date.month + 1, 0).day;
     _open(period, DateTime(year, date.month, date.day.clamp(1, lastDay)));
   }
@@ -54,7 +54,7 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
   @override
   Widget build(BuildContext context) {
     final currencyCode = context.currency.code;
-    final years = [for (var year = 2026; year <= 2046; year++) year];
+    final years = PlanningYears.values;
     final selectedSummary = ref.watch(
       expenseSummaryProvider((
         year: date.year,

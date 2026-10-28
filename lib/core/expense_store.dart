@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../database/local_store.dart';
 import 'expense.dart';
+
 export 'expense.dart';
 
 final expensesProvider = NotifierProvider<ExpenseStore, List<Expense>>(
@@ -22,6 +23,11 @@ class ExpenseStore extends Notifier<List<Expense>> {
 
   Future<void> save(List<Expense> values) =>
       ref.read(localStoreProvider).saveExpenses(values);
+  Future<void> refresh() async {
+    final values = await ref.read(localStoreProvider).readExpenses();
+    if (ref.mounted) state = values;
+  }
+
   Future<void> delete(String id) =>
       ref.read(localStoreProvider).deleteExpense(id);
 

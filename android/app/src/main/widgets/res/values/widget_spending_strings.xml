@@ -1,0 +1,9 @@
+<resources>
+    <string name="widget_spending_name">Kharchio Spending Pie</string>
+    <string name="widget_spending_description">This month’s spending pie and category amounts.</string>
+    <string name="widget_spending_title">Monthly spending</string>
+    <string name="widget_spending_categories">By category</string>
+    <string name="widget_spending_empty">No expenses this month</string>
+    <string name="widget_spending_open_app">Open Kharchio to load your ledger</string>
+    <string name="widget_spending_pie_description">Current month spending by category</string>
+</resources>

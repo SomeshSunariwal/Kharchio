@@ -42,40 +42,28 @@ class ModelInventory {
     : ready = Set.unmodifiable(ready),
       present = Set.unmodifiable(present ?? ready);
 
-  bool hasData(ModelGroup group) => switch (group) {
-    ModelGroup.speechGpu => present.contains('whisper'),
-    ModelGroup.qwen => present.contains('qwen'),
-    ModelGroup.speechNpu => const [
-      'genericEncoder',
-      'genericDecoder',
-      's23Encoder',
-      's23Decoder',
-    ].any(present.contains),
+  static const _genericSpeechFiles = ['genericEncoder', 'genericDecoder'];
+  static const _s23SpeechFiles = ['s23Encoder', 's23Decoder'];
+  static const _filesByGroup = {
+    ModelGroup.speechGpu: ['whisper'],
+    ModelGroup.speechNpu: [..._genericSpeechFiles, ..._s23SpeechFiles],
+    ModelGroup.qwen: ['qwen'],
   };
 
+  bool hasData(ModelGroup group) => _filesByGroup[group]!.any(present.contains);
+  bool groupReady(ModelGroup group) =>
+      _filesByGroup[group]!.every(ready.contains);
   bool get speechReady =>
-      ready.contains('whisper') ||
-      const ['genericEncoder', 'genericDecoder'].every(ready.contains) ||
-      const ['s23Encoder', 's23Decoder'].every(ready.contains);
-  bool get anyReady => speechReady || ready.contains('qwen');
-  bool groupReady(ModelGroup group) => switch (group) {
-    ModelGroup.speechGpu => ready.contains('whisper'),
-    ModelGroup.qwen => ready.contains('qwen'),
-    ModelGroup.speechNpu => const [
-      'genericEncoder',
-      'genericDecoder',
-      's23Encoder',
-      's23Decoder',
-    ].every(ready.contains),
-  };
+      groupReady(ModelGroup.speechGpu) ||
+      _genericSpeechFiles.every(ready.contains) ||
+      _s23SpeechFiles.every(ready.contains);
+  bool get anyReady => speechReady || groupReady(ModelGroup.qwen);
 
   String? speechIssue(int mode) {
-    if (mode == 2 &&
-        !const ['genericEncoder', 'genericDecoder'].every(ready.contains)) {
+    if (mode == 2 && !_genericSpeechFiles.every(ready.contains)) {
       return 'Download the Speech Model for NPU first.';
     }
-    if (mode == 3 &&
-        !const ['s23Encoder', 's23Decoder'].every(ready.contains)) {
+    if (mode == 3 && !_s23SpeechFiles.every(ready.contains)) {
       return 'Download the Speech Model for NPU first (SM8550).';
     }
     if ((mode == 0 || mode == 1) && !ready.contains('whisper')) {
@@ -270,7 +258,7 @@ class ModelDownloadStore {
 
   Future<void> delete(ModelGroup group) async {
     // Each download group owns its own weights. Small audio metadata is bundled.
-    for (final model in files.where((f) => f.group == group)) {
+    for (final model in groupFiles(group)) {
       for (final file in [
         target(model),
         File('${target(model).path}.partial'),
@@ -291,13 +279,12 @@ class ModelDownloadStore {
   }
 
   Future<void> _writeRevision(Set<String> ready) async {
-    if (!const ['genericEncoder', 'genericDecoder'].every(ready.contains)) {
+    if (!ModelInventory._genericSpeechFiles.every(ready.contains)) {
       return;
     }
-    final hashes = [
-      'genericEncoder',
-      'genericDecoder',
-    ].map((id) => files.firstWhere((f) => f.id == id).sha256).join();
+    final hashes = ModelInventory._genericSpeechFiles
+        .map((id) => files.firstWhere((f) => f.id == id).sha256)
+        .join();
     final revision = sha256.convert(utf8.encode(hashes)).toString();
     final path = File('${directory.path}/whisper-qnn-generic/revision.txt');
     if (await path.exists() && await path.readAsString() == revision) return;

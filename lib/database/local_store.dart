@@ -78,16 +78,11 @@ class LocalStore {
       );
 
   Future<List<ExpenseCategory>> readCategories() async =>
-      (await (db.select(
-            db.categories,
-          )..orderBy([(r) => OrderingTerm.asc(r.sortOrder)])).get())
-          .map(_category)
-          .toList();
+      _categories(await db.select(db.categories).get());
   Stream<List<ExpenseCategory>> watchCategories() =>
-      (db.select(db.categories)
-            ..orderBy([(r) => OrderingTerm.asc(r.sortOrder)]))
-          .watch()
-          .map((rows) => rows.map(_category).toList());
+      db.select(db.categories).watch().map(_categories);
+  List<ExpenseCategory> _categories(List<StoredCategory> rows) =>
+      rows.map(_category).toList()..sort(compareExpenseCategories);
   ExpenseCategory _category(StoredCategory row) =>
       ExpenseCategory(row.name, row.colorValue, row.iconKey, id: row.id);
 

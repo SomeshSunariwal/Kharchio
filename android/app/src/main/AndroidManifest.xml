@@ -10,6 +10,43 @@
         android:roundIcon="@mipmap/ic_launcher">
         <uses-native-library android:name="libOpenCL.so" android:required="false" />
         <uses-native-library android:name="libcdsprpc.so" android:required="false" />
+        <receiver android:name=".widgets.spending.SpendingWidget"
+            android:exported="false" android:label="@string/widget_spending_name">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider"
+                android:resource="@xml/widget_spending_info" />
+        </receiver>
+        <service android:name=".widgets.spending.SpendingLegendService"
+            android:exported="false" android:permission="android.permission.BIND_REMOTEVIEWS" />
+        <activity
+            android:name=".widgets.manualexpense.ExpenseEntryActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity="com.expense.kharchio.widgetentry"
+            android:launchMode="singleTop"
+            android:theme="@style/WidgetEntryTheme"
+            android:hardwareAccelerated="true"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:windowSoftInputMode="adjustResize">
+            <meta-data android:name="io.flutter.embedding.android.NormalTheme"
+                android:resource="@style/WidgetEntryTheme" />
+        </activity>
+        <receiver android:name=".widgets.manualexpense.ExpenseFormWidget"
+            android:exported="false" android:label="@string/widget_form_name">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider"
+                android:resource="@xml/widget_expense_form_info" />
+        </receiver>
+        <receiver
+            android:name=".widgets.quickexpense.QuickExpenseWidget"
+            android:exported="false"
+            android:label="@string/widget_quick_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider"
+                android:resource="@xml/widget_quick_expense_info" />
+        </receiver>
         <activity
             android:name=".MainActivity"
             android:exported="true"

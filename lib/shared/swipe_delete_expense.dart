@@ -3,33 +3,17 @@ import 'package:flutter/physics.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../core/preview_data.dart';
+import '../core/expense_store.dart';
 import '../core/theme.dart';
+import 'destructive_confirmation.dart';
 
-Future<bool> confirmExpenseDeletion(BuildContext context, String title) async =>
-    await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete expense?'),
-        content: Text('Delete "$title"? This cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            style: TextButton.styleFrom(
-              backgroundColor: red,
-              foregroundColor: Colors.white,
-              textStyle: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    ) ==
-    true;
+Future<bool> confirmExpenseDeletion(BuildContext context, String title) =>
+    confirmDestructiveAction(
+      context,
+      title: 'Delete expense?',
+      message: 'Delete "$title"? This cannot be undone.',
+      confirmLabel: 'OK',
+    );
 
 /// Expense actions use the same reveal interaction as other deletable rows.
 class SwipeDeleteExpense extends ConsumerWidget {

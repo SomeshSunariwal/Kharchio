@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/categories.dart';
-import '../../core/preview_data.dart';
+import '../../core/expense_store.dart';
 import '../../core/theme.dart';
-
+import '../../shared/destructive_confirmation.dart';
 import '../../shared/widgets.dart';
 
 class CategoriesScreen extends ConsumerWidget {
@@ -27,31 +27,13 @@ class CategoriesScreen extends ConsumerWidget {
         .read(expensesProvider)
         .where((e) => e.category == category.name)
         .length;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Remove ${category.name}?'),
-        content: Text(
-          count == 0
-              ? 'Remove this category from expense selections?'
-              : '$count expenses will move to ${fallback.name}. Their amounts and dates will be kept.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(
-              backgroundColor: red,
-              foregroundColor: Colors.white,
-              textStyle: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-            child: const Text('Remove'),
-          ),
-        ],
-      ),
+    final confirmed = await confirmDestructiveAction(
+      context,
+      title: 'Remove ${category.name}?',
+      message: count == 0
+          ? 'Remove this category from expense selections?'
+          : '$count expenses will move to ${fallback.name}. Their amounts and dates will be kept.',
+      confirmLabel: 'Remove',
     );
     if (confirmed != true || !context.mounted) return;
     final categoryStore = ref.read(categoriesProvider.notifier);

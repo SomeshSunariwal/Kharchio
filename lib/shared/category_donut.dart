@@ -86,51 +86,55 @@ class CategoryDonut extends StatelessWidget {
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
-                      PieChart(
-                        PieChartData(
-                          startDegreeOffset: -90,
-                          sectionsSpace: 1,
-                          centerSpaceRadius: diameter * .25,
-                          pieTouchData: PieTouchData(
-                            enabled: onCategorySelected != null,
-                            touchCallback: (event, response) {
-                              if (event is! FlTapUpEvent) return;
-                              final section =
-                                  response
-                                      ?.touchedSection
-                                      ?.touchedSectionIndex ??
-                                  -1;
-                              if (section >= 0 && section < active.length) {
-                                onCategorySelected?.call(active[section]);
-                              }
-                            },
-                          ),
-                          sections: [
-                            for (final i in active)
-                              PieChartSectionData(
-                                value: totals[i],
-                                color:
-                                    selectedIndex == null || selectedIndex == i
-                                    ? context.categoryColors[i]
-                                    : context.categoryColors[i].withValues(
-                                        alpha: .35,
-                                      ),
-                                borderSide: selectedIndex == i
-                                    ? const BorderSide(
-                                        color: Colors.white,
-                                        width: 2,
-                                      )
-                                    : BorderSide.none,
-                                radius: diameter * .25,
-                                title: '${(totals[i] / total * 100).round()}%',
-                                showTitle: totals[i] / total >= .05,
-                                titleStyle: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
+                      _DonutEntrance(
+                        child: PieChart(
+                          PieChartData(
+                            startDegreeOffset: -90,
+                            sectionsSpace: 1,
+                            centerSpaceRadius: diameter * .25,
+                            pieTouchData: PieTouchData(
+                              enabled: onCategorySelected != null,
+                              touchCallback: (event, response) {
+                                if (event is! FlTapUpEvent) return;
+                                final section =
+                                    response
+                                        ?.touchedSection
+                                        ?.touchedSectionIndex ??
+                                    -1;
+                                if (section >= 0 && section < active.length) {
+                                  onCategorySelected?.call(active[section]);
+                                }
+                              },
+                            ),
+                            sections: [
+                              for (final i in active)
+                                PieChartSectionData(
+                                  value: totals[i],
+                                  color:
+                                      selectedIndex == null ||
+                                          selectedIndex == i
+                                      ? context.categoryColors[i]
+                                      : context.categoryColors[i].withValues(
+                                          alpha: .35,
+                                        ),
+                                  borderSide: selectedIndex == i
+                                      ? const BorderSide(
+                                          color: Colors.white,
+                                          width: 2,
+                                        )
+                                      : BorderSide.none,
+                                  radius: diameter * .25,
+                                  title:
+                                      '${(totals[i] / total * 100).round()}%',
+                                  showTitle: totals[i] / total >= .05,
+                                  titleStyle: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
-                              ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                       SizedBox(
@@ -314,4 +318,50 @@ class _ConnectorPainter extends CustomPainter {
       !mapEquals(old.labels, labels) ||
       !listEquals(old.colors, colors) ||
       old.diameter != diameter;
+}
+
+/// Reveals the ring clockwise once when this chart enters the widget tree.
+class _DonutEntrance extends StatelessWidget {
+  final Widget child;
+  const _DonutEntrance({required this.child});
+  @override
+  Widget build(BuildContext context) {
+    if (MediaQuery.disableAnimationsOf(context)) return child;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 500),
+      curve: Curves.easeOutCubic,
+      child: child,
+      builder: (context, progress, chart) => IgnorePointer(
+        ignoring: progress < 1,
+        child: ClipPath(clipper: _DonutSweepClipper(progress), child: chart),
+      ),
+    );
+  }
+}
+
+class _DonutSweepClipper extends CustomClipper<Path> {
+  final double progress;
+  const _DonutSweepClipper(this.progress);
+  @override
+  Path getClip(Size size) {
+    if (progress >= 1) return Path()..addRect(Offset.zero & size);
+    if (progress <= 0) return Path();
+    final center = size.center(Offset.zero);
+    final radius =
+        math.sqrt(size.width * size.width + size.height * size.height) / 2;
+    return Path()
+      ..moveTo(center.dx, center.dy)
+      ..arcTo(
+        Rect.fromCircle(center: center, radius: radius),
+        -math.pi / 2,
+        math.pi * 2 * progress,
+        false,
+      )
+      ..close();
+  }
+
+  @override
+  bool shouldReclip(_DonutSweepClipper oldClipper) =>
+      progress != oldClipper.progress;
 }

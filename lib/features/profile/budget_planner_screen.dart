@@ -119,7 +119,7 @@ class BudgetPlannerScreen extends ConsumerWidget {
                             SurfaceCard(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 12,
-                                vertical: 2,
+                                vertical: 12,
                               ),
                               child: Column(
                                 children: [
@@ -129,7 +129,9 @@ class BudgetPlannerScreen extends ConsumerWidget {
                                       onDelete: () =>
                                           _delete(context, ref, rows[i]),
                                       child: ListTile(
-                                        contentPadding: EdgeInsets.zero,
+                                        contentPadding: const EdgeInsets.only(
+                                          right: 10,
+                                        ),
                                         minTileHeight: 50,
                                         dense: true,
                                         minVerticalPadding: 0,

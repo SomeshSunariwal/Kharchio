@@ -29,9 +29,12 @@ To set up everything locally, follow [BUILD.md](BUILD.md).
 
 ### Analysis
 
-- Select a year from 2026 to 2040.
+- Select a year from 2026 to 2046.
 - Drill from a 3 × 4 month grid into a daily calendar, then a date's transaction list.
 - Slide only the results container when moving forward or back.
+- Swipe left from the donut to a blue spending line with a fading area gradient and a rising entrance animation. Dashboard keeps its donut chart.
+- Plot months in year view, days in month view, and all 24 hours in day view. Empty time buckets show zero spending; amounts follow the selected currency and category filter.
+- Switch chart pages with swipe gestures or the expanding horizontal line indicators. Motion respects the device’s reduced-motion setting.
 - Use the same collapsible chart, category filtering, highlighting, and scrolling transaction container as Dashboard.
 - Edit transactions or add expenses with the floating button.
 

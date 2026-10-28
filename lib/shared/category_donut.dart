@@ -89,7 +89,8 @@ class CategoryDonut extends StatelessWidget {
                       _DonutEntrance(
                         child: PieChart(
                           PieChartData(
-                            startDegreeOffset: -90,
+                            startDegreeOffset:
+                                geometry.startAngle * 180 / math.pi,
                             sectionsSpace: 1,
                             centerSpaceRadius: diameter * .25,
                             pieTouchData: PieTouchData(
@@ -176,7 +177,7 @@ class CategoryDonut extends StatelessWidget {
                     right: entry.value.right ? 0 : null,
                     top: entry.value.top,
                     child: SizedBox(
-                      width: width * .23,
+                      width: width * .20,
                       child: Column(
                         crossAxisAlignment: entry.value.right
                             ? CrossAxisAlignment.end
@@ -236,6 +237,7 @@ class _DonutGeometry {
   final active = <int>[];
   final angles = <int, double>{};
   late final List<int> left, right;
+  double startAngle = -math.pi / 2;
 
   _DonutGeometry(List<double> totals) {
     final sum = totals.fold<double>(0, (a, b) => a + b);
@@ -248,6 +250,34 @@ class _DonutGeometry {
         angles[i] = angle + sweep / 2;
         angle += sweep;
       }
+    }
+    // Rotate only as far as needed to balance label counts. A dominant slice
+    // otherwise crowds every small category onto the opposite side.
+    double rotation = 0;
+    var bestImbalance = active.length;
+    final candidates = <double>[0];
+    for (final angle in angles.values) {
+      for (final boundary in [math.pi / 2, math.pi * 1.5]) {
+        for (final offset in [-.02, .02]) {
+          final value = boundary - angle + offset;
+          candidates.add(math.atan2(math.sin(value), math.cos(value)));
+        }
+      }
+    }
+    for (final candidate in candidates) {
+      final leftCount = angles.values
+          .where((angle) => math.cos(angle + candidate) < 0)
+          .length;
+      final imbalance = (leftCount * 2 - active.length).abs();
+      if (imbalance < bestImbalance ||
+          (imbalance == bestImbalance && candidate.abs() < rotation.abs())) {
+        bestImbalance = imbalance;
+        rotation = candidate;
+      }
+    }
+    startAngle += rotation;
+    for (final index in active) {
+      angles[index] = angles[index]! + rotation;
     }
     int compare(int a, int b) =>
         math.sin(angles[a]!).compareTo(math.sin(angles[b]!));
@@ -295,14 +325,33 @@ class _ConnectorPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     for (final entry in labels.entries) {
       final label = entry.value;
-      final edge =
-          center +
-          Offset(math.cos(label.angle), math.sin(label.angle)) * diameter * .49;
+      final side =
+          labels.entries.where((e) => e.value.right == label.right).toList()
+            ..sort((a, b) => a.value.top.compareTo(b.value.top));
+      final rank = side.indexWhere((e) => e.key == entry.key);
+      final direction = Offset(math.cos(label.angle), math.sin(label.angle));
+      final radius = diameter / 2;
+      final edge = center + direction * (radius + .5);
+      final outside = center + direction * (radius + 4);
       final y = label.top + 12;
+      // Downward leaders use outer tracks first; upward leaders use inner
+      // tracks first. Sorted endpoints then never cross another leader.
+      final lane = y >= outside.dy ? side.length - rank : rank + 1;
+      final gap = math.max(
+        2.0,
+        (size.width * .30 - radius - 2) / (side.length + 1),
+      );
+      final railX =
+          center.dx + (label.right ? 1 : -1) * (radius + 2 + gap * lane);
+      final labelX = label.right ? size.width * .80 : size.width * .20;
+      // Move radially out, then horizontally away from the circle before
+      // changing Y. Every connector segment stays outside the donut.
       final path = Path()
         ..moveTo(edge.dx, edge.dy)
-        ..lineTo(label.right ? size.width * .76 : size.width * .24, y)
-        ..lineTo(label.right ? size.width * .80 : size.width * .20, y);
+        ..lineTo(outside.dx, outside.dy)
+        ..lineTo(railX, outside.dy)
+        ..lineTo(railX, y)
+        ..lineTo(labelX, y);
       canvas.drawPath(
         path,
         Paint()

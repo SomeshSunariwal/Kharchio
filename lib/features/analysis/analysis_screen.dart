@@ -16,8 +16,8 @@ import '../../shared/category_donut.dart';
 import '../../shared/category_spending_summary.dart';
 import '../../shared/collapsing_expense_overview.dart';
 import '../../shared/widgets.dart';
-
-enum AnalysisPeriod { year, month, day }
+import 'analysis_chart_pager.dart';
+import 'analysis_timeline.dart';
 
 class AnalysisScreen extends ConsumerStatefulWidget {
   const AnalysisScreen({super.key});
@@ -30,6 +30,7 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
   AnalysisPeriod period = AnalysisPeriod.year;
   String? selectedCategory;
   bool movingForward = true;
+  int chartPage = 0;
 
   @override
   void initState() {
@@ -198,6 +199,14 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
       ],
     );
     final scale = MediaQuery.textScalerOf(context);
+    final pieHeight = CategoryDonut.heightFor(
+      (MediaQuery.sizeOf(context).width.clamp(0.0, 700.0) - 54).clamp(
+        0.0,
+        double.infinity,
+      ),
+      totals,
+      scale,
+    );
     final chartHeader = CollapsingExpenseOverview(
       summary: CategorySpendingSummary(
         total: displayedTotal,
@@ -213,8 +222,17 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
       footer: resultsHeading,
       footerHeight: 56 + (scale.scale(17) - 17).clamp(0, 40),
       expanded: total > 0
-          ? CategoryDonut(
+          ? AnalysisChartPager(
               totals: totals,
+              timeline: AnalysisTimeline(
+                expenses: selected,
+                period: period,
+                date: date,
+                currencyCode: currencyCode,
+              ),
+              page: chartPage,
+              budget: budget,
+              onPageChanged: (page) => setState(() => chartPage = page),
               selectedIndex: selectedIndex,
               onCategorySelected: selectCategory,
             )
@@ -224,16 +242,9 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
                 style: TextStyle(color: context.appColors.muted, fontSize: 12),
               ),
             ),
-      expandedHeight: total <= 0
-          ? 120
-          : CategoryDonut.heightFor(
-              (MediaQuery.sizeOf(context).width.clamp(0.0, 700.0) - 54).clamp(
-                0.0,
-                double.infinity,
-              ),
-              totals,
-              scale,
-            ),
+      // Both pages share a fixed viewport so the line's X-axis cannot drift
+      // vertically during a horizontal swipe.
+      expandedHeight: total <= 0 ? 120 : 24 + pieHeight,
       totals: totals,
       colors: context.categoryColors,
       names: context.categoryNames,

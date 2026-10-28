@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../core/theme.dart';
@@ -182,81 +184,110 @@ class _ScrollableDropdownEntry<T> extends PopupMenuEntry<T> {
 
 class _ScrollableDropdownEntryState<T>
     extends State<_ScrollableDropdownEntry<T>> {
-  final controller = ScrollController();
+  ScrollController? controller;
 
   @override
   void dispose() {
-    controller.dispose();
+    controller?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
-    return SizedBox(
-      width: widget.width,
-      height: widget.height,
-      child: Scrollbar(
-        controller: controller,
-        thumbVisibility: true,
-        trackVisibility: true,
-        thickness: 3,
-        radius: const Radius.circular(3),
-        child: ListView.builder(
-          controller: controller,
-          primary: false,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          itemExtent: 42,
-          itemCount: widget.options.length,
-          itemBuilder: (context, index) {
-            final option = widget.options[index];
-            final selected = option.value == widget.value;
-            return Semantics(
-              selected: selected,
-              button: true,
-              child: Material(
-                color: selected
-                    ? green.withValues(alpha: .09)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(8),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(8),
-                  onTap: () => Navigator.pop(context, option.value),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Row(
-                      children: [
-                        if (option.icon != null) ...[
-                          Icon(
-                            option.icon,
-                            size: 18,
-                            color: selected ? green : colors.muted,
-                          ),
-                          const SizedBox(width: 8),
-                        ],
-                        Expanded(
-                          child: Text(
-                            option.label,
-                            style: TextStyle(fontSize: 13, color: colors.ink),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final viewportHeight = math.min(widget.height, constraints.maxHeight);
+        final selectedIndex = widget.options.indexWhere(
+          (option) => option.value == widget.value,
+        );
+        final maxOffset = math.max(
+          0.0,
+          widget.options.length * 42.0 - viewportHeight,
+        );
+        final scroll = controller ??= ScrollController(
+          initialScrollOffset: (math.max(0, selectedIndex) * 42.0).clamp(
+            0.0,
+            maxOffset,
+          ),
+        );
+        return MediaQuery.removePadding(
+          context: context,
+          removeTop: true,
+          removeBottom: true,
+          removeLeft: true,
+          removeRight: true,
+          child: SizedBox(
+            width: widget.width,
+            height: viewportHeight,
+            child: Scrollbar(
+              controller: scroll,
+              interactive: true,
+              thumbVisibility: true,
+              trackVisibility: true,
+              thickness: 3,
+              radius: const Radius.circular(3),
+              child: ListView.builder(
+                controller: scroll,
+                primary: false,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                itemExtent: 42,
+                itemCount: widget.options.length,
+                itemBuilder: (context, index) {
+                  final option = widget.options[index];
+                  final selected = option.value == widget.value;
+                  return Semantics(
+                    selected: selected,
+                    button: true,
+                    child: Material(
+                      color: selected
+                          ? green.withValues(alpha: .09)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(8),
+                        onTap: () => Navigator.pop(context, option.value),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: Row(
+                            children: [
+                              if (option.icon != null) ...[
+                                Icon(
+                                  option.icon,
+                                  size: 18,
+                                  color: selected ? green : colors.muted,
+                                ),
+                                const SizedBox(width: 8),
+                              ],
+                              Expanded(
+                                child: Text(
+                                  option.label,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: colors.ink,
+                                  ),
+                                ),
+                              ),
+                              if (selected) ...[
+                                const SizedBox(width: 8),
+                                const Icon(
+                                  Icons.check_rounded,
+                                  size: 18,
+                                  color: green,
+                                ),
+                              ],
+                            ],
                           ),
                         ),
-                        if (selected) ...[
-                          const SizedBox(width: 8),
-                          const Icon(
-                            Icons.check_rounded,
-                            size: 18,
-                            color: green,
-                          ),
-                        ],
-                      ],
+                      ),
                     ),
-                  ),
-                ),
+                  );
+                },
               ),
-            );
-          },
-        ),
-      ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

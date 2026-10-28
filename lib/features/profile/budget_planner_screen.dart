@@ -212,7 +212,7 @@ class _BudgetDialogState extends ConsumerState<_BudgetDialog> {
     text: widget.budget?.amount.toStringAsFixed(2) ?? '',
   );
   late int month = widget.budget?.month ?? DateTime.now().month;
-  late int year = widget.budget?.year ?? DateTime.now().year;
+  late int year = widget.budget?.year ?? DateTime.now().year.clamp(2026, 2046);
   bool saving = false;
   String? error;
   @override
@@ -261,11 +261,7 @@ class _BudgetDialogState extends ConsumerState<_BudgetDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final thisYear = DateTime.now().year;
-    final years = {
-      for (var y = thisYear - 10; y <= thisYear + 20; y++) y,
-      year,
-    }.toList()..sort();
+    final years = [for (var year = 2026; year <= 2046; year++) year];
     return PopScope(
       canPop: !saving,
       child: Dialog(
@@ -339,46 +335,63 @@ class _BudgetDialogState extends ConsumerState<_BudgetDialog> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                flex: 3,
-                                child: AppDropdown<int>(
-                                  label: 'Month',
-                                  value: month,
-                                  enabled: !saving && widget.budget == null,
-                                  options: [
-                                    for (var m = 1; m <= 12; m++)
-                                      AppDropdownOption(
-                                        m,
-                                        DateFormat('MMMM')
-                                            .format(DateTime(2026, m)),
-                                      ),
-                                  ],
-                                  onChanged: (value) => setState(() {
-                                    month = value;
-                                    error = null;
-                                  }),
+                          Opacity(
+                            key: const Key('budget-period-fields'),
+                            opacity: widget.budget == null && !saving ? 1 : .45,
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  flex: 3,
+                                  child: AppDropdown<int>(
+                                    label: 'Month',
+                                    value: month,
+                                    enabled: !saving && widget.budget == null,
+                                    options: [
+                                      for (var m = 1; m <= 12; m++)
+                                        AppDropdownOption(
+                                          m,
+                                          DateFormat('MMMM')
+                                              .format(DateTime(2026, m)),
+                                        ),
+                                    ],
+                                    onChanged: (value) => setState(() {
+                                      month = value;
+                                      error = null;
+                                    }),
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                flex: 2,
-                                child: AppDropdown<int>(
-                                  label: 'Year',
-                                  value: year,
-                                  enabled: !saving && widget.budget == null,
-                                  options: [
-                                    for (final y in years)
-                                      AppDropdownOption(y, '$y'),
-                                  ],
-                                  onChanged: (value) => setState(() {
-                                    year = value;
-                                    error = null;
-                                  }),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  flex: 2,
+                                  child: year < 2026 || year > 2046
+                                      ? InputDecorator(
+                                          decoration: const InputDecoration(
+                                            labelText: 'Year',
+                                          ),
+                                          child: Text(
+                                            '$year',
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        )
+                                      : AppDropdown<int>(
+                                          label: 'Year',
+                                          value: year,
+                                          enabled:
+                                              !saving && widget.budget == null,
+                                          options: [
+                                            for (final y in years)
+                                              AppDropdownOption(y, '$y'),
+                                          ],
+                                          onChanged: (value) => setState(() {
+                                            year = value;
+                                            error = null;
+                                          }),
+                                        ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                           const SizedBox(height: 16),
                           TextFormField(

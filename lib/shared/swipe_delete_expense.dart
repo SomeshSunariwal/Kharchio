@@ -143,10 +143,10 @@ class _SwipeRevealDeleteState extends State<SwipeRevealDelete>
                     child: IgnorePointer(
                       ignoring: slide.value < .99 || busy,
                       child: Padding(
-                        padding: const EdgeInsets.all(1),
+                        padding: const EdgeInsets.all(4),
                         child: Material(
                           color: red,
-                          shape: RoundedSuperellipseBorder(
+                          shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
                             side: BorderSide(color: red, width: 1),
                           ),

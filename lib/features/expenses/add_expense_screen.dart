@@ -174,6 +174,7 @@ class _AddExpenseState extends ConsumerState<AddExpenseScreen> {
   }
 
   Future<void> deleteExpense() async {
+    if (saving) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -197,6 +198,7 @@ class _AddExpenseState extends ConsumerState<AddExpenseScreen> {
       ),
     );
     if (confirmed == true && mounted) {
+      setState(() => saving = true);
       try {
         await ref
             .read(expensesProvider.notifier)
@@ -206,6 +208,8 @@ class _AddExpenseState extends ConsumerState<AddExpenseScreen> {
         if (mounted) {
           notice(context, 'Could not delete the expense. Please try again.');
         }
+      } finally {
+        if (mounted) setState(() => saving = false);
       }
     }
   }
@@ -236,16 +240,6 @@ class _AddExpenseState extends ConsumerState<AddExpenseScreen> {
             ),
           ),
         ),
-        if (editing)
-          IconButton(
-            tooltip: 'Delete expense',
-            style: IconButton.styleFrom(
-              backgroundColor: red,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: deleteExpense,
-            icon: Icon(Icons.delete_outline, color: Colors.white, size: 20),
-          ),
       ],
     ),
     body: SafeArea(
@@ -288,22 +282,34 @@ class _AddExpenseState extends ConsumerState<AddExpenseScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      _action(
-                        'Add Another Expense',
-                        Icons.add_circle_outline,
-                        context.appColors.actionBlue,
-                        context.appColors.actionBlue.withValues(alpha: .05),
-                        add,
-                      ),
-                      SizedBox(height: 6),
-                      _action(
-                        'Record Expense (Voice)',
-                        Icons.mic,
-                        red,
-                        red.withValues(alpha: .06),
-                        record,
-                      ),
-                      SizedBox(height: 6),
+                      if (!editing) ...[
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _action(
+                                'Add Expense',
+                                Icons.add_circle_outline,
+                                context.appColors.actionBlue,
+                                context.appColors.actionBlue.withValues(
+                                  alpha: .05,
+                                ),
+                                add,
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: _action(
+                                'Record Expense',
+                                Icons.mic,
+                                red,
+                                red.withValues(alpha: .06),
+                                record,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 6),
+                      ],
                       _action(
                         editing
                             ? (saving ? 'Saving…' : 'Save Changes')
@@ -376,14 +382,15 @@ class _AddExpenseState extends ConsumerState<AddExpenseScreen> {
             ),
             IconButton(
               tooltip: 'Remove expense card',
-              style: IconButton.styleFrom(
-                backgroundColor: red,
-                foregroundColor: Colors.white,
-              ),
+              style: IconButton.styleFrom(foregroundColor: red),
               visualDensity: VisualDensity.compact,
               constraints: BoxConstraints(minWidth: 32, minHeight: 32),
               padding: EdgeInsets.zero,
-              onPressed: drafts.length == 1
+              onPressed: saving
+                  ? null
+                  : editing
+                  ? deleteExpense
+                  : drafts.length == 1
                   ? null
                   : () => setState(() {
                       drafts.remove(d);
@@ -392,7 +399,7 @@ class _AddExpenseState extends ConsumerState<AddExpenseScreen> {
                       });
                     }),
               icon: Icon(Icons.delete_outline, size: 18),
-              color: Colors.white,
+              color: red,
             ),
           ],
         ),

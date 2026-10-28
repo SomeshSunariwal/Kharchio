@@ -34,7 +34,7 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
   @override
   void initState() {
     super.initState();
-    date = DateTime(DateTime.now().year);
+    date = DateTime(DateTime.now().year.clamp(2026, 2046));
   }
 
   void _open(AnalysisPeriod next, DateTime value) {
@@ -46,7 +46,7 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
   }
 
   void _selectYear(int year) {
-    if (year < 1900 || year > 9999) return;
+    if (year < 2026 || year > 2046) return;
     final lastDay = DateTime(year, date.month + 1, 0).day;
     _open(period, DateTime(year, date.month, date.day.clamp(1, lastDay)));
   }
@@ -54,12 +54,7 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
   @override
   Widget build(BuildContext context) {
     final currencyCode = context.currency.code;
-    final currentYear = DateTime.now().year;
-    final years = {
-      for (var y = currentYear - 10; y <= currentYear + 20; y++) y,
-      for (final expense in ref.watch(expensesProvider)) expense.year,
-      date.year,
-    }.toList()..sort();
+    final years = [for (var year = 2026; year <= 2046; year++) year];
     final selectedSummary = ref.watch(
       expenseSummaryProvider((
         year: date.year,
@@ -206,10 +201,15 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
     final chartHeader = CollapsingExpenseOverview(
       summary: CategorySpendingSummary(
         total: displayedTotal,
-        label: budget == null ? 'Total Spent' : 'Remaining Budget',
+        label: budget == null
+            ? 'Total Spent'
+            : displayedTotal < 0
+            ? 'Overspending'
+            : 'Saving',
+        budget: budget,
         overBudget: budget != null && displayedTotal < 0,
       ),
-      summaryHeight: scale.scale(11) * 1.5 + 2 + scale.scale(24) * 1.5,
+      summaryHeight: scale.scale(11) * 1.5 + 2 + scale.scale(24) * 1.5 + 16,
       footer: resultsHeading,
       footerHeight: 56 + (scale.scale(17) - 17).clamp(0, 40),
       expanded: total > 0

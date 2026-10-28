@@ -11,6 +11,7 @@ const categoryIconOptions = <String, IconData>{
   'transport': Icons.directions_bus_outlined,
   'shopping': Icons.shopping_bag_outlined,
   'utilities': Icons.lightbulb_outline_rounded,
+  'technology': Icons.devices_outlined,
   'health': Icons.favorite_outline,
   'home': Icons.home_outlined,
   'work': Icons.work_outline,
@@ -66,6 +67,7 @@ const defaultCategories = [
   ExpenseCategory('Health', 0xFF009DC4, 'health'),
   ExpenseCategory('Education', 0xFFDB6D38, 'education'),
   ExpenseCategory('Entertainment', 0xFF9A60B4, 'entertainment'),
+  ExpenseCategory('Technology', 0xFF587BFF, 'technology'),
 ];
 
 List<ExpenseCategory> categoriesFromJson(String? text) {

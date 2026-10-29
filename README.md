@@ -70,6 +70,14 @@ To set up everything locally, follow [BUILD.md](BUILD.md).
 - Show actual offline model readiness in Profile.
 - Download models with progress, pause/resume, file-size and checksum verification; ready models show a delete action. Processing checks require the files for the selected backend.
 
+### Local Expense Sharing
+
+- Open Settings -> Data Share -> Share App Data with Others.
+- Create a local Wi-Fi Direct network or discover and join a nearby host using a six-digit PIN.
+- Either paired device can send expenses over an encrypted connection after reviewing a transfer confirmation; both devices show progress and percentage.
+- Missing expenses and required categories are added. Matching expense IDs are skipped; the receiving device’s own expenses and budgets are preserved.
+- See [sharing implementation and testing](lib/services/data_share/README.md).
+
 ### Local Data
 
 - Store categories, expenses, and app settings in three SQLite tables.

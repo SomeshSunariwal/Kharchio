@@ -16,6 +16,7 @@ import 'features/dashboard/dashboard_screen.dart';
 import 'features/expenses/add_expense_screen.dart';
 import 'features/analysis/analysis_screen.dart';
 import 'features/profile/profile_screen.dart';
+import 'features/data_share/data_share_screen.dart';
 import 'shared/directional_tab_view.dart';
 import 'shared/active_text_navigation.dart';
 import 'widgets/home_screen/widget_action_host.dart';
@@ -72,6 +73,7 @@ final _router = GoRouter(
       path: '/widgets/record',
       builder: (_, _) => const QuickExpenseScreen(record: true),
     ),
+    GoRoute(path: '/data-share', builder: (_, _) => const DataShareScreen()),
     GoRoute(
       path: '/categories',
       pageBuilder: (context, state) {

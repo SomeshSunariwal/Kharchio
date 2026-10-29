@@ -393,6 +393,43 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
             ),
             const SizedBox(height: 16),
             const Text(
+              'Data Share',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            SurfaceCard(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+              child: Material(
+                type: MaterialType.transparency,
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                  dense: true,
+                  minTileHeight: 64,
+                  minLeadingWidth: 18,
+                  horizontalTitleGap: 10,
+                  leading: const Icon(
+                    Icons.share_outlined,
+                    size: 20,
+                    color: green,
+                  ),
+                  title: const Text(
+                    'Share App Data with Others',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text(
+                    'Send expenses over a local connection',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: context.appColors.muted,
+                    ),
+                  ),
+                  trailing: const Icon(Icons.chevron_right, size: 18),
+                  onTap: () => context.push('/data-share'),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
               'Danger Zone',
               style: TextStyle(
                 fontSize: 14,

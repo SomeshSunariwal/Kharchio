@@ -2,6 +2,7 @@ package com.expense.kharchio;
 
 import android.content.SharedPreferences;
 import android.content.Intent;
+import com.expense.kharchio.sharing.LocalShareBridge;
 import com.expense.kharchio.widgets.WidgetActionBridge;
 import java.util.HashMap;
 import java.util.Map;
@@ -17,11 +18,13 @@ public class MainActivity extends FlutterActivity {
     private MethodChannel settingsChannel;
     private ModelAssetBridge modelAssets;
     private WidgetActionBridge widgetActions;
+    private LocalShareBridge localShare;
 
     @Override
     public void configureFlutterEngine(@NonNull FlutterEngine flutterEngine) {
         super.configureFlutterEngine(flutterEngine);
         widgetActions = new WidgetActionBridge(this, flutterEngine);
+        localShare = new LocalShareBridge(this, flutterEngine);
         modelAssets = new ModelAssetBridge(getApplicationContext(), flutterEngine);
         SharedPreferences settings = ((KharchioApplication) getApplication()).getSettings();
         settingsChannel = new MethodChannel(
@@ -79,6 +82,12 @@ public class MainActivity extends FlutterActivity {
     }
 
     @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grants) {
+        if (localShare != null && localShare.onPermissions(requestCode, grants)) return;
+        super.onRequestPermissionsResult(requestCode, permissions, grants);
+    }
+
+    @Override
     protected void onNewIntent(@NonNull Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
@@ -87,6 +96,7 @@ public class MainActivity extends FlutterActivity {
 
     @Override
     public void cleanUpFlutterEngine(@NonNull FlutterEngine flutterEngine) {
+        if (localShare != null) { localShare.close(); localShare = null; }
         if (widgetActions != null) { widgetActions.close(); widgetActions = null; }
         if (modelAssets != null) { modelAssets.close(); modelAssets = null; }
         if (settingsChannel != null) {

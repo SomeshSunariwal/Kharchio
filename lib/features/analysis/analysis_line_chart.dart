@@ -105,8 +105,11 @@ class AnalysisLineChart extends StatelessWidget {
           FlSpot(bucket.toDouble(), values[bucket] * progress),
       ],
       color: blue,
-      barWidth: 2.5,
-      isCurved: false,
+      barWidth: 1.5,
+      isCurved: true,
+      curveSmoothness: .3,
+      preventCurveOverShooting: true,
+      preventCurveOvershootingThreshold: 0,
       isStrokeCapRound: true,
       belowBarData: BarAreaData(
         show: true,

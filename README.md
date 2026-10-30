@@ -8,6 +8,26 @@ Expenses, categories, and preferences are stored locally in SQLite through Drift
 
 To set up everything locally, follow [BUILD.md](BUILD.md).
 
+## Screenshots
+
+<table>
+  <tr>
+    <td width="33%"><img src="assets/images/1.%20Dashabord.png" alt="Dashboard" width="100%" /></td>
+    <td width="33%"><img src="assets/images/2.%20Analysis.png" alt="Analysis" width="100%" /></td>
+    <td width="33%"><img src="assets/images/3.%20Analysis%20Graph.png" alt="Analysis graph" width="100%" /></td>
+  </tr>
+  <tr>
+    <td width="33%"><img src="assets/images/4.%20Monthly%20Analysis.png" alt="Monthly analysis" width="100%" /></td>
+    <td width="33%"><img src="assets/images/5.%20Daily%20Expense%20Analysis.png" alt="Daily expense analysis" width="100%" /></td>
+    <td width="33%"><img src="assets/images/6.%20Profile%20and%20Setting%20Section.png" alt="Profile and settings" width="100%" /></td>
+  </tr>
+  <tr>
+    <td width="33%"><img src="assets/images/7.%20AI%20Support.png" alt="AI support" width="100%" /></td>
+    <td width="33%"><img src="assets/images/8.%20Data%20Sharing.png" alt="Data sharing" width="100%" /></td>
+    <td width="33%"><img src="assets/images/9.%20Dashboard%20Dark.png" alt="Dashboard in dark mode" width="100%" /></td>
+  </tr>
+</table>
+
 ## Functionality
 
 ### Dashboard

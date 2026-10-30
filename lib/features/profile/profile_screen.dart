@@ -483,7 +483,7 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
                           ),
                           const SizedBox(height: 3),
                           Text(
-                            'Version 0.1.0',
+                            'Version 0.1.1',
                             style: TextStyle(
                               fontSize: 10,
                               color: context.appColors.muted,

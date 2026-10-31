@@ -52,10 +52,9 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
       final selection = widget.options
           .where((option) => option.value == widget.value)
           .firstOrNull;
-      final maxMenuWidth = (MediaQuery.sizeOf(context).width - 32).clamp(
-        1.0,
-        300.0,
-      );
+      // Match the anchor field, including full-width refund selectors. Only
+      // constrain the popup when needed to keep it inside the screen margins.
+      final maxMenuWidth = math.max(1.0, MediaQuery.sizeOf(context).width - 16);
       final menuWidth = constraints.maxWidth.clamp(1.0, maxMenuWidth);
       return InkWell(
         onTap: !widget.enabled
@@ -348,7 +347,7 @@ class _DropdownRoute<T> extends PopupRoute<T> {
     final top = (anchor.bottom + 4)
         .clamp(media.padding.top + 8, bottom - 48)
         .toDouble();
-    final left = (anchor.right - width)
+    final left = anchor.left
         .clamp(8.0, media.size.width - width - 8)
         .toDouble();
     return Stack(

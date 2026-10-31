@@ -7,13 +7,18 @@ import '../core/expense_store.dart';
 import '../core/theme.dart';
 import 'destructive_confirmation.dart';
 
-Future<bool> confirmExpenseDeletion(BuildContext context, String title) =>
-    confirmDestructiveAction(
-      context,
-      title: 'Delete expense?',
-      message: 'Delete "$title"? This cannot be undone.',
-      confirmLabel: 'OK',
-    );
+Future<bool> confirmExpenseDeletion(
+  BuildContext context,
+  String title, {
+  bool linkedRefunds = false,
+}) => confirmDestructiveAction(
+  context,
+  title: 'Delete expense?',
+  message: linkedRefunds
+      ? 'Delete "$title" and all its linked refunds? This cannot be undone.'
+      : 'Delete "$title"? This cannot be undone.',
+  confirmLabel: 'OK',
+);
 
 /// Expense actions use the same reveal interaction as other deletable rows.
 class SwipeDeleteExpense extends ConsumerWidget {
@@ -27,7 +32,16 @@ class SwipeDeleteExpense extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) => SwipeRevealDelete(
     onDelete: () async {
-      if (await confirmExpenseDeletion(context, expense.title)) {
+      final linkedRefunds =
+          !expense.isRefund &&
+          ref
+              .read(expensesProvider)
+              .any((e) => e.originalExpenseId == expense.id);
+      if (await confirmExpenseDeletion(
+        context,
+        expense.title,
+        linkedRefunds: linkedRefunds,
+      )) {
         await ref.read(expensesProvider.notifier).delete(expense.id);
       }
     },

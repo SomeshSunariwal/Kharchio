@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme.dart';
-import '../../../core/preferences.dart';
 import '../../../services/ai/expense_extractor.dart';
+import '../../../shared/widgets.dart';
 
 class RecordingSummaryList extends StatelessWidget {
   const RecordingSummaryList({
@@ -40,9 +40,25 @@ class RecordingSummaryList extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '${i + 1}.',
-                      style: TextStyle(fontSize: 12, color: colors.muted),
+                    Semantics(
+                      label: expense.isRefund ? 'Refund' : 'Expense',
+                      child: Container(
+                        key: ValueKey('review-type-$i'),
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: (expense.isRefund ? green : red).withValues(
+                            alpha: .08,
+                          ),
+                          borderRadius: BorderRadius.circular(9),
+                        ),
+                        child: Icon(
+                          expense.isRefund
+                              ? Icons.south_west
+                              : Icons.north_east,
+                          color: expense.isRefund ? green : red,
+                          size: 16,
+                        ),
+                      ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -64,19 +80,16 @@ class RecordingSummaryList extends StatelessWidget {
                             style: TextStyle(fontSize: 11, color: colors.muted),
                           ),
                           Text(
-                            expense.category,
+                            '${expense.isRefund ? 'Refund' : 'Expense'} · ${expense.category}',
                             style: TextStyle(fontSize: 10, color: colors.muted),
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      context.money(expense.amount),
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    TransactionAmount(
+                      amount: expense.amount,
+                      isRefund: expense.isRefund,
                     ),
                   ],
                 ),

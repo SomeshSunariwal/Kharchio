@@ -29,8 +29,19 @@ class CategoryDonut extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final total = totals.fold<double>(0, (sum, value) => sum + value);
-    if (total <= 0) return const SizedBox.shrink();
+    // A pie cannot represent negative shares. Show positive net category
+    // spending only; signed totals and the timeline still include all refunds.
+    final total = totals
+        .where((value) => value > 0)
+        .fold<double>(0, (sum, value) => sum + value);
+    if (total <= 0) {
+      return Center(
+        child: Text(
+          'No net category spending',
+          style: TextStyle(color: context.appColors.muted, fontSize: 12),
+        ),
+      );
+    }
     final geometry = _DonutGeometry(totals);
     final active = geometry.active;
     final angles = geometry.angles;
@@ -240,7 +251,9 @@ class _DonutGeometry {
   double startAngle = -math.pi / 2;
 
   _DonutGeometry(List<double> totals) {
-    final sum = totals.fold<double>(0, (a, b) => a + b);
+    final sum = totals
+        .where((value) => value > 0)
+        .fold<double>(0, (a, b) => a + b);
     var angle = -math.pi / 2;
     if (sum > 0) {
       for (var i = 0; i < totals.length; i++) {

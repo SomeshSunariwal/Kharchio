@@ -69,7 +69,9 @@ class AnalysisLineChart extends StatelessWidget {
           100,
     );
     final peak = values.reduce(math.max);
-    final rawStep = peak > 0 ? peak / 4 : 1.0;
+    final low = values.reduce(math.min);
+    final extent = math.max(peak, low.abs());
+    final rawStep = extent > 0 ? extent / 4 : 1.0;
     final magnitude = math
         .pow(10, (math.log(rawStep) / math.ln10).floor())
         .toDouble();
@@ -151,7 +153,7 @@ class AnalysisLineChart extends StatelessWidget {
                 LineChartData(
                   minX: 0,
                   maxX: (timeline.bucketCount - 1).toDouble(),
-                  minY: 0,
+                  minY: low < 0 ? (low / step).floor() * step : 0,
                   maxY: maxY,
                   lineBarsData: [line],
                   extraLinesData: ExtraLinesData(

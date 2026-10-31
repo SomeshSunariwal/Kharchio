@@ -188,7 +188,10 @@ class DataShareController extends ChangeNotifier {
         if (!_alive || !connected) throw StateError('Disconnected');
         final response = Map<String, dynamic>.from(
           await platform.invoke('sendBatch', {
-            'payload': jsonEncode({'version': 1, 'expenses': batch}),
+            'payload': jsonEncode({
+              'version': batch.any((row) => row['type'] == 'refund') ? 2 : 1,
+              'expenses': batch,
+            }),
           }) as Map,
         );
         final imported = response['added'], ignored = response['skipped'];

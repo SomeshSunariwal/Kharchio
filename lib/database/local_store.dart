@@ -152,6 +152,10 @@ class LocalStore {
       description: e.description,
       category: row.readTable(db.categories).name,
       amount: e.minor / 100,
+      type: e.transactionType == 'refund'
+          ? TransactionType.refund
+          : TransactionType.expense,
+      originalExpenseId: e.originalExpenseId,
       currencyCode: e.currencyCode,
       date: DateTime.fromMillisecondsSinceEpoch(e.spentAt),
     );
@@ -165,6 +169,27 @@ class LocalStore {
   Future<void> saveExpenses(List<Expense> values) => db.transaction(() async {
     final categories = await readCategories();
     final now = DateTime.now().millisecondsSinceEpoch;
+    // Resolve against the entire batch as well as saved rows, regardless of order.
+    for (final refund in values.where((e) => e.isRefund)) {
+      final parentId = refund.originalExpenseId;
+      if (parentId == null) continue;
+      if (parentId == refund.id) {
+        throw ArgumentError('A refund cannot link to itself.');
+      }
+      final pending = values.where((e) => e.id == parentId).firstOrNull;
+      final parent = pending == null
+          ? await (db.select(
+              db.expenses,
+            )..where((e) => e.id.equals(parentId))).getSingleOrNull()
+          : null;
+      if (pending != null
+          ? pending.isRefund || pending.currencyCode != refund.currencyCode
+          : parent == null ||
+                parent.transactionType != 'expense' ||
+                parent.currencyCode != refund.currencyCode) {
+        throw ArgumentError('Select an original expense in the same currency.');
+      }
+    }
     for (final expense in values) {
       final minor = (expense.amount * 100).round();
       if (!expense.amount.isFinite ||
@@ -202,6 +227,10 @@ class LocalStore {
               title: expense.title.trim(),
               description: Value(expense.description.trim()),
               minor: minor,
+              transactionType: Value(expense.type.name),
+              originalExpenseId: Value(
+                expense.isRefund ? expense.originalExpenseId : null,
+              ),
               currencyCode: expense.currencyCode,
               spentAt: expense.date.millisecondsSinceEpoch,
               createdAt: old?.createdAt ?? now,
@@ -212,7 +241,9 @@ class LocalStore {
   });
 
   Future<void> deleteExpense(String id) async {
-    await (db.delete(db.expenses)..where((e) => e.id.equals(id))).go();
+    await (db.delete(
+      db.expenses,
+    )..where((e) => e.id.equals(id) | e.originalExpenseId.equals(id))).go();
   }
 
   Future<void> clearExpenses() async {

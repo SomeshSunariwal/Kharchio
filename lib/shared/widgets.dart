@@ -177,7 +177,9 @@ class ExpenseTile extends StatelessWidget {
                         borderRadius: BorderRadius.circular(5),
                       ),
                       child: Text(
-                        expense.category,
+                        '${expense.isRefund ? 'Refund' : 'Expense'} · ${expense.category}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(color: textColor, fontSize: 10),
                       ),
                     ),
@@ -185,13 +187,9 @@ class ExpenseTile extends StatelessWidget {
                 ),
               ),
               SizedBox(width: 5),
-              Text(
-                context.money(expense.amount),
-                style: TextStyle(
-                  color: textColor,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                ),
+              TransactionAmount(
+                amount: expense.amount,
+                isRefund: expense.isRefund,
               ),
               Icon(
                 Icons.chevron_right,
@@ -201,6 +199,48 @@ class ExpenseTile extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Direction icons distinguish outgoing expenses from incoming refunds.
+class TransactionAmount extends StatelessWidget {
+  final double amount;
+  final bool isRefund;
+  final String? formattedAmount;
+  const TransactionAmount({
+    super.key,
+    required this.amount,
+    required this.isRefund,
+    this.formattedAmount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isRefund ? green : red;
+    final text = formattedAmount ?? context.money(amount);
+    return Semantics(
+      label: '${isRefund ? 'Refund received' : 'Expense paid'} $text',
+      excludeSemantics: true,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isRefund ? Icons.south_west : Icons.north_east,
+            color: color,
+            size: 14,
+          ),
+          const SizedBox(width: 3),
+          Text(
+            text,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -36,6 +36,9 @@ class ExpenseTransferRepository {
               'title': row.title,
               'description': row.description,
               'minor': row.minor,
+              'type': row.transactionType,
+              if (row.originalExpenseId != null)
+                'originalExpenseId': row.originalExpenseId!,
               'currency': row.currencyCode,
               'spentAt': row.spentAt,
               'createdAt': row.createdAt,
@@ -54,7 +57,7 @@ class ExpenseTransferRepository {
   Future<ImportResult> importBatch(String payload) async {
     final decoded = jsonDecode(payload);
     if (decoded is! Map ||
-        decoded['version'] != 1 ||
+        (decoded['version'] != 1 && decoded['version'] != 2) ||
         decoded['expenses'] is! List ||
         (decoded['expenses'] as List).length > 100) {
       throw const FormatException('Unsupported expense transfer.');
@@ -127,6 +130,8 @@ class ExpenseTransferRepository {
                 title: row.title,
                 description: Value(row.description),
                 minor: row.minor,
+                transactionType: Value(row.type),
+                originalExpenseId: Value(row.originalExpenseId),
                 currencyCode: row.currency,
                 spentAt: row.spentAt,
                 createdAt: row.createdAt,
@@ -142,6 +147,8 @@ class ExpenseTransferRepository {
 }
 
 class _TransferExpense {
+  final String type;
+  final String? originalExpenseId;
   final String id, title, description, currency, categoryName, icon;
   final int minor, spentAt, createdAt, updatedAt, year, month, color;
   const _TransferExpense(
@@ -158,11 +165,22 @@ class _TransferExpense {
     this.year,
     this.month,
     this.color,
+    this.type,
+    this.originalExpenseId,
   );
 
   factory _TransferExpense.parse(Object? value) {
     if (value is! Map || value['category'] is! Map) {
       throw const FormatException('Invalid expense data.');
+    }
+    final type = value['type'] ?? 'expense';
+    if (type != 'expense' && type != 'refund') {
+      throw const FormatException('Invalid transaction type.');
+    }
+    final original = value['originalExpenseId'];
+    if (original != null &&
+        (original is! String || original.isEmpty || original.length > 200)) {
+      throw const FormatException('Invalid original expense.');
     }
     String text(Map map, String key, int max, {bool empty = false}) {
       final v = map[key];
@@ -204,6 +222,8 @@ class _TransferExpense {
       integer('year', 1900, 9999),
       integer('month', 1, 12),
       color,
+      type as String,
+      type == 'refund' ? original as String? : null,
     );
   }
 }

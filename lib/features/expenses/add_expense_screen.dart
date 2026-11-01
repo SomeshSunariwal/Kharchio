@@ -170,12 +170,15 @@ class _AddExpenseState extends ConsumerState<AddExpenseScreen> {
 
   void add() {
     if (editing && original == null) return;
+    final source = editing
+        ? drafts.firstWhere((d) => d.id == original!.id)
+        : null;
     setState(
       () => drafts.add(
         editing
             ? ExpenseDraft(
-                title: 'Refund for ${original!.title}',
-                category: original!.category,
+                title: 'Refund for ${source!.title.text.trim()}',
+                category: source.category,
                 type: TransactionType.refund,
                 originalExpenseId: original!.id,
                 date: DateTime.now(),
@@ -579,7 +582,7 @@ class _AddExpenseState extends ConsumerState<AddExpenseScreen> {
         SizedBox(height: 10),
         TextFormField(
           controller: d.title,
-          readOnly: editing && d.type == TransactionType.expense,
+          readOnly: saving,
           style: TextStyle(fontSize: 12),
           textCapitalization: TextCapitalization.sentences,
           decoration: _input('Title'),
@@ -589,7 +592,7 @@ class _AddExpenseState extends ConsumerState<AddExpenseScreen> {
         SizedBox(height: 8),
         TextFormField(
           controller: d.description,
-          readOnly: editing && d.type == TransactionType.expense,
+          readOnly: saving,
           style: TextStyle(fontSize: 12),
           minLines: 1,
           maxLines: 2,
@@ -605,7 +608,7 @@ class _AddExpenseState extends ConsumerState<AddExpenseScreen> {
               child: AppDropdown<String>(
                 value: d.category,
                 label: 'Category',
-                enabled: (!editing || original == null) && !saving,
+                enabled: !saving,
                 leadingIcon:
                     context.categoryIcons[context.categoryIndex(d.category)],
                 scrollIntoViewOnOpen: true,

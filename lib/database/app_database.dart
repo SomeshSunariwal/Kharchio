@@ -56,6 +56,15 @@ class Expenses extends Table {
   TextColumn get description => text().withDefault(const Constant(''))();
   IntColumn get minor =>
       integer().customConstraint('NOT NULL CHECK (minor > 0)')();
+  TextColumn get transactionType => text()
+      .withDefault(const Constant('expense'))
+      .check(
+        const CustomExpression<bool>(
+          "transaction_type IN ('expense', 'refund')",
+        ),
+      )();
+  // Keep the refund when its original payment is deleted or not on this device.
+  TextColumn get originalExpenseId => text().nullable()();
   TextColumn get currencyCode => text().customConstraint(
     "NOT NULL CHECK (currency_code IN ('INR', 'USD'))",
   )();
@@ -80,7 +89,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(driftDatabase(name: 'kharchio'));
   AppDatabase.forTesting(super.executor);
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onUpgrade: (m, from, to) async {
@@ -133,7 +142,11 @@ class AppDatabase extends _$AppDatabase {
         await m.alterTable(
           TableMigration(
             this.expenses,
-            newColumns: [this.expenses.monthId],
+            newColumns: [
+              this.expenses.monthId,
+              this.expenses.transactionType,
+              this.expenses.originalExpenseId,
+            ],
             columnTransformer: {
               this.expenses.monthId: const CustomExpression<String>(
                 "currency_code || '-' || CAST(strftime('%Y', spent_at / 1000, 'unixepoch', 'localtime') AS INTEGER) || '-' || CAST(strftime('%m', spent_at / 1000, 'unixepoch', 'localtime') AS INTEGER)",
@@ -144,6 +157,10 @@ class AppDatabase extends _$AppDatabase {
         await customStatement(
           'CREATE INDEX IF NOT EXISTS expenses_month ON expenses(month_id)',
         );
+      }
+      if (from >= 2 && from < 3) {
+        await m.addColumn(expenses, expenses.transactionType);
+        await m.addColumn(expenses, expenses.originalExpenseId);
       }
     },
     beforeOpen: (_) async {

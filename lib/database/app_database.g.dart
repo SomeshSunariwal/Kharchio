@@ -907,6 +907,33 @@ class $ExpensesTable extends Expenses
     requiredDuringInsert: true,
     $customConstraints: 'NOT NULL CHECK (minor > 0)',
   );
+  static const VerificationMeta _transactionTypeMeta = const VerificationMeta(
+    'transactionType',
+  );
+  @override
+  late final GeneratedColumn<String> transactionType = GeneratedColumn<String>(
+    'transaction_type',
+    aliasedName,
+    false,
+    check: () => const CustomExpression<bool>(
+      "transaction_type IN ('expense', 'refund')",
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('expense'),
+  );
+  static const VerificationMeta _originalExpenseIdMeta = const VerificationMeta(
+    'originalExpenseId',
+  );
+  @override
+  late final GeneratedColumn<String> originalExpenseId =
+      GeneratedColumn<String>(
+        'original_expense_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _currencyCodeMeta = const VerificationMeta(
     'currencyCode',
   );
@@ -960,6 +987,8 @@ class $ExpensesTable extends Expenses
     title,
     description,
     minor,
+    transactionType,
+    originalExpenseId,
     currencyCode,
     spentAt,
     createdAt,
@@ -1022,6 +1051,24 @@ class $ExpensesTable extends Expenses
       );
     } else if (isInserting) {
       context.missing(_minorMeta);
+    }
+    if (data.containsKey('transaction_type')) {
+      context.handle(
+        _transactionTypeMeta,
+        transactionType.isAcceptableOrUnknown(
+          data['transaction_type']!,
+          _transactionTypeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('original_expense_id')) {
+      context.handle(
+        _originalExpenseIdMeta,
+        originalExpenseId.isAcceptableOrUnknown(
+          data['original_expense_id']!,
+          _originalExpenseIdMeta,
+        ),
+      );
     }
     if (data.containsKey('currency_code')) {
       context.handle(
@@ -1091,6 +1138,14 @@ class $ExpensesTable extends Expenses
         DriftSqlType.int,
         data['${effectivePrefix}minor'],
       )!,
+      transactionType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}transaction_type'],
+      )!,
+      originalExpenseId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}original_expense_id'],
+      ),
       currencyCode: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}currency_code'],
@@ -1123,6 +1178,8 @@ class StoredExpense extends DataClass implements Insertable<StoredExpense> {
   final String title;
   final String description;
   final int minor;
+  final String transactionType;
+  final String? originalExpenseId;
   final String currencyCode;
   final int spentAt;
   final int createdAt;
@@ -1134,6 +1191,8 @@ class StoredExpense extends DataClass implements Insertable<StoredExpense> {
     required this.title,
     required this.description,
     required this.minor,
+    required this.transactionType,
+    this.originalExpenseId,
     required this.currencyCode,
     required this.spentAt,
     required this.createdAt,
@@ -1148,6 +1207,10 @@ class StoredExpense extends DataClass implements Insertable<StoredExpense> {
     map['title'] = Variable<String>(title);
     map['description'] = Variable<String>(description);
     map['minor'] = Variable<int>(minor);
+    map['transaction_type'] = Variable<String>(transactionType);
+    if (!nullToAbsent || originalExpenseId != null) {
+      map['original_expense_id'] = Variable<String>(originalExpenseId);
+    }
     map['currency_code'] = Variable<String>(currencyCode);
     map['spent_at'] = Variable<int>(spentAt);
     map['created_at'] = Variable<int>(createdAt);
@@ -1163,6 +1226,10 @@ class StoredExpense extends DataClass implements Insertable<StoredExpense> {
       title: Value(title),
       description: Value(description),
       minor: Value(minor),
+      transactionType: Value(transactionType),
+      originalExpenseId: originalExpenseId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originalExpenseId),
       currencyCode: Value(currencyCode),
       spentAt: Value(spentAt),
       createdAt: Value(createdAt),
@@ -1182,6 +1249,10 @@ class StoredExpense extends DataClass implements Insertable<StoredExpense> {
       title: serializer.fromJson<String>(json['title']),
       description: serializer.fromJson<String>(json['description']),
       minor: serializer.fromJson<int>(json['minor']),
+      transactionType: serializer.fromJson<String>(json['transactionType']),
+      originalExpenseId: serializer.fromJson<String?>(
+        json['originalExpenseId'],
+      ),
       currencyCode: serializer.fromJson<String>(json['currencyCode']),
       spentAt: serializer.fromJson<int>(json['spentAt']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
@@ -1198,6 +1269,8 @@ class StoredExpense extends DataClass implements Insertable<StoredExpense> {
       'title': serializer.toJson<String>(title),
       'description': serializer.toJson<String>(description),
       'minor': serializer.toJson<int>(minor),
+      'transactionType': serializer.toJson<String>(transactionType),
+      'originalExpenseId': serializer.toJson<String?>(originalExpenseId),
       'currencyCode': serializer.toJson<String>(currencyCode),
       'spentAt': serializer.toJson<int>(spentAt),
       'createdAt': serializer.toJson<int>(createdAt),
@@ -1212,6 +1285,8 @@ class StoredExpense extends DataClass implements Insertable<StoredExpense> {
     String? title,
     String? description,
     int? minor,
+    String? transactionType,
+    Value<String?> originalExpenseId = const Value.absent(),
     String? currencyCode,
     int? spentAt,
     int? createdAt,
@@ -1223,6 +1298,10 @@ class StoredExpense extends DataClass implements Insertable<StoredExpense> {
     title: title ?? this.title,
     description: description ?? this.description,
     minor: minor ?? this.minor,
+    transactionType: transactionType ?? this.transactionType,
+    originalExpenseId: originalExpenseId.present
+        ? originalExpenseId.value
+        : this.originalExpenseId,
     currencyCode: currencyCode ?? this.currencyCode,
     spentAt: spentAt ?? this.spentAt,
     createdAt: createdAt ?? this.createdAt,
@@ -1240,6 +1319,12 @@ class StoredExpense extends DataClass implements Insertable<StoredExpense> {
           ? data.description.value
           : this.description,
       minor: data.minor.present ? data.minor.value : this.minor,
+      transactionType: data.transactionType.present
+          ? data.transactionType.value
+          : this.transactionType,
+      originalExpenseId: data.originalExpenseId.present
+          ? data.originalExpenseId.value
+          : this.originalExpenseId,
       currencyCode: data.currencyCode.present
           ? data.currencyCode.value
           : this.currencyCode,
@@ -1258,6 +1343,8 @@ class StoredExpense extends DataClass implements Insertable<StoredExpense> {
           ..write('title: $title, ')
           ..write('description: $description, ')
           ..write('minor: $minor, ')
+          ..write('transactionType: $transactionType, ')
+          ..write('originalExpenseId: $originalExpenseId, ')
           ..write('currencyCode: $currencyCode, ')
           ..write('spentAt: $spentAt, ')
           ..write('createdAt: $createdAt, ')
@@ -1274,6 +1361,8 @@ class StoredExpense extends DataClass implements Insertable<StoredExpense> {
     title,
     description,
     minor,
+    transactionType,
+    originalExpenseId,
     currencyCode,
     spentAt,
     createdAt,
@@ -1289,6 +1378,8 @@ class StoredExpense extends DataClass implements Insertable<StoredExpense> {
           other.title == this.title &&
           other.description == this.description &&
           other.minor == this.minor &&
+          other.transactionType == this.transactionType &&
+          other.originalExpenseId == this.originalExpenseId &&
           other.currencyCode == this.currencyCode &&
           other.spentAt == this.spentAt &&
           other.createdAt == this.createdAt &&
@@ -1302,6 +1393,8 @@ class ExpensesCompanion extends UpdateCompanion<StoredExpense> {
   final Value<String> title;
   final Value<String> description;
   final Value<int> minor;
+  final Value<String> transactionType;
+  final Value<String?> originalExpenseId;
   final Value<String> currencyCode;
   final Value<int> spentAt;
   final Value<int> createdAt;
@@ -1314,6 +1407,8 @@ class ExpensesCompanion extends UpdateCompanion<StoredExpense> {
     this.title = const Value.absent(),
     this.description = const Value.absent(),
     this.minor = const Value.absent(),
+    this.transactionType = const Value.absent(),
+    this.originalExpenseId = const Value.absent(),
     this.currencyCode = const Value.absent(),
     this.spentAt = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -1327,6 +1422,8 @@ class ExpensesCompanion extends UpdateCompanion<StoredExpense> {
     required String title,
     this.description = const Value.absent(),
     required int minor,
+    this.transactionType = const Value.absent(),
+    this.originalExpenseId = const Value.absent(),
     required String currencyCode,
     required int spentAt,
     required int createdAt,
@@ -1348,6 +1445,8 @@ class ExpensesCompanion extends UpdateCompanion<StoredExpense> {
     Expression<String>? title,
     Expression<String>? description,
     Expression<int>? minor,
+    Expression<String>? transactionType,
+    Expression<String>? originalExpenseId,
     Expression<String>? currencyCode,
     Expression<int>? spentAt,
     Expression<int>? createdAt,
@@ -1361,6 +1460,8 @@ class ExpensesCompanion extends UpdateCompanion<StoredExpense> {
       if (title != null) 'title': title,
       if (description != null) 'description': description,
       if (minor != null) 'minor': minor,
+      if (transactionType != null) 'transaction_type': transactionType,
+      if (originalExpenseId != null) 'original_expense_id': originalExpenseId,
       if (currencyCode != null) 'currency_code': currencyCode,
       if (spentAt != null) 'spent_at': spentAt,
       if (createdAt != null) 'created_at': createdAt,
@@ -1376,6 +1477,8 @@ class ExpensesCompanion extends UpdateCompanion<StoredExpense> {
     Value<String>? title,
     Value<String>? description,
     Value<int>? minor,
+    Value<String>? transactionType,
+    Value<String?>? originalExpenseId,
     Value<String>? currencyCode,
     Value<int>? spentAt,
     Value<int>? createdAt,
@@ -1389,6 +1492,8 @@ class ExpensesCompanion extends UpdateCompanion<StoredExpense> {
       title: title ?? this.title,
       description: description ?? this.description,
       minor: minor ?? this.minor,
+      transactionType: transactionType ?? this.transactionType,
+      originalExpenseId: originalExpenseId ?? this.originalExpenseId,
       currencyCode: currencyCode ?? this.currencyCode,
       spentAt: spentAt ?? this.spentAt,
       createdAt: createdAt ?? this.createdAt,
@@ -1418,6 +1523,12 @@ class ExpensesCompanion extends UpdateCompanion<StoredExpense> {
     if (minor.present) {
       map['minor'] = Variable<int>(minor.value);
     }
+    if (transactionType.present) {
+      map['transaction_type'] = Variable<String>(transactionType.value);
+    }
+    if (originalExpenseId.present) {
+      map['original_expense_id'] = Variable<String>(originalExpenseId.value);
+    }
     if (currencyCode.present) {
       map['currency_code'] = Variable<String>(currencyCode.value);
     }
@@ -1445,6 +1556,8 @@ class ExpensesCompanion extends UpdateCompanion<StoredExpense> {
           ..write('title: $title, ')
           ..write('description: $description, ')
           ..write('minor: $minor, ')
+          ..write('transactionType: $transactionType, ')
+          ..write('originalExpenseId: $originalExpenseId, ')
           ..write('currencyCode: $currencyCode, ')
           ..write('spentAt: $spentAt, ')
           ..write('createdAt: $createdAt, ')
@@ -2421,6 +2534,8 @@ typedef $$ExpensesTableCreateCompanionBuilder = ExpensesCompanion Function({
   required String title,
   Value<String> description,
   required int minor,
+  Value<String> transactionType,
+  Value<String?> originalExpenseId,
   required String currencyCode,
   required int spentAt,
   required int createdAt,
@@ -2434,6 +2549,8 @@ typedef $$ExpensesTableUpdateCompanionBuilder = ExpensesCompanion Function({
   Value<String> title,
   Value<String> description,
   Value<int> minor,
+  Value<String> transactionType,
+  Value<String?> originalExpenseId,
   Value<String> currencyCode,
   Value<int> spentAt,
   Value<int> createdAt,
@@ -2507,6 +2624,16 @@ class $$ExpensesTableFilterComposer
 
   ColumnFilters<int> get minor => $composableBuilder(
     column: $table.minor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get transactionType => $composableBuilder(
+    column: $table.transactionType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get originalExpenseId => $composableBuilder(
+    column: $table.originalExpenseId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2606,6 +2733,16 @@ class $$ExpensesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get transactionType => $composableBuilder(
+    column: $table.transactionType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get originalExpenseId => $composableBuilder(
+    column: $table.originalExpenseId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get currencyCode => $composableBuilder(
     column: $table.currencyCode,
     builder: (column) => ColumnOrderings(column),
@@ -2696,6 +2833,16 @@ class $$ExpensesTableAnnotationComposer
 
   GeneratedColumn<int> get minor =>
       $composableBuilder(column: $table.minor, builder: (column) => column);
+
+  GeneratedColumn<String> get transactionType => $composableBuilder(
+    column: $table.transactionType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get originalExpenseId => $composableBuilder(
+    column: $table.originalExpenseId,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get currencyCode => $composableBuilder(
     column: $table.currencyCode,
@@ -2793,6 +2940,8 @@ class $$ExpensesTableTableManager
                 Value<String> title = const Value.absent(),
                 Value<String> description = const Value.absent(),
                 Value<int> minor = const Value.absent(),
+                Value<String> transactionType = const Value.absent(),
+                Value<String?> originalExpenseId = const Value.absent(),
                 Value<String> currencyCode = const Value.absent(),
                 Value<int> spentAt = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
@@ -2805,6 +2954,8 @@ class $$ExpensesTableTableManager
                 title: title,
                 description: description,
                 minor: minor,
+                transactionType: transactionType,
+                originalExpenseId: originalExpenseId,
                 currencyCode: currencyCode,
                 spentAt: spentAt,
                 createdAt: createdAt,
@@ -2819,6 +2970,8 @@ class $$ExpensesTableTableManager
                 required String title,
                 Value<String> description = const Value.absent(),
                 required int minor,
+                Value<String> transactionType = const Value.absent(),
+                Value<String?> originalExpenseId = const Value.absent(),
                 required String currencyCode,
                 required int spentAt,
                 required int createdAt,
@@ -2831,6 +2984,8 @@ class $$ExpensesTableTableManager
                 title: title,
                 description: description,
                 minor: minor,
+                transactionType: transactionType,
+                originalExpenseId: originalExpenseId,
                 currencyCode: currencyCode,
                 spentAt: spentAt,
                 createdAt: createdAt,

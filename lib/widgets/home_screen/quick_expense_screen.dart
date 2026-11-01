@@ -48,6 +48,7 @@ class _QuickExpenseScreenState extends ConsumerState<QuickExpenseScreen> {
   late final batch = QuickExpenseBatch(ref.read(localStoreProvider));
   late final currency = ref.read(preferencesProvider).currency;
   List<Expense>? saved;
+  List<ExpenseDraft>? reviewDrafts;
   bool saving = false, undoing = false;
   String? error;
 
@@ -70,6 +71,24 @@ class _QuickExpenseScreenState extends ConsumerState<QuickExpenseScreen> {
 
   Future<void> _saveExtracted(List<ExtractedExpense> values) {
     final capturedAt = DateTime.now();
+    if (values.any((e) => e.isRefund)) {
+      // Review spoken refunds, with the option to link an original expense.
+      setState(
+        () => reviewDrafts = values
+            .map(
+              (e) => ExpenseDraft(
+                title: e.title,
+                description: e.description,
+                amount: e.amount.toString(),
+                category: e.category,
+                type: e.type,
+                date: capturedAt,
+              ),
+            )
+            .toList(),
+      );
+      return Future.value();
+    }
     return _save([
       for (final e in values)
         Expense(
@@ -77,6 +96,7 @@ class _QuickExpenseScreenState extends ConsumerState<QuickExpenseScreen> {
           title: e.title,
           description: e.description,
           amount: e.amount,
+          type: e.type,
           category: e.category,
           currencyCode: currency.code,
           date: capturedAt,
@@ -115,10 +135,10 @@ class _QuickExpenseScreenState extends ConsumerState<QuickExpenseScreen> {
   @override
   Widget build(BuildContext context) {
     // The manual flow reuses the ordinary form, including its date/category checks.
-    if (!widget.record && saved == null) {
+    if ((!widget.record || reviewDrafts != null) && saved == null) {
       return PopScope(
         canPop: !saving,
-        child: AddExpenseScreen(onSave: _save),
+        child: AddExpenseScreen(onSave: _save, initialDrafts: reviewDrafts),
       );
     }
     final completed = saved != null;
@@ -209,13 +229,10 @@ class _QuickExpenseScreenState extends ConsumerState<QuickExpenseScreen> {
                         ),
                       ),
                       const SizedBox(width: 10),
-                      Text(
-                        displayCurrency.format(expense.amount),
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: green,
-                        ),
+                      TransactionAmount(
+                        amount: expense.amount,
+                        isRefund: expense.isRefund,
+                        formattedAmount: displayCurrency.format(expense.amount),
                       ),
                     ],
                   ),

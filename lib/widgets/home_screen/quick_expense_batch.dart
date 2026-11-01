@@ -29,6 +29,8 @@ class QuickExpenseBatch {
           title: e.title,
           description: e.description,
           amount: e.amount,
+          type: e.type,
+          originalExpenseId: e.originalExpenseId,
           category: e.category,
           currencyCode: e.currencyCode,
           date: e.date,

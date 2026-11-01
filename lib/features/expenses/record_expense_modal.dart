@@ -267,6 +267,7 @@ class _RecordState extends ConsumerState<RecordExpenseModal>
           description: summary[i].description,
           category: summary[i].category,
           amount: summary[i].amount.toStringAsFixed(2),
+          type: summary[i].type,
         ),
     ];
     Navigator.pop(context, values);
@@ -322,7 +323,9 @@ class _RecordState extends ConsumerState<RecordExpenseModal>
       if (!mounted) return;
       await currentJob.prepareQwen(models.qwen);
       if (!mounted) return;
-      setState(() => processingLabel = 'Extracting expense details with Qwen…');
+      setState(
+        () => processingLabel = 'Extracting expenses and refunds with Qwen…',
+      );
       final result = await ExpenseExtractor().extract(
         job: currentJob,
         model: models.qwen,
@@ -413,7 +416,7 @@ class _RecordState extends ConsumerState<RecordExpenseModal>
               const SizedBox(height: 8),
               Text(
                 widget.onExtracted == null
-                    ? 'Speak what you spent on. Review the summary, then create expense cards.'
+                    ? 'Describe your expenses and refunds. Review the summary, then create transaction cards.'
                     : 'Speak what you spent on. Stop to process and save automatically. You can undo after saving.',
                 style: TextStyle(fontSize: 12, color: colors.muted),
               ),
@@ -503,7 +506,7 @@ class _RecordState extends ConsumerState<RecordExpenseModal>
               ],
               if (stage == RecordingStage.review) ...[
                 Text(
-                  'Expense summary (${summary.length})',
+                  'Transaction summary (${summary.length})',
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
@@ -522,7 +525,7 @@ class _RecordState extends ConsumerState<RecordExpenseModal>
                   child: FilledButton.icon(
                     onPressed: createCards,
                     icon: const Icon(Icons.check_rounded, size: 20),
-                    label: Text('Create Expense Cards (${summary.length})'),
+                    label: Text('Create Transaction Cards (${summary.length})'),
                   ),
                 ),
               ] else ...[

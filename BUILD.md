@@ -14,7 +14,7 @@ Use **PowerShell 7** for the commands below. Install the prerequisites, configur
 | Git            | Git for Windows, available on PATH                              | [Install Git](https://git-scm.com/install/windows)                                                                                                    |
 | Python         | **3.12 x64**, including pip                                     | [Python Windows downloads](https://www.python.org/downloads/windows/)                                                                                 |
 | Java           | **JDK 21**, including javac                                     | [Temurin JDK 21](https://adoptium.net/temurin/releases/?version=21)                                                                                   |
-| Flutter        | **3.47.8**, with its bundled Dart SDK                           | [Flutter SDK archive](https://docs.flutter.dev/install/archive)                                                                                       |
+| Flutter        | **3.47.8**, with its bundled Dart SDK                           | [Flutter SDK archive](https://docscls.flutter.dev/install/archive)                                                                                       |
 | Android Studio | Install its Android SDK and **SDK Command-line Tools (latest)** | [Android Studio](https://developer.android.com/studio/install)                                                                                        |
 | Docker Desktop | Running with **Linux containers** using WSL 2                   | [Docker Desktop](https://docs.docker.com/desktop/setup/install/windows-install/) · [WSL setup](https://learn.microsoft.com/en-us/windows/wsl/install) |
 
@@ -24,15 +24,18 @@ For IDE development, enable the **Flutter** and **Dart** plugins. No separate Gr
 
 Allow roughly **80–100 GB free disk space** for tools, AI resources, native builds, and Docker storage. This is a planning estimate. Setup needs internet; the installed app's AI processing is offline. Keep Docker running. If WSL/virtualization setup requires a restart, complete it before continuing.
 
+install CMake and Ninja
+`& 'C:\Users\Somes\AppData\Local\Android\Sdk\cmdline-tools\latest\bin\sdkmanager.bat' --install 'ndk/28.2.13676358' 'cmake/3.22.1'`
+
 ### 2. Configure paths
 
 Replace these examples with your actual installations. Run in PowerShell 7:
 
 ```powershell
-$env:KHARCHIO_PYTHON = 'C:\Users\Somes.Somesh\AppData\Local\Programs\Python\Python312\python.exe'
+$env:KHARCHIO_PYTHON = 'C:\Users\Somes\AppData\Local\Programs\Python\Python312\python.exe'
 $env:JAVA_HOME = 'C:\Program Files\Java\jdk-21.0.12.1'
-$env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
-$env:Path = "C:\Users\Somes.Somesh\Development\flutter-3.47.7\bin;$env:JAVA_HOME\bin;$env:ANDROID_HOME\platform-tools;$env:Path"
+$env:ANDROID_HOME = "C:\Users\Somes\AppData\Local\Android\Sdk"
+$env:Path = "D:\develop\flutter\bin;$env:JAVA_HOME\bin;$env:ANDROID_HOME\platform-tools;$env:Path"
 ```
 
 These values apply to the current terminal. To reuse them across sessions, save `KHARCHIO_PYTHON`, `JAVA_HOME`, and `ANDROID_HOME` in Windows user environment variables and add Flutter's `bin` folder to your user Path. Reopen terminals and Android Studio afterward. Python must point to `python.exe`; Java and Android variables point to their installation roots.

@@ -34,7 +34,7 @@ class CollapsingExpenseOverview extends SliverPersistentHeaderDelegate {
   static const _chartGap = 7.0;
   static const _borderSpace = 2.0;
   static const _barHeight = 28.0;
-  bool get _hasChart => totals.any((amount) => amount > 0);
+  bool get _hasChart => totals.any((amount) => amount != 0);
   double get _fixedHeight =>
       summaryHeight +
       _padding * 2 +

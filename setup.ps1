@@ -211,6 +211,10 @@ function Test-Tools {
 function Initialize-AndroidTools {
     param([string]$SdkPath, [string]$JdkPath)
     $sdkManager = Join-Path $SdkPath 'cmdline-tools/latest/bin/sdkmanager.bat'
+    # The newer sdkmanager compatibility wrapper forwards to Android CLI.
+    # Use slash paths there: semicolons can be split by its batch forwarding.
+    # Older Java-based SDK Managers still require semicolon package IDs.
+    $usesAndroidCli = (Get-Content -LiteralPath $sdkManager -Raw) -match 'run_android_cli'
     $requiredPackages = [ordered]@{
         'platform-tools' = 'platform-tools/adb.exe'
         'build-tools;36.0.0' = 'build-tools/36.0.0/aapt2.exe'
@@ -228,14 +232,17 @@ function Initialize-AndroidTools {
         if ($needsPlatform) {
             $available = & $sdkManager "--sdk_root=$SdkPath" --list 2>&1 | Out-String
             if ($LASTEXITCODE -ne 0) { throw "SDK Manager could not list packages: $available" }
-            $platform = [regex]::Match($available, '(?m)^\s*(platforms;android-37(?:\.0)?)\s*\|')
+            $platform = [regex]::Match($available, '(?m)^\s*(platforms[;/]android-37(?:\.0)?)(?=\s|\||$)')
             if (-not $platform.Success) { throw 'API 37 is not available in SDK Manager. No substitute API will be installed.' }
             $missing += $platform.Groups[1].Value
         }
         if ($missing.Count) {
             Write-Host "Installing missing Android build packages: $($missing -join ', ')"
             Write-Host 'SDK Manager may ask you to accept the applicable Android SDK licenses.'
-            Invoke-Checked $sdkManager (@("--sdk_root=$SdkPath", '--install') + $missing)
+            $installPackages = @($missing | ForEach-Object {
+                if ($usesAndroidCli) { $_.Replace(';', '/') } else { $_.Replace('/', ';') }
+            })
+            Invoke-Checked $sdkManager (@("--sdk_root=$SdkPath", '--install') + $installPackages)
         } else { Write-Host 'Required Android build packages are already present.' }
     } finally { $env:JAVA_HOME = $originalJavaHome }
 }
@@ -303,6 +310,11 @@ try {
     }
     # Child PowerShell isolates preparation scripts that use 'exit'.
     Invoke-Checked $shell @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', 'native/prepare_models.ps1')
+    # QAIRT imports distutils, removed from Python 3.12. Install setuptools
+    # into the selected interpreter so its startup hook also runs in converter subprocesses.
+    Write-Host 'Preparing setuptools / distutils compatibility for the QAIRT converter.'
+    Invoke-Checked $python @('-m', 'pip', 'install', '--upgrade', 'setuptools')
+    Invoke-Checked $python @('-c', 'import distutils; print("QAIRT distutils compatibility check passed")')
     # This also provisions the S23 Ultra contexts and the shared QAIRT runtime.
     Invoke-Checked $shell @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', 'native/prepare_whisper_generic.ps1', '-Python', $python)
     Invoke-Checked $shell @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', 'native/prepare_hexagon.ps1')

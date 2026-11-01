@@ -117,7 +117,9 @@ class _DashboardState extends ConsumerState<DashboardScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    budget == null ? 'Total Spent' : 'Remaining Budget',
+                    budget == null
+                        ? (total < 0 ? 'Net Refund' : 'Net Spent')
+                        : 'Remaining Budget',
                     style: TextStyle(
                       color: context.appColors.muted,
                       fontSize: 12,
@@ -127,7 +129,9 @@ class _DashboardState extends ConsumerState<DashboardScreen>
                   SizedBox(height: 2),
                   FittedBox(
                     child: Text(
-                      context.money(displayedTotal),
+                      context.money(
+                        budget == null ? displayedTotal.abs() : displayedTotal,
+                      ),
                       style: TextStyle(
                         color: budget != null && displayedTotal < 0
                             ? red
@@ -155,7 +159,9 @@ class _DashboardState extends ConsumerState<DashboardScreen>
                           const SizedBox(width: 3),
                         ],
                         Text(
-                          budget != null
+                          currentSummary.refundsTotal > 0
+                              ? 'Paid ${context.money(currentSummary.paymentsTotal)} · Refunds ${context.money(currentSummary.refundsTotal)}'
+                              : budget != null
                               ? 'Spent ${context.money(total)} of ${context.money(budget)}'
                               : previousTotal == 0
                               ? 'No expenses in the previous month'
@@ -228,7 +234,7 @@ class _DashboardState extends ConsumerState<DashboardScreen>
               42 +
               (MediaQuery.textScalerOf(context).scale(17) - 17).clamp(0, 40),
           summaryHeight: summaryHeight,
-          expanded: total > 0
+          expanded: totals.any((value) => value != 0)
               ? CategoryDonut(
                   totals: totals,
                   selectedIndex: selectedIndex,
@@ -242,7 +248,7 @@ class _DashboardState extends ConsumerState<DashboardScreen>
                 ),
           selectedIndex: selectedIndex,
           onCategorySelected: selectCategory,
-          expandedHeight: total > 0 ? chartHeight : 120,
+          expandedHeight: totals.any((value) => value != 0) ? chartHeight : 120,
           totals: totals,
           colors: context.categoryColors,
           names: context.categoryNames,
@@ -276,7 +282,7 @@ class _DashboardState extends ConsumerState<DashboardScreen>
                   ),
                 ),
                 IconButton(
-                  tooltip: 'Search expenses',
+                  tooltip: 'Search transactions',
                   onPressed: () => setState(() => searching = !searching),
                   icon: Icon(Icons.search),
                 ),

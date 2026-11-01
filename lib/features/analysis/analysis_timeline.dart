@@ -49,7 +49,7 @@ class AnalysisTimeline {
         expense.category,
         () => List.filled(count, 0),
       );
-      values[bucket] += (expense.amount * 100).round();
+      values[bucket] += (expense.spendingImpact * 100).round();
     }
     return Map.unmodifiable({
       for (final entry in amounts.entries)

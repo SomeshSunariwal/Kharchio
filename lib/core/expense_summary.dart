@@ -9,21 +9,21 @@ class ExpenseSummary {
     final byMonth = <int, double>{};
     final byDay = <int, double>{};
     for (final expense in expenses) {
-      total += expense.amount;
+      total += expense.spendingImpact;
       byCategory.update(
         expense.category,
-        (v) => v + expense.amount,
-        ifAbsent: () => expense.amount,
+        (v) => v + expense.spendingImpact,
+        ifAbsent: () => expense.spendingImpact,
       );
       byMonth.update(
         expense.month,
-        (v) => v + expense.amount,
-        ifAbsent: () => expense.amount,
+        (v) => v + expense.spendingImpact,
+        ifAbsent: () => expense.spendingImpact,
       );
       byDay.update(
         expense.date.day,
-        (v) => v + expense.amount,
-        ifAbsent: () => expense.amount,
+        (v) => v + expense.spendingImpact,
+        ifAbsent: () => expense.spendingImpact,
       );
     }
     return ExpenseSummary._(
@@ -44,6 +44,10 @@ class ExpenseSummary {
   );
   final List<Expense> expenses;
   final double total;
+  double get paymentsTotal =>
+      expenses.where((e) => !e.isRefund).fold(0.0, (sum, e) => sum + e.amount);
+  double get refundsTotal =>
+      expenses.where((e) => e.isRefund).fold(0.0, (sum, e) => sum + e.amount);
   final Map<String, double> byCategory;
   final Map<int, double> byMonth;
   final Map<int, double> byDay;

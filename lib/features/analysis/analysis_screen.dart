@@ -167,7 +167,7 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
                 switch (period) {
                   AnalysisPeriod.year => 'Your Months at a glance',
                   AnalysisPeriod.month => 'Your Days at a glance',
-                  AnalysisPeriod.day => 'Expenses',
+                  AnalysisPeriod.day => 'Transactions',
                 },
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -209,9 +209,9 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
     );
     final chartHeader = CollapsingExpenseOverview(
       summary: CategorySpendingSummary(
-        total: displayedTotal,
+        total: budget == null ? displayedTotal.abs() : displayedTotal,
         label: budget == null
-            ? 'Total Spent'
+            ? (total < 0 ? 'Net Refund' : 'Net Spent')
             : displayedTotal < 0
             ? 'Overspending'
             : 'Saving',
@@ -221,7 +221,7 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
       summaryHeight: scale.scale(11) * 1.5 + 2 + scale.scale(24) * 1.5 + 16,
       footer: resultsHeading,
       footerHeight: 56 + (scale.scale(17) - 17).clamp(0, 40),
-      expanded: total > 0
+      expanded: totals.any((value) => value != 0)
           ? AnalysisChartPager(
               totals: totals,
               timeline: AnalysisTimeline(
@@ -244,7 +244,7 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
             ),
       // Both pages share a fixed viewport so the line's X-axis cannot drift
       // vertically during a horizontal swipe.
-      expandedHeight: total <= 0 ? 120 : 24 + pieHeight,
+      expandedHeight: totals.any((value) => value != 0) ? 24 + pieHeight : 120,
       totals: totals,
       colors: context.categoryColors,
       names: context.categoryNames,
@@ -271,8 +271,8 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
                   padding: const EdgeInsets.all(18),
                   child: Text(
                     categoryFilter == null
-                        ? 'No expenses for this day'
-                        : 'No expenses in $categoryFilter for this day',
+                        ? 'No transactions for this day'
+                        : 'No transactions in $categoryFilter for this day',
                     style: TextStyle(color: context.appColors.muted),
                   ),
                 )
@@ -439,7 +439,7 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
                   ),
                   const SizedBox(height: 5),
                   LinearProgressIndicator(
-                    value: total == 0 ? 0 : sum / total,
+                    value: total <= 0 ? 0 : (sum / total).clamp(0.0, 1.0),
                     backgroundColor: context.appColors.line.withValues(
                       alpha: .5,
                     ),

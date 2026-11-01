@@ -20,7 +20,9 @@ class CategoryPercentageBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final total = totals.fold<double>(0, (a, b) => a + b);
+    final total = totals
+        .where((value) => value > 0)
+        .fold<double>(0, (a, b) => a + b);
     if (total <= 0) return const SizedBox.shrink();
     return RepaintBoundary(
       child: ClipRRect(

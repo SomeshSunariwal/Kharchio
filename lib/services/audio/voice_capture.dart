@@ -3,8 +3,13 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
+
+final voiceCaptureFactoryProvider = Provider<VoiceCapture Function()>(
+  (ref) => VoiceCapture.new,
+);
 
 /// Bounded, in-memory 16 kHz mono PCM. No recording file is created.
 class VoiceCapture {
@@ -16,6 +21,7 @@ class VoiceCapture {
   Completer<void>? _closed;
   bool active = false;
   VoidCallback? onAudio;
+  void Function(Uint8List pcm)? onPcm;
   String? streamError;
   static const maxBytes = 16000 * 2 * 90;
   int get length => _bytes.length;
@@ -52,9 +58,11 @@ class VoiceCapture {
       (chunk) {
         final available = maxBytes - _bytes.length;
         if (available > 0) {
-          _bytes.add(
-            chunk.length <= available ? chunk : chunk.sublist(0, available),
-          );
+          final accepted = chunk.length <= available
+              ? chunk
+              : Uint8List.sublistView(chunk, 0, available);
+          _bytes.add(accepted);
+          onPcm?.call(accepted);
           onAudio?.call();
         }
       },
@@ -95,6 +103,7 @@ class VoiceCapture {
   void clearAudio() => _bytes = BytesBuilder(copy: false);
   Future<void> dispose() async {
     onAudio = null;
+    onPcm = null;
     await _amplitude?.cancel();
     await _stream?.cancel();
     try {

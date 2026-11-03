@@ -67,6 +67,7 @@ To set up everything locally, follow [BUILD.md](BUILD.md).
 - Add categories with a name and a colored icon from the shared icon collection.
 - Remove categories and reassign their expenses to a remaining category; retain at least one category.
 - Save theme, language, currency, and category preferences locally.
+- Choose On Device or Online AI processing. On Device keeps the existing downloaded Whisper/Qwen workflow.
 - Reset all expense records from Settings → Danger Zone; categories, settings, and downloaded models are kept.
 
 ### Amount Display
@@ -89,6 +90,19 @@ To set up everything locally, follow [BUILD.md](BUILD.md).
 - Keep audio, transcript, and summary out of the database; clear temporary audio buffers after processing or cancellation.
 - Show actual offline model readiness in Profile.
 - Download models with progress, pause/resume, file-size and checksum verification; ready models show a delete action. Processing checks require the files for the selected backend.
+
+### Online Voice Expenses
+
+- Select Gemini, OpenAI, or Claude in Settings → Online AI and add your own API key.
+- Gemini and OpenAI use a persistent Live/Realtime speech connection. New microphone samples are sent once in small PCM chunks, and incoming transcript updates feed the existing read-only transcript box. Stop finalizes that transcript and makes one expense-extraction request; it never re-uploads the recording. OpenAI's stream is resampled from the shared 16 kHz capture to its required 24 kHz format.
+- Claude uses the existing on-device Whisper speech path and sends only the transcript to Claude for expense extraction. Download the local speech model before recording in Claude mode; Qwen is not required.
+- Test Connection discovers compatible models once, checks Live speech (Gemini/OpenAI) with a short bundled sample, and validates sample expenses/refunds. It saves the exact working pair securely and shows green Ready. The provider may charge for these test requests. Older batch-only model checks must be run once again to validate streaming.
+- Auto resolves during testing, with Gemini paid-first/free-tier fallback. The resolved pair is locked for subsequent recordings: no model-list requests or fallback-model probes during recording. Speech Model and Available Model dropdowns allow manual changes; only the changed component is tested before activation.
+- Model menus reserve three quarters of each row for an ellipsized name and one quarter for a green `[free]` or red `[paid]` label. A selected model replaces its label with a matching-color check. Free describes free-tier eligibility; project billing still determines charges.
+- Temporary HTTP failures retry the same locked model with bounded backoff. Free-only emulator testing uses `--dart-define=GEMINI_FREE_TIER_ONLY=true`, which excludes paid-only Gemini models from both selection and requests.
+- Expense extraction uses the current categories and currency, translates titles/descriptions into English, and applies the same amount, category, and refund validation as on-device processing.
+- Pause/resume, the 90-second recording limit, review cards, quick saving, and undo keep the existing workflow. Online mode requires internet and provider quota; it does not need local model downloads or fall back to on-device processing after an API error.
+- Credentials stay out of SQLite and data sharing. Replacing or removing a key clears Ready. Old authentication-only tests must be run again to validate the full online pipeline.
 
 ### Local Expense Sharing
 

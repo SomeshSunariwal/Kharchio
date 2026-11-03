@@ -12,6 +12,7 @@ class PreferenceDropdownRow<T> extends StatelessWidget {
   final ValueChanged<T> onChanged;
   final bool enabled;
   final bool matchModelRows;
+  final bool compactControl;
   final String? description;
   final bool descriptionError;
   const PreferenceDropdownRow({
@@ -23,6 +24,7 @@ class PreferenceDropdownRow<T> extends StatelessWidget {
     required this.onChanged,
     this.enabled = true,
     this.matchModelRows = false,
+    this.compactControl = false,
     this.description,
     this.descriptionError = false,
   });
@@ -33,7 +35,9 @@ class PreferenceDropdownRow<T> extends StatelessWidget {
       // Offline rows have 2 px less padding on each side than Preferences.
       final referenceWidth = constraints.maxWidth - (matchModelRows ? 4 : 0);
       final standardWidth = (referenceWidth * .56).clamp(120.0, 200.0);
-      final controlWidth = matchModelRows ? standardWidth * .75 : standardWidth;
+      final controlWidth = matchModelRows || compactControl
+          ? standardWidth * .75
+          : standardWidth;
       return Opacity(
         opacity: 1,
         child: ConstrainedBox(

@@ -15,6 +15,7 @@ import '../../shared/destructive_confirmation.dart';
 import '../../shared/preference_dropdown_row.dart';
 import '../../shared/widgets.dart';
 import 'model_check_dialog.dart';
+import 'online_ai_section.dart';
 import 'user_profile_card.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -296,6 +297,43 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
                       onTap: () => context.push('/categories'),
                     ),
                   ),
+                  Divider(height: 1, color: context.appColors.line),
+                  PreferenceDropdownRow<AiMode>(
+                    compactControl: true,
+                    value: preferences.aiMode,
+                    label: 'AI Mode',
+                    icon: Icons.auto_awesome_outlined,
+                    options: const [
+                      AppDropdownOption(
+                        AiMode.onDevice,
+                        'On Device',
+                        icon: Icons.phone_android_outlined,
+                      ),
+                      AppDropdownOption(
+                        AiMode.online,
+                        'Online',
+                        icon: Icons.cloud_outlined,
+                      ),
+                    ],
+                    description: preferences.aiMode == AiMode.online
+                        ? 'Uses your selected online provider'
+                        : null,
+                    onChanged: (mode) async {
+                      try {
+                        await ref
+                            .read(preferencesProvider.notifier)
+                            .setAiMode(mode);
+                      } catch (_) {
+                        if (context.mounted) {
+                          notice(
+                            context,
+                            'Could not save AI mode. Please try again.',
+                            isError: true,
+                          );
+                        }
+                      }
+                    },
+                  ),
                 ],
               ),
             ),
@@ -391,6 +429,8 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
                 ],
               ),
             ),
+            const SizedBox(height: 16),
+            const OnlineAiSection(),
             const SizedBox(height: 16),
             const Text(
               'Data Share',

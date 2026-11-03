@@ -53,11 +53,27 @@ enum ProcessingMode {
   const ProcessingMode(this.nativeValue);
 }
 
+enum AiMode { onDevice, online }
+
+enum OnlineAiProvider {
+  none('None'),
+  gemini('Gemini'),
+  openai('OpenAI'),
+  claude('Claude');
+
+  final String label;
+  const OnlineAiProvider(this.label);
+}
+
 class AppPreferences {
+  final AiMode aiMode;
+  final OnlineAiProvider onlineAiProvider;
   final AppCurrency currency;
   final String speechLanguage;
   final ProcessingMode speechProcessing, expenseProcessing;
   const AppPreferences({
+    this.aiMode = AiMode.onDevice,
+    this.onlineAiProvider = OnlineAiProvider.none,
     this.currency = AppCurrency.inr,
     this.speechLanguage = 'auto',
     this.speechProcessing = ProcessingMode.npu,
@@ -65,6 +81,14 @@ class AppPreferences {
   });
 
   factory AppPreferences.fromMap(Map<String, String> values) => AppPreferences(
+    aiMode: AiMode.values.firstWhere(
+      (mode) => mode.name == values['aiMode'],
+      orElse: () => AiMode.onDevice,
+    ),
+    onlineAiProvider: OnlineAiProvider.values.firstWhere(
+      (provider) => provider.name == values['onlineAiProvider'],
+      orElse: () => OnlineAiProvider.none,
+    ),
     currency: values['currency'] == 'USD' ? AppCurrency.usd : AppCurrency.inr,
     speechProcessing: ProcessingMode.values.firstWhere(
       (mode) =>
@@ -86,11 +110,15 @@ class AppPreferences {
   );
 
   AppPreferences copyWith({
+    AiMode? aiMode,
+    OnlineAiProvider? onlineAiProvider,
     AppCurrency? currency,
     String? speechLanguage,
     ProcessingMode? speechProcessing,
     ProcessingMode? expenseProcessing,
   }) => AppPreferences(
+    aiMode: aiMode ?? this.aiMode,
+    onlineAiProvider: onlineAiProvider ?? this.onlineAiProvider,
     currency: currency ?? this.currency,
     speechLanguage: speechLanguage ?? this.speechLanguage,
     speechProcessing: speechProcessing ?? this.speechProcessing,
@@ -108,6 +136,18 @@ final preferencesProvider = NotifierProvider<PreferencesStore, AppPreferences>(
 class PreferencesStore extends Notifier<AppPreferences> {
   @override
   AppPreferences build() => ref.read(initialPreferencesProvider);
+
+  Future<void> setAiMode(AiMode mode) async {
+    await ref.read(localStoreProvider).writeSetting('ai_mode', mode.name);
+    state = state.copyWith(aiMode: mode);
+  }
+
+  Future<void> setOnlineAiProvider(OnlineAiProvider provider) async {
+    await ref
+        .read(localStoreProvider)
+        .writeSetting('online_ai_provider', provider.name);
+    state = state.copyWith(onlineAiProvider: provider);
+  }
 
   Future<void> setCurrency(AppCurrency currency) async {
     await ref

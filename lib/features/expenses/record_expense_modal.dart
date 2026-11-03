@@ -6,6 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../services/ai/model_manager.dart';
 import '../../services/ai/native_ai.dart';
+import '../../services/ai/online_ai_client.dart';
+import '../../services/ai/online_ai_settings.dart';
+import '../../services/ai/live_transcriber.dart';
 import '../../services/audio/voice_capture.dart';
 import '../../services/ai/expense_extractor.dart';
 import '../../services/audio/live_transcription_queue.dart';
@@ -41,7 +44,16 @@ class _RecordState extends ConsumerState<RecordExpenseModal>
   final text = TextEditingController();
   final transcriptScroll = ScrollController();
   final summaryScroll = ScrollController();
-  final capture = VoiceCapture();
+  late final capture = ref.read(voiceCaptureFactoryProvider)();
+  AppPreferences sessionPreferences = const AppPreferences();
+  bool get online => sessionPreferences.aiMode == AiMode.online;
+  bool get usesLocalSpeech =>
+      !online || sessionPreferences.onlineAiProvider == OnlineAiProvider.claude;
+  bool get usesLiveSpeech => online && !usesLocalSpeech;
+  OnlineLiveTranscriber? onlineSpeech;
+  OnlineAiClient? onlineClient, onlinePreview;
+  OnlineAiModels? onlineModels;
+  String? onlineKey;
   final elapsed = Stopwatch();
   Timer? timer;
   late final liveTranscriptions = LiveTranscriptionQueue(transcribeLive);
@@ -65,15 +77,26 @@ class _RecordState extends ConsumerState<RecordExpenseModal>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     capture.onAudio = () {
-      if (mounted && stage == RecordingStage.paused) {
+      if (mounted && stage == RecordingStage.paused && (!usesLiveSpeech || !changingControls)) {
         unawaited(liveTranscriptions.request(flush: true));
       }
+    };
+    capture.onPcm = (pcm) {
+      if (usesLiveSpeech) onlineSpeech?.addAudio(pcm);
     };
     Future.microtask(startRecording);
   }
 
   Future<void> startRecording() async {
     if (!mounted) return;
+    sessionPreferences = ref.read(preferencesProvider);
+    onlineClient?.close();
+    onlinePreview?.close();
+    onlineSpeech?.close();
+    onlineSpeech = null;
+    onlineClient = null;
+    onlineModels = null;
+    onlineKey = null;
     setState(() {
       stage = RecordingStage.initializing;
       error = null;
@@ -82,38 +105,85 @@ class _RecordState extends ConsumerState<RecordExpenseModal>
       transcribedBytes = 0;
       warmFailure = null;
       speechModelReady = false;
+      processingLabel = online
+          ? 'Preparing online AI…'
+          : 'Preparing offline models…';
     });
     try {
-      final models = await ref
-          .read(offlineModelsProvider.notifier)
-          .requireAvailable(
-            expense: widget.onExtracted != null,
-            speechMode: ref
-                .read(preferencesProvider)
-                .speechProcessing
-                .nativeValue,
+      OfflineModels? models;
+      if (online) {
+        final provider = sessionPreferences.onlineAiProvider;
+        if (provider == OnlineAiProvider.none) {
+          throw StateError(
+            'Select Gemini or OpenAI in Profile & Settings → Online AI.',
           );
-      if (!mounted) return;
-      await NativeAiJob.setProcessing(
-        mode: ref.read(preferencesProvider).speechProcessing.nativeValue,
-      );
+        }
+        final keys = ref.read(onlineAiKeysProvider);
+        onlineModels = await keys.models(provider);
+        onlineKey = await keys.read(provider);
+        if (!mounted) return;
+        if (onlineModels == null || onlineKey == null || onlineKey!.isEmpty) {
+          throw StateError(
+            'Add your API key and pass Test Connection in Profile & Settings → Online AI.',
+          );
+        }
+        onlineClient = ref.read(onlineAiClientFactoryProvider)(
+          provider,
+          onlineKey!,
+        );
+        if (usesLiveSpeech) {
+          final speech = ref.read(onlineLiveFactoryProvider)(
+            provider,
+            onlineKey!,
+            onlineModels!.speech,
+          );
+          onlineSpeech = speech;
+          speech.onTranscript = (value) {
+            if (mounted && stage != RecordingStage.failed) text.text = value;
+          };
+          speech.onError = (failure) => unawaited(_liveSpeechFailed(failure));
+          await speech.start(language: sessionPreferences.speechLanguage);
+          speechModelReady = true;
+        }
+      }
+      if (usesLocalSpeech) {
+        models = await ref
+            .read(offlineModelsProvider.notifier)
+            .requireAvailable(
+              expense: !online && widget.onExtracted != null,
+              speechMode: ref
+                  .read(preferencesProvider)
+                  .speechProcessing
+                  .nativeValue,
+            );
+        if (!mounted) return;
+        await NativeAiJob.setProcessing(
+          mode: ref.read(preferencesProvider).speechProcessing.nativeValue,
+        );
+      }
       if (!mounted) return;
       await capture.start();
       if (!mounted) return;
+      if (stage == RecordingStage.failed) {
+        await capture.stop();
+        return;
+      }
       elapsed.reset();
       elapsed.start();
       setState(() {
         seconds.value = 0;
         stage = RecordingStage.recording;
       });
-      whisperWarmWork = prepareWhisperModel(models.whisper);
+      if (models != null) whisperWarmWork = prepareWhisperModel(models.whisper);
       timer?.cancel();
       timer = Timer.periodic(const Duration(seconds: 1), (_) {
         if (!mounted || stage != RecordingStage.recording) return;
         seconds.value = elapsed.elapsed.inSeconds;
         if (seconds.value >= 90) {
           unawaited(process());
-        } else if (seconds.value % 3 == 0 && liveWork == null) {
+        } else if (!usesLiveSpeech &&
+            seconds.value % 3 == 0 &&
+            liveWork == null) {
           unawaited(liveTranscriptions.request());
         }
       });
@@ -169,10 +239,15 @@ class _RecordState extends ConsumerState<RecordExpenseModal>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     capture.onAudio = null;
+    capture.onPcm = null;
     liveTranscriptions.cancelPending();
     job?.cancel();
     liveJob?.cancel();
     warmJob?.cancel();
+    onlineClient?.close();
+    onlinePreview?.close();
+    onlineSpeech?.close();
+    onlineKey = null;
     timer?.cancel();
     elapsed.stop();
     seconds.dispose();
@@ -180,11 +255,13 @@ class _RecordState extends ConsumerState<RecordExpenseModal>
     transcriptScroll.dispose();
     summaryScroll.dispose();
     unawaited(capture.dispose());
-    unawaited(
-      NativeAiJob.releaseModels().catchError((Object e) {
-        if (kDebugMode) debugPrint('KharchioAI: model cleanup failed: $e');
-      }),
-    );
+    if (usesLocalSpeech) {
+      unawaited(
+        NativeAiJob.releaseModels().catchError((Object e) {
+          if (kDebugMode) debugPrint('KharchioAI: model cleanup failed: $e');
+        }),
+      );
+    }
     super.dispose();
   }
 
@@ -197,6 +274,7 @@ class _RecordState extends ConsumerState<RecordExpenseModal>
     try {
       final resume = stage == RecordingStage.paused;
       if (resume) {
+        if (usesLiveSpeech) await liveWork;
         await capture.resume();
         elapsed.start();
       } else {
@@ -220,6 +298,10 @@ class _RecordState extends ConsumerState<RecordExpenseModal>
   }
 
   Future<void> transcribeLive(bool flush) async {
+    if (usesLiveSpeech) {
+      await _transcribeOnlineLive(flush);
+      return;
+    }
     await whisperWarmWork;
     if (!mounted ||
         (stage != RecordingStage.recording && stage != RecordingStage.paused) ||
@@ -257,6 +339,149 @@ class _RecordState extends ConsumerState<RecordExpenseModal>
     }
   }
 
+  Future<void> _transcribeOnlineLive(bool flush) async {
+    if (!mounted ||
+        !flush ||
+        onlineSpeech == null ||
+        (stage != RecordingStage.recording && stage != RecordingStage.paused)) {
+      return;
+    }
+    try {
+      await onlineSpeech!.pause();
+    } catch (error) {
+      if (mounted && stage == RecordingStage.paused) {
+        setState(() => this.error = _errorMessage(error));
+      }
+    }
+  }
+
+  Future<void> _liveSpeechFailed(LiveTranscriptionException failure) async {
+    if (!mounted ||
+        stage == RecordingStage.processing ||
+        stage == RecordingStage.review ||
+        stage == RecordingStage.failed) {
+      return;
+    }
+    timer?.cancel();
+    elapsed.stop();
+    liveTranscriptions.cancelPending();
+    setState(() {
+      stage = RecordingStage.failed;
+      error = failure.message;
+    });
+    try {
+      await capture.stop();
+    } catch (_) {
+      /* Keep the speech error. */
+    }
+    capture.clearAudio();
+  }
+
+  Future<void> _processOnline() async {
+    NativeAiJob? localSpeechJob;
+    elapsed.stop();
+    timer?.cancel();
+    setState(() {
+      stage = RecordingStage.processing;
+      error = null;
+      processingLabel = usesLiveSpeech
+          ? 'Finalizing live transcript…'
+          : 'Transcribing on this device…';
+    });
+    try {
+      final audio = await capture.stop();
+      liveTranscriptions.cancelPending();
+      onlinePreview?.close();
+      if (usesLocalSpeech) liveJob?.cancel();
+      await liveWork;
+      if (!mounted) return;
+      final String transcript;
+      if (usesLiveSpeech) {
+        transcript = await onlineSpeech!.finish();
+      } else {
+        await whisperWarmWork;
+        if (warmFailure != null) throw StateError(_errorMessage(warmFailure!));
+        liveJob?.cancel();
+        await liveWork;
+        if (!mounted) return;
+        final models = await ref
+            .read(offlineModelsProvider.notifier)
+            .requireAvailable(
+              speechMode: sessionPreferences.speechProcessing.nativeValue,
+            );
+        localSpeechJob = NativeAiJob();
+        transcript =
+            audio.length == transcribedBytes && text.text.trim().isNotEmpty
+            ? text.text.trim()
+            : await localSpeechJob.transcribe(
+                models.whisper,
+                audio,
+                sessionPreferences.speechLanguage,
+              );
+      }
+      capture.clearAudio();
+      if (!mounted) return;
+      text.text = transcript;
+      setState(
+        () => processingLabel =
+            'Extracting expenses and refunds with ${sessionPreferences.onlineAiProvider.label}…',
+      );
+      final result = await onlineClient!.extract(
+        text: transcript,
+        categories: context.categoryNames,
+        currency: context.currency.code,
+        models: onlineModels!,
+      );
+      if (!mounted) return;
+      if (widget.onExtracted != null) {
+        setState(() => processingLabel = 'Saving expenses on this device…');
+        await widget.onExtracted!(result);
+        return;
+      }
+      setState(() {
+        summary = result;
+        stage = RecordingStage.review;
+      });
+    } catch (e) {
+      if (mounted) {
+        if ((e is OnlineAiConnectionException && e.requiresRetest) ||
+            (e is LiveTranscriptionException &&
+                const [400, 401, 403, 404, 429].contains(e.statusCode))) {
+          try {
+            await ref
+                .read(onlineAiKeysProvider)
+                .clearValidation(sessionPreferences.onlineAiProvider);
+            ref.invalidate(
+              onlineAiReadyProvider(sessionPreferences.onlineAiProvider),
+            );
+          } catch (_) {
+            /* Preserve the provider error if secure storage is unavailable. */
+          }
+        }
+        if (mounted) {
+          setState(() {
+            stage = RecordingStage.failed;
+            error = _errorMessage(e);
+          });
+        }
+      }
+    } finally {
+      capture.clearAudio();
+      onlineClient?.close();
+      onlineSpeech?.close();
+      onlinePreview?.close();
+      liveTranscriptions.cancelPending();
+      localSpeechJob?.dispose();
+      if (usesLocalSpeech) {
+        try {
+          await NativeAiJob.releaseModels();
+        } catch (_) {
+          /* No network state depends on native cleanup. */
+        }
+      }
+    }
+  }
+
   void createCards() {
     if (stage != RecordingStage.review || summary.isEmpty) return;
     final values = [
@@ -276,6 +501,10 @@ class _RecordState extends ConsumerState<RecordExpenseModal>
   Future<void> process() async {
     if ((stage != RecordingStage.recording && stage != RecordingStage.paused) ||
         changingControls) {
+      return;
+    }
+    if (online) {
+      await _processOnline();
       return;
     }
     final processingTime = Stopwatch()..start();
@@ -547,11 +776,19 @@ class _RecordState extends ConsumerState<RecordExpenseModal>
                     widget.onOpenSettings != null)
                   TextButton(
                     onPressed: widget.onOpenSettings,
-                    child: const Text('Open Offline AI settings'),
+                    child: Text(
+                      online
+                          ? 'Open Online AI settings'
+                          : 'Open Offline AI settings',
+                    ),
                   ),
                 const SizedBox(height: 10),
                 Text(
-                  'Offline processing · Audio is never saved',
+                  online
+                      ? usesLocalSpeech
+                            ? 'Whisper on device · Claude expense processing'
+                            : 'Live transcription with ${sessionPreferences.onlineAiProvider.label} · Audio is sent to your provider'
+                      : 'Offline processing · Audio is never saved',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 10, color: colors.muted),
                 ),

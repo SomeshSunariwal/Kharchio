@@ -54,6 +54,8 @@ Future<void> main() async {
         ),
         initialPreferencesProvider.overrideWithValue(
           AppPreferences.fromMap({
+            'aiMode': settings['ai_mode'] ?? 'onDevice',
+            'onlineAiProvider': settings['online_ai_provider'] ?? 'none',
             'currency': settings['default_currency'] ?? 'INR',
             'speechLanguage': settings['speech_language'] ?? 'auto',
             if (settings['processing'] case final String mode)

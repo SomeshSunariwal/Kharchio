@@ -186,7 +186,6 @@ class OnlineAiClient {
   final Duration timeout;
   final Duration retryDelay;
   final bool freeTierOnly;
-  List<String> _geminiCandidates = const [];
   final OnlineLiveFactory _liveFactory;
   final Duration diagnosticFrameInterval;
   bool _closed = false;
@@ -515,8 +514,8 @@ class OnlineAiClient {
         .toList();
     supported.sort((a, b) {
       if (!freeTierOnly) {
-        final byTier = (freeTierGeminiModels.contains(a) ? 1 : 0).compareTo(
-          freeTierGeminiModels.contains(b) ? 1 : 0,
+        final byTier = (freeTierGeminiModels.contains(a) ? 0 : 1).compareTo(
+          freeTierGeminiModels.contains(b) ? 0 : 1,
         );
         if (byTier != 0) return byTier;
       }
@@ -535,15 +534,6 @@ class OnlineAiClient {
       throw const OnlineAiConnectionException(
         'No compatible Gemini models are available for this key.',
       );
-    }
-    // Bound paid-model probes so a free-tier fallback is always reached.
-    final paid = supported
-        .where((name) => !freeTierGeminiModels.contains(name))
-        .take(1);
-    final free = supported.where(freeTierGeminiModels.contains).take(3);
-    _geminiCandidates = [...paid, ...free];
-    if (_geminiCandidates.isEmpty) {
-      _geminiCandidates = supported.take(3).toList();
     }
     final speechCandidates = [
       for (final name in freeTierGeminiLiveModels)
@@ -579,10 +569,14 @@ class OnlineAiClient {
     if (discovered.liveSpeech) {
       OnlineAiConnectionException? lastFailure;
       var passed = false;
-      final speechCandidates = provider == OnlineAiProvider.openrouter
-          ? _openRouterCandidates(
+      final speechCandidates =
+          provider == OnlineAiProvider.openrouter ||
+              provider == OnlineAiProvider.gemini
+          ? _freeFirstCandidates(
               discovered.availableSpeech,
-              discovered.freeModels,
+              provider == OnlineAiProvider.gemini
+                  ? freeTierGeminiLiveModels
+                  : discovered.freeModels,
             )
           : discovered.availableSpeech.take(2);
       for (final candidate in speechCandidates) {
@@ -617,9 +611,13 @@ class OnlineAiClient {
       }
     }
     final candidates = provider == OnlineAiProvider.openrouter
-        ? _openRouterCandidates(discovered.available, discovered.freeModels)
+        ? _freeFirstCandidates(discovered.available, discovered.freeModels)
         : provider == OnlineAiProvider.gemini
-        ? _geminiCandidates
+        ? _freeFirstCandidates(
+            discovered.available,
+            freeTierGeminiModels,
+            freeLimit: 3,
+          )
         : discovered.available.take(3);
     OnlineAiConnectionException? lastFailure;
     for (final expense in candidates) {
@@ -645,11 +643,13 @@ class OnlineAiClient {
         );
   }
 
-  Iterable<String> _openRouterCandidates(
+  // Keep probes bounded, but always attempt free candidates before paid ones.
+  Iterable<String> _freeFirstCandidates(
     List<String> models,
-    List<String> free,
-  ) => [
-    ...models.where(free.contains).take(2),
+    List<String> free, {
+    int freeLimit = 2,
+  }) => [
+    ...models.where(free.contains).take(freeLimit),
     ...models.where((model) => !free.contains(model)).take(1),
   ];
 

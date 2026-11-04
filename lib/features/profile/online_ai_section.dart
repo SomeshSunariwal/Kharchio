@@ -223,9 +223,7 @@ class _OnlineAiSectionState extends ConsumerState<OnlineAiSection> {
                   descriptionError: !models.liveSpeech,
                   description: !models.liveSpeech
                       ? 'Using on-device Whisper'
-                      : models.speechSelection == 'auto'
-                      ? models.speech
-                      : null,
+                      : models.speech,
                   options: [
                     if (!models.liveSpeech)
                       const AppDropdownOption(
@@ -256,11 +254,7 @@ class _OnlineAiSectionState extends ConsumerState<OnlineAiSection> {
                   label: 'Available Model',
                   icon: Icons.auto_awesome_outlined,
                   value: models.selection,
-                  description: changingModel
-                      ? 'Testing selected model…'
-                      : models.selection == 'auto'
-                      ? models.expense
-                      : null,
+                  description: models.expense,
                   enabled: !changingModel,
                   options: [
                     const AppDropdownOption(

@@ -1,5 +1,6 @@
 #include "whisper_qnn.h"
 #include "whisper_audio.h"
+#include "whisper_language.h"
 #include <cctype>
 #include <cstring>
 #include <memory>
@@ -408,13 +409,13 @@ namespace whisper_qnn
                         throw std::runtime_error("Invalid Whisper QNN logits");
                     return token;
                 };
-                // Multilingual Whisper Small token IDs. Match the existing English
-                // transcription / Hindi-to-English translation behavior.
+                // Share the original offline English-output policy with CPU/GPU.
                 auto &first = step(50258, 0);
-                int lang = language == "en" ? 50259 : language == "hinglish" || language == "hi" ? 50276
-                                                                                                 : argmax(first, 50259, 50358);
+                const std::string_view input_language = kharchio::whisper_input_language(language);
+                int lang = input_language == "en" ? 50259 : input_language == "hi" ? 50276
+                    : argmax(first, 50259, 50358);
                 step(lang, 1);
-                step(language == "en" ? 50359 : 50358, 2);
+                step(kharchio::whisper_task_token(language), 2);
                 Tensor *logits = &step(50363, 3); // no timestamps
                 std::string text;
                 for (int pos = 4; pos < 199; ++pos)

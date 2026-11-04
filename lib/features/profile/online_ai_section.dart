@@ -42,7 +42,7 @@ class _OnlineAiSectionState extends ConsumerState<OnlineAiSection> {
       if (!mounted || key == null) return;
       final selected = speech
           ? models.selectSpeech(value)
-          : models.select(provider, value);
+          : models.selectExpense(value);
       checkingClient = ref.read(onlineAiClientFactoryProvider)(provider, key);
       await checkingClient!.checkSelectedModels(selected, previous: models);
       if (!mounted) return;
@@ -93,6 +93,8 @@ class _OnlineAiSectionState extends ConsumerState<OnlineAiSection> {
                 label: 'Provider',
                 description: provider == OnlineAiProvider.claude
                     ? 'Whisper on device · Claude expenses'
+                    : provider == OnlineAiProvider.openrouter
+                    ? 'Audio chunks · Auto prefers free models'
                     : null,
                 enabled: !changingModel,
                 icon: Icons.cloud_outlined,
@@ -106,6 +108,7 @@ class _OnlineAiSectionState extends ConsumerState<OnlineAiSection> {
                         OnlineAiProvider.gemini => Icons.auto_awesome_outlined,
                         OnlineAiProvider.openai => Icons.psychology_outlined,
                         OnlineAiProvider.claude => Icons.chat_bubble_outline,
+                        OnlineAiProvider.openrouter => Icons.hub_outlined,
                       },
                     ),
                 ],
@@ -209,29 +212,45 @@ class _OnlineAiSectionState extends ConsumerState<OnlineAiSection> {
                 ),
               ),
               if (ready && models != null) ...[
-                if (models.liveSpeech) ...[
-                  Divider(height: 1, color: context.appColors.line),
-                  PreferenceDropdownRow<String>(
-                    label: 'Speech Model',
-                    icon: Icons.graphic_eq,
-                    value: models.speechSelection,
-                    enabled: !changingModel,
-                    description: models.speechSelection == 'auto'
-                        ? models.speech
-                        : null,
-                    options: [
+                Divider(height: 1, color: context.appColors.line),
+                PreferenceDropdownRow<String>(
+                  label: 'Speech Model',
+                  icon: Icons.graphic_eq,
+                  value: models.liveSpeech
+                      ? models.speechSelection
+                      : OnlineAiModels.onDeviceSpeech,
+                  enabled: !changingModel && models.liveSpeech,
+                  descriptionError: !models.liveSpeech,
+                  description: !models.liveSpeech
+                      ? 'Using on-device Whisper'
+                      : models.speechSelection == 'auto'
+                      ? models.speech
+                      : null,
+                  options: [
+                    if (!models.liveSpeech)
+                      const AppDropdownOption(
+                        OnlineAiModels.onDeviceSpeech,
+                        'Whisper (on device)',
+                        icon: Icons.mic_outlined,
+                      )
+                    else ...[
                       const AppDropdownOption(
                         'auto',
                         'Auto',
                         icon: Icons.auto_awesome_outlined,
                       ),
                       for (final name in models.availableSpeech.toSet())
-                        _modelOption(provider, name, speech: true),
+                        _modelOption(
+                          provider,
+                          name,
+                          speech: true,
+                          freeModels: models.freeModels,
+                        ),
                     ],
-                    onChanged: (value) =>
-                        _selectModel(provider, models, value, speech: true),
-                  ),
-                ],
+                  ],
+                  onChanged: (value) =>
+                      _selectModel(provider, models, value, speech: true),
+                ),
                 Divider(height: 1, color: context.appColors.line),
                 PreferenceDropdownRow<String>(
                   label: 'Available Model',
@@ -250,7 +269,11 @@ class _OnlineAiSectionState extends ConsumerState<OnlineAiSection> {
                       icon: Icons.auto_awesome_outlined,
                     ),
                     for (final name in models.available.toSet())
-                      _modelOption(provider, name),
+                      _modelOption(
+                        provider,
+                        name,
+                        freeModels: models.freeModels,
+                      ),
                   ],
                   onChanged: (value) => _selectModel(provider, models, value),
                 ),
@@ -267,12 +290,14 @@ class _OnlineAiSectionState extends ConsumerState<OnlineAiSection> {
     OnlineAiProvider provider,
     String model, {
     bool speech = false,
+    List<String> freeModels = const [],
   }) {
-    final free =
-        provider == OnlineAiProvider.gemini &&
-        (speech
-            ? OnlineAiClient.freeTierGeminiLiveModels.contains(model)
-            : OnlineAiClient.freeTierGeminiModels.contains(model));
+    final free = provider == OnlineAiProvider.openrouter
+        ? freeModels.contains(model)
+        : provider == OnlineAiProvider.gemini &&
+              (speech
+                  ? OnlineAiClient.freeTierGeminiLiveModels.contains(model)
+                  : OnlineAiClient.freeTierGeminiModels.contains(model));
     return AppDropdownOption(
       model,
       model,

@@ -59,7 +59,8 @@ enum OnlineAiProvider {
   none('None'),
   gemini('Gemini'),
   openai('OpenAI'),
-  claude('Claude');
+  claude('Claude'),
+  openrouter('OpenRouter');
 
   final String label;
   const OnlineAiProvider(this.label);
@@ -138,8 +139,17 @@ class PreferencesStore extends Notifier<AppPreferences> {
   AppPreferences build() => ref.read(initialPreferencesProvider);
 
   Future<void> setAiMode(AiMode mode) async {
-    await ref.read(localStoreProvider).writeSetting('ai_mode', mode.name);
-    state = state.copyWith(aiMode: mode);
+    final store = ref.read(localStoreProvider);
+    await store.db.transaction(() async {
+      await store.writeSetting('ai_mode', mode.name);
+      if (mode == AiMode.onDevice) {
+        await store.writeSetting('online_ai_provider', OnlineAiProvider.none.name);
+      }
+    });
+    state = state.copyWith(
+      aiMode: mode,
+      onlineAiProvider: mode == AiMode.onDevice ? OnlineAiProvider.none : null,
+    );
   }
 
   Future<void> setOnlineAiProvider(OnlineAiProvider provider) async {

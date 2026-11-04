@@ -88,8 +88,10 @@ class _OnlineApiKeyDialogState extends ConsumerState<OnlineApiKeyDialog> {
           success = true;
           saved = true;
           selectedModels = models;
-          message = widget.provider == OnlineAiProvider.claude
-              ? 'Success! Claude expense extraction is ready. Speech uses on-device Whisper.'
+          message = models.usesOnDeviceSpeech
+              ? 'Success! ${widget.provider.label} expense processing is ready. Using on-device Whisper.'
+              : widget.provider == OnlineAiProvider.openrouter
+              ? 'Success! Audio-chunk transcription and expense models are tested and locked. Your key has been saved.'
               : 'Success! Live speech and expense models are tested and locked. Your key has been saved.';
         });
       }
@@ -281,6 +283,8 @@ class _OnlineApiKeyDialogState extends ConsumerState<OnlineApiKeyDialog> {
                 Text(
                   widget.provider == OnlineAiProvider.claude
                       ? 'Tests sample transactions with Claude. Speech uses on-device Whisper. Your provider may charge for the test.'
+                      : widget.provider == OnlineAiProvider.openrouter
+                      ? 'Tests audio and expense models separately, preferring compatible free models. If online speech is unavailable, speech uses on-device Whisper. Your provider may charge for the test.'
                       : 'Automatically selects models and tests a built-in speech sample and sample transactions. Your provider may charge for the test.',
                   style: TextStyle(
                     fontSize: 10,

@@ -52,11 +52,7 @@ class ModelValidator {
           _pcm(wav),
           speechLanguage,
         );
-        final normalized = transcript.toLowerCase();
-        if (!normalized.contains('milk') ||
-            !RegExp(r'movie|film').hasMatch(normalized) ||
-            !RegExp(r'\b100\b|hundred').hasMatch(normalized) ||
-            !RegExp(r'\b150\b|fifty').hasMatch(normalized)) {
+        if (!matchesSpeechSample(transcript)) {
           throw StateError(
             'Whisper ran, but the sample transcript did not match the expected purchases. '
             'Recognized: $transcript',
@@ -109,6 +105,14 @@ class ModelValidator {
         job.dispose();
       }
     }
+  }
+
+  static bool matchesSpeechSample(String transcript) {
+    final normalized = transcript.toLowerCase();
+    return normalized.contains('milk') &&
+        RegExp(r'movie|film').hasMatch(normalized) &&
+        RegExp(r'\b100\b|hundred').hasMatch(normalized) &&
+        RegExp(r'\b150\b|fifty').hasMatch(normalized);
   }
 
   bool _usedFallback(String backend, int mode) =>

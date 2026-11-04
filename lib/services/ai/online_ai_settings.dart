@@ -65,6 +65,11 @@ class OnlineAiKeys {
           models?.liveSpeech != true) {
         return null;
       }
+      if (provider == OnlineAiProvider.openrouter &&
+          models?.liveSpeech != true &&
+          models?.usesOnDeviceSpeech != true) {
+        return null;
+      }
       if (const bool.fromEnvironment('GEMINI_FREE_TIER_ONLY') &&
           provider == OnlineAiProvider.gemini &&
           models != null &&

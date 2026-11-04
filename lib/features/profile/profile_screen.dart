@@ -10,6 +10,7 @@ import '../../services/ai/model_download_manager.dart';
 import '../../services/ai/model_download_store.dart';
 import '../../services/ai/model_manager.dart';
 import '../../services/ai/model_validator.dart';
+import '../../services/ai/online_ai_settings.dart';
 import '../../shared/app_dropdown.dart';
 import '../../shared/destructive_confirmation.dart';
 import '../../shared/preference_dropdown_row.dart';
@@ -137,6 +138,17 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
         inventory?.anyReady == true &&
         current?.active == null;
     final preferences = ref.watch(preferencesProvider);
+    final onlineUsesWhisper =
+        preferences.aiMode == AiMode.online &&
+        (preferences.onlineAiProvider == OnlineAiProvider.claude ||
+            preferences.onlineAiProvider != OnlineAiProvider.none &&
+                ref
+                        .watch(
+                          onlineAiModelsProvider(preferences.onlineAiProvider),
+                        )
+                        .value
+                        ?.usesOnDeviceSpeech ==
+                    true);
     return SafeArea(
       child: FixedHeaderPage(
         header: const Text(
@@ -183,7 +195,17 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
                   Divider(height: 1, color: context.appColors.line),
                   PreferenceDropdownRow<String>(
                     value: ref.watch(preferencesProvider).speechLanguage,
-                    label: 'Speech',
+                    label: 'Speech Output',
+                    description: preferences.aiMode == AiMode.online
+                        ? onlineUsesWhisper
+                              ? 'Local Whisper: always English'
+                              : switch (preferences.speechLanguage) {
+                                  'en' => 'Online: final output in English',
+                                  'hinglish' =>
+                                    'Online: Hindi/English as spoken',
+                                  _ => 'Online: original language and script',
+                                }
+                        : null,
                     icon: Icons.translate,
                     options: const [
                       AppDropdownOption(

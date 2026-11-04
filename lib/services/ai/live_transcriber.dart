@@ -6,46 +6,54 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/preferences.dart';
+import 'openrouter_transcriber.dart';
+import 'speech_transcriber.dart';
+export 'speech_transcriber.dart';
 
 typedef LiveSocketConnector = Future<WebSocket> Function(
   Uri uri,
   Map<String, dynamic> headers,
 );
-typedef OnlineLiveFactory = OnlineLiveTranscriber Function(
+typedef OnlineLiveFactory = OnlineSpeechTranscriber Function(
   OnlineAiProvider provider,
   String key,
   String model,
 );
 final onlineLiveFactoryProvider = Provider<OnlineLiveFactory>(
-  (ref) =>
-      (provider, key, model) => OnlineLiveTranscriber(provider, key, model),
+  (ref) => createOnlineSpeechTranscriber,
 );
 
-class LiveTranscriptionException implements Exception {
-  final String message;
-  final int? statusCode;
-  const LiveTranscriptionException(this.message, {this.statusCode});
-  @override
-  String toString() => message;
-}
+OnlineSpeechTranscriber createOnlineSpeechTranscriber(
+  OnlineAiProvider provider,
+  String key,
+  String model,
+) => provider == OnlineAiProvider.openrouter
+    ? OpenRouterTranscriber(key, model)
+    : OnlineLiveTranscriber(provider, key, model);
 
 /// A recording owns one socket. Each PCM16 sample is sent once in 100 ms frames.
 /// No recording files, API-key logging, model discovery, or model fallback.
-class OnlineLiveTranscriber {
+class OnlineLiveTranscriber implements OnlineSpeechTranscriber {
   final OnlineAiProvider provider;
   final String _key;
   final String model;
   final LiveSocketConnector _connect;
-  final Duration connectTimeout, finishTimeout;
+  final Duration connectTimeout, finishTimeout, pauseTimeout;
   WebSocket? _socket;
   StreamSubscription<dynamic>? _subscription;
   final _setup = Completer<void>();
   final _pending = BytesBuilder(copy: false);
+  final _queuedAfterPause = BytesBuilder(copy: false);
+  Future<String>? _pauseWork;
   Timer? _frameTimer, _displayTimer, _settleTimer;
   Completer<void>? _finalized;
   bool _closed = false, _ready = false, _activityOpen = false;
   bool _transcriptionFinished = false, _turnComplete = false;
   bool _geminiVoiceEnded = false;
+  bool _geminiSegmentOpen = false, _geminiSeparateText = false;
+  bool _geminiWaiting = false;
+  Timer? _geminiNextSegmentTimer;
+  double? _geminiEndedAt;
   LiveTranscriptionException? _failure;
   String _committed = '', _turnText = '', _interim = '';
   int sentBytes = 0;
@@ -64,7 +72,8 @@ class OnlineLiveTranscriber {
     this.model, {
     LiveSocketConnector? connector,
     this.connectTimeout = const Duration(seconds: 12),
-    this.finishTimeout = const Duration(seconds: 10),
+    this.finishTimeout = const Duration(seconds: 30),
+    this.pauseTimeout = const Duration(milliseconds: 750),
   }) : _key = key.trim(),
        _connect =
            connector ??
@@ -82,6 +91,7 @@ class OnlineLiveTranscriber {
     return '${left.trimRight()} ${right.trimLeft()}';
   }
 
+  @override
   String get transcript {
     if (provider == OnlineAiProvider.openai) {
       return _openAiOrder
@@ -97,6 +107,7 @@ class OnlineLiveTranscriber {
     return _join(_committed, provisional).trim();
   }
 
+  @override
   Future<void> start({required String language}) async {
     if (_closed || _socket != null) {
       throw const LiveTranscriptionException(
@@ -169,14 +180,7 @@ class OnlineLiveTranscriber {
                 'transcription': {
                   'model': model,
                   if (model == 'gpt-realtime-whisper') 'delay': 'minimal',
-                  if (model != 'gpt-realtime-whisper') 'prompt': 'Expense and refund dictation in English and Hindi. Preserve all names and amounts.',
-                  if (language == 'en') 'language': 'en',
-                  if (language == 'hinglish' &&
-                      const [
-                        'gpt-live-transcribe',
-                        'gpt-transcribe',
-                      ].contains(model))
-                    'languages': ['hi', 'en'],
+                  if (model != 'gpt-realtime-whisper') 'prompt': 'Expense and refund dictation. Detect the spoken language automatically. Preserve the original language, script, names and amounts.',
                 },
                 'turn_detection': null,
                 'noise_reduction': {'type': 'near_field'},
@@ -192,10 +196,7 @@ class OnlineLiveTranscriber {
               'responseModalities': ['AUDIO'],
               'maxOutputTokens': 32,
             },
-            'inputAudioTranscription': {
-              if (language == 'en') 'languageCodes': ['en-IN'],
-              if (language == 'hinglish') 'languageCodes': ['hi-IN', 'en-IN'],
-            },
+            'inputAudioTranscription': {},
             'realtimeInputConfig': {
               'automaticActivityDetection': {'disabled': true},
               'interimTranscriptTimestampEnabled': true,
@@ -205,7 +206,7 @@ class OnlineLiveTranscriber {
                 {
                   'text':
                       'Listen to expense and refund dictation. Do not speak, answer, or invent any words. '
-                      'Input transcription is displayed by the app. Preserve amounts, names and Hindi/English speech exactly.',
+                      'Input transcription is displayed by the app. Detect the spoken language automatically and preserve its script, amounts and names exactly.',
                 },
               ],
             },
@@ -241,8 +242,13 @@ class OnlineLiveTranscriber {
     }
   }
 
+  @override
   void addAudio(Uint8List pcm) {
     if (_closed || _failure != null || pcm.isEmpty) return;
+    if (_pauseWork != null) {
+      _queuedAfterPause.add(pcm);
+      return;
+    }
     if (!_ready) {
       _fail(
         const LiveTranscriptionException(
@@ -259,11 +265,6 @@ class OnlineLiveTranscriber {
       _turnComplete = false;
       _geminiVoiceEnded = false;
       _activityOpen = true;
-      if (provider == OnlineAiProvider.gemini) {
-        _send({
-          'realtimeInput': {'activityStart': {}},
-        });
-      }
     }
     _pending.add(pcm);
     // Never queue an entire recording waiting for a timer tick.
@@ -272,15 +273,25 @@ class OnlineLiveTranscriber {
 
   void _sendAudio() {
     if (_closed || _failure != null || _pending.isEmpty) return;
+    if (provider == OnlineAiProvider.gemini && _geminiWaiting) return;
     final bytes = _pending.takeBytes();
-    if (bytes.length.isOdd) {
-      // Audio plugins can split a PCM16 sample across adjacent stream chunks.
-      _pending.add(Uint8List.sublistView(bytes, bytes.length - 1));
-    }
     final length = bytes.length & ~1;
     for (var offset = 0; offset < length; offset += 3200) {
+      if (provider == OnlineAiProvider.gemini && _geminiWaiting) {
+        _pending.add(Uint8List.sublistView(bytes, offset));
+        return;
+      }
       final end = (offset + 3200).clamp(0, length);
       final frame = Uint8List.sublistView(bytes, offset, end);
+      _segmentSamples += frame.length ~/ 2;
+      final samples = ByteData.sublistView(frame);
+      var energy = 0;
+      for (var i = 0; i < frame.length; i += 2) {
+        energy += samples.getInt16(i, Endian.little).abs();
+      }
+      _quietSamples = energy / (frame.length ~/ 2) < 500
+          ? _quietSamples + frame.length ~/ 2
+          : 0;
       if (provider == OnlineAiProvider.openai) {
         final converted = _resampler.convert(frame);
         _openAiBytes += converted.length;
@@ -288,15 +299,6 @@ class OnlineLiveTranscriber {
           'type': 'input_audio_buffer.append',
           'audio': base64Encode(converted),
         });
-        _segmentSamples += frame.length ~/ 2;
-        final samples = ByteData.sublistView(frame);
-        var energy = 0;
-        for (var i = 0; i < frame.length; i += 2) {
-          energy += samples.getInt16(i, Endian.little).abs();
-        }
-        _quietSamples = energy / (frame.length ~/ 2) < 500
-            ? _quietSamples + frame.length ~/ 2
-            : 0;
         // Prefer a word/speech gap, but cap continuous chunks at 1.5 seconds
         // so even uninterrupted speech yields transcript deltas while talking.
         if ((_segmentSamples >= 11200 && _quietSamples >= 1600) ||
@@ -304,6 +306,16 @@ class OnlineLiveTranscriber {
           _commitOpenAi();
         }
       } else {
+        if (!_geminiSegmentOpen) {
+          _send({
+            'realtimeInput': {'activityStart': {}},
+          });
+          _geminiSegmentOpen = true;
+          _transcriptionFinished = false;
+          _turnComplete = false;
+          _geminiVoiceEnded = false;
+          _settleTimer?.cancel();
+        }
         _send({
           'realtimeInput': {
             'audio': {
@@ -312,12 +324,61 @@ class OnlineLiveTranscriber {
             },
           },
         });
+        // Some Live models only publish input transcription when an activity
+        // ends. Close short speech windows while the microphone keeps running;
+        // waiting until Stop makes a streaming socket behave like batch ASR.
+        if ((_segmentSamples >= 12000 && _quietSamples >= 3200) ||
+            _segmentSamples >= 32000) {
+          _endGeminiSegment();
+        }
       }
       sentBytes += end - offset;
     }
+    if (bytes.length.isOdd) {
+      _pending.add(Uint8List.sublistView(bytes, bytes.length - 1));
+    }
   }
 
-  Future<String> pause() async {
+  void _endGeminiSegment() {
+    if (!_geminiSegmentOpen) return;
+    _geminiWaiting = true;
+    _send({
+      'realtimeInput': {'activityEnd': {}},
+    });
+    _geminiSegmentOpen = false;
+    _segmentSamples = 0;
+    _quietSamples = 0;
+  }
+
+  @override
+  Future<String> pause() => _beginPause().timeout(
+    pauseTimeout,
+    // Pause stops the microphone, not the provider session. Late acknowledgements
+    // and transcripts remain attached to the same work and can still complete.
+    onTimeout: () => transcript,
+  );
+
+  Future<String> _beginPause() {
+    if (_pauseWork case final work?) return work;
+    final work = _flushPausedAudio();
+    _pauseWork = work;
+    unawaited(
+      work.then<void>(
+        (_) {
+          if (identical(_pauseWork, work)) _pauseWork = null;
+          if (!_closed && _queuedAfterPause.isNotEmpty) {
+            addAudio(_queuedAfterPause.takeBytes());
+          }
+        },
+        onError: (Object _, StackTrace _) {
+          if (identical(_pauseWork, work)) _pauseWork = null;
+        },
+      ),
+    );
+    return work;
+  }
+
+  Future<String> _flushPausedAudio() async {
     if (_failure != null) throw _failure!;
     if (_closed) {
       throw const LiveTranscriptionException(
@@ -329,7 +390,22 @@ class OnlineLiveTranscriber {
       return transcript;
     }
     if (!_activityOpen) return transcript;
-    _sendAudio();
+    if (provider == OnlineAiProvider.gemini) {
+      while (_pending.length >= 2) {
+        if (_failure != null) throw _failure!;
+        if (_closed) {
+          throw const LiveTranscriptionException(
+            'Live transcription was cancelled.',
+          );
+        }
+        _sendAudio();
+        if (_pending.length >= 2) {
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+        }
+      }
+    } else {
+      _sendAudio();
+    }
     if (_pending.isNotEmpty) {
       throw const LiveTranscriptionException(
         'The recording ended with an incomplete audio sample. Please record again.',
@@ -341,32 +417,44 @@ class OnlineLiveTranscriber {
       _commitOpenAi();
       _completeOpenAi();
     } else {
-      _send({
-        'realtimeInput': {'activityEnd': {}},
-      });
+      _endGeminiSegment();
       _settleGemini();
     }
     _activityOpen = false;
     try {
-      await done.future.timeout(finishTimeout);
+      await done.future;
       if (_failure != null) throw _failure!;
       _notify(immediate: true);
       return transcript;
-    } on TimeoutException {
-      final failure = const LiveTranscriptionException(
-        'The speech model did not finalize the transcript in time. Please record again.',
-      );
-      _fail(failure);
-      throw failure;
     } finally {
       _settleTimer?.cancel();
       if (identical(_finalized, done)) _finalized = null;
     }
   }
 
+  @override
   Future<String> finish() async {
     try {
-      return await pause();
+      if (_failure != null) throw _failure!;
+      if (_closed) {
+        throw const LiveTranscriptionException(
+          'Live transcription was cancelled.',
+        );
+      }
+      return await (() async {
+        while (_activityOpen || _pauseWork != null || _pending.isNotEmpty) {
+          await _beginPause();
+        }
+        if (_failure != null) throw _failure!;
+        return transcript;
+      })().timeout(
+        finishTimeout,
+        onTimeout: () {
+          throw const LiveTranscriptionException(
+            'The speech model did not finalize the transcript in time. Please record again.',
+          );
+        },
+      );
     } finally {
       close();
     }
@@ -508,16 +596,33 @@ class OnlineLiveTranscriber {
           _settleTimer?.cancel();
         } else if (type == 'ACTIVITY_END') {
           _geminiVoiceEnded = true;
+          _geminiSeparateText = true;
+          final offset = voice['audioOffset'];
+          if (offset is String && offset.endsWith('s')) {
+            _geminiEndedAt = double.tryParse(
+              offset.substring(0, offset.length - 1),
+            );
+          }
           _settleGemini();
+          _resumeGeminiAudio();
         }
       }
       if (content is! Map) return;
       final finalPart = content['inputTranscription'];
       if (finalPart is Map) {
         final delta = finalPart['text'];
-        if (delta is String) _turnText += delta;
+        if (delta is String && delta.isNotEmpty) {
+          _turnText = _geminiSeparateText
+              ? _join(_turnText, delta)
+              : _turnText + delta;
+          _geminiSeparateText = false;
+        }
         _interim = '';
-        if (finalPart['finished'] == true) _transcriptionFinished = true;
+        if (finalPart['finished'] == true) {
+          _transcriptionFinished = true;
+          _geminiSeparateText = true;
+          _resumeGeminiAudio();
+        }
         _notify();
       }
       final interim = content['interimInputTranscription'];
@@ -525,7 +630,11 @@ class OnlineLiveTranscriber {
         _interim = interim['text'] as String;
         _notify();
       }
-      if (content['turnComplete'] == true) _turnComplete = true;
+      if (content['turnComplete'] == true) {
+        _turnComplete = true;
+        _geminiSeparateText = true;
+        _resumeGeminiAudio();
+      }
       // Transcription is independent of generated replies. Prefer its finished
       // signal, while retaining compatibility with older Live model responses.
       _settleGemini();
@@ -538,11 +647,24 @@ class OnlineLiveTranscriber {
     }
   }
 
+  void _resumeGeminiAudio() {
+    if (!_geminiWaiting) return;
+    _geminiNextSegmentTimer?.cancel();
+    _geminiNextSegmentTimer = Timer(const Duration(milliseconds: 200), () {
+      _geminiWaiting = false;
+      if (!_closed) _sendAudio();
+    });
+  }
+
   void _settleGemini() {
+    // An earlier chunk's completion must not finalize later, unprocessed audio.
+    if (_geminiEndedAt case final endedAt?
+        // Gemini reports offsets rounded to milliseconds (up to 16 samples).
+        when endedAt * 16000 + 16 < sentBytes ~/ 2) {
+      return;
+    }
     if (_finalized == null ||
-        !(_transcriptionFinished ||
-            _turnComplete ||
-            (_geminiVoiceEnded && _turnText.trim().isNotEmpty))) {
+        !(_transcriptionFinished || _turnComplete || _geminiVoiceEnded)) {
       return;
     }
     _settleTimer?.cancel();
@@ -577,13 +699,16 @@ class OnlineLiveTranscriber {
     close();
   }
 
+  @override
   void close() {
     if (_closed) return;
     _closed = true;
     _frameTimer?.cancel();
     _displayTimer?.cancel();
     _settleTimer?.cancel();
+    _geminiNextSegmentTimer?.cancel();
     _pending.clear();
+    _queuedAfterPause.clear();
     if (_finalized case final pending? when !pending.isCompleted) {
       pending.completeError(
         _failure ??

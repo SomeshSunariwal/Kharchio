@@ -8,7 +8,15 @@ class AppDropdownOption<T> {
   final T value;
   final String label;
   final IconData? icon;
-  const AppDropdownOption(this.value, this.label, {this.icon});
+  final String? badge;
+  final Color? badgeColor;
+  const AppDropdownOption(
+    this.value,
+    this.label, {
+    this.icon,
+    this.badge,
+    this.badgeColor,
+  });
 }
 
 /// Shared animated select control for every application dropdown.
@@ -143,10 +151,8 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
                   const SizedBox(width: 6),
                 ],
                 Expanded(
-                  child: Text(
-                    selection?.label ?? '',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  child: _DropdownLabel(
+                    label: selection?.label ?? '',
                     style: TextStyle(
                       fontSize: widget.compact ? 12 : 13,
                       color: colors.ink,
@@ -173,6 +179,48 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
       );
     },
   );
+}
+
+class _DropdownLabel extends StatelessWidget {
+  final String label;
+  final String? badge;
+  final Color? badgeColor;
+  final TextStyle style;
+  const _DropdownLabel({
+    required this.label,
+    required this.style,
+    this.badge,
+    this.badgeColor,
+  });
+  @override
+  Widget build(BuildContext context) {
+    final name = Text(
+      label,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: style,
+    );
+    if (badge == null) return name;
+    return Row(
+      children: [
+        Expanded(flex: 3, child: name),
+        Expanded(
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              badge!,
+              maxLines: 1,
+              style: style.copyWith(
+                fontSize: 11,
+                color: badgeColor,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 /// Owns the popup's scroll controller, including during its closing animation.
@@ -249,12 +297,13 @@ class _ScrollableDropdownEntryState<T>
                 itemBuilder: (context, index) {
                   final option = widget.options[index];
                   final selected = option.value == widget.value;
+                  final selectedColor = option.badgeColor ?? green;
                   return Semantics(
                     selected: selected,
                     button: true,
                     child: Material(
                       color: selected
-                          ? green.withValues(alpha: .09)
+                          ? selectedColor.withValues(alpha: .09)
                           : Colors.transparent,
                       borderRadius: BorderRadius.circular(8),
                       child: InkWell(
@@ -268,13 +317,17 @@ class _ScrollableDropdownEntryState<T>
                                 Icon(
                                   option.icon,
                                   size: 18,
-                                  color: selected ? green : colors.muted,
+                                  color: selected
+                                      ? selectedColor
+                                      : colors.muted,
                                 ),
                                 const SizedBox(width: 8),
                               ],
                               Expanded(
-                                child: Text(
-                                  option.label,
+                                child: _DropdownLabel(
+                                  label: option.label,
+                                  badge: selected ? null : option.badge,
+                                  badgeColor: option.badgeColor,
                                   style: TextStyle(
                                     fontSize: 13,
                                     color: colors.ink,
@@ -283,10 +336,10 @@ class _ScrollableDropdownEntryState<T>
                               ),
                               if (selected) ...[
                                 const SizedBox(width: 8),
-                                const Icon(
+                                Icon(
                                   Icons.check_rounded,
                                   size: 18,
-                                  color: green,
+                                  color: selectedColor,
                                 ),
                               ],
                             ],

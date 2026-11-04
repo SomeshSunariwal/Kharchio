@@ -1,6 +1,7 @@
 #include "llama.h"
 #include "whisper.h"
 #include "whisper_qnn.h"
+#include "whisper_language.h"
 #include "ggml-backend.h"
 #ifdef KHARCHIO_HAS_HEXAGON
 #include "ggml-hexagon.h"
@@ -201,7 +202,6 @@ static std::string transcribe(const char * model_path, const float * pcm,
         diagnostic(std::string("Whisper backend: ") + (gpu.device ? ggml_backend_dev_description(gpu.device) : "CPU"));
         auto * ctx = load_whisper(model_path, gpu, cancel);
         const std::string requested_language = language;
-        const bool hinglish = requested_language == "hinglish";
         auto p = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
         p.greedy.best_of = 1;
         // Avoid repeated temperature retries and unbounded hallucinated output
@@ -209,18 +209,15 @@ static std::string transcribe(const char * model_path, const float * pcm,
         p.temperature_inc = 0;
         p.max_tokens = std::clamp(count / 16000 * 12 + 48, 96, 448);
         p.n_threads = std::clamp(threads, 1, 4);
-        // Whisper's translate task emits English from Hindi/mixed speech,
-        // matching the English review/card flow and avoiding script-dependent
-        // token truncation before Qwen sees the complete purchases.
-        p.translate = requested_language != "en";
+        // Offline review text uses the original English-output policy.
+        p.translate = kharchio::whisper_should_translate(requested_language);
         p.no_context = true;
         p.no_timestamps = true;
         p.print_progress = false;
         p.print_realtime = false;
         p.print_timestamps = false;
         p.print_special = false;
-        p.language = hinglish ? "hi" : (std::strlen(language) ? language : "auto");
-        // Hinglish uses Hindi-language decoding and emits an English translation.
+        p.language = kharchio::whisper_input_language(requested_language);
         // Do not seed synthetic expense text: weak multilingual decodes can
         // repeat that prompt instead of the actual speech.
         p.initial_prompt = nullptr;

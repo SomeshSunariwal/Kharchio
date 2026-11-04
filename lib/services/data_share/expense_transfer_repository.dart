@@ -18,6 +18,13 @@ class ExpenseTransferRepository {
   final LocalStore store;
   ExpenseTransferRepository(this.store);
 
+  /// Validate full backups before any database writes, using transfer rules.
+  static void validateExpenses(Iterable<Object?> rows) {
+    for (final row in rows) {
+      _TransferExpense.parse(row);
+    }
+  }
+
   Future<List<Map<String, Object>>> exportExpenses() =>
       store.db.transaction(() async {
         final db = store.db;

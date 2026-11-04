@@ -309,17 +309,15 @@ class _DataShareScreenState extends ConsumerState<DataShareScreen> {
                             ),
                             const SizedBox(height: 8),
                             SurfaceCard(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
+                              padding: EdgeInsets.zero,
+                              clipBehavior: Clip.antiAlias,
                               child:
                                   state.role == 'host' &&
                                       state.networkName.isNotEmpty
                                   ? ListTile(
                                       contentPadding:
                                           const EdgeInsets.symmetric(
-                                            horizontal: 4,
+                                            horizontal: 14,
                                           ),
                                       leading: const Icon(
                                         Icons.wifi_tethering,
@@ -388,7 +386,7 @@ class _DataShareScreenState extends ConsumerState<DataShareScreen> {
                                           return ListTile(
                                             contentPadding:
                                                 const EdgeInsets.symmetric(
-                                                  horizontal: 4,
+                                                  horizontal: 14,
                                                 ),
                                             leading: Icon(
                                               Icons.wifi,

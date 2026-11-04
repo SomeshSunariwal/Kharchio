@@ -130,6 +130,14 @@ To set up everything locally, follow [BUILD.md](BUILD.md).
 - Dashboard, Analysis, and Profile tabs use existing app icons and display the active tab's name beside its icon.
 - Shared animated dropdowns and directional tab transitions follow the selected theme and respect reduced-motion preferences.
 
+## Expense backups
+
+- Profile & Settings → Data Backup → Export Data saves a `.json.gz` file using the system file dialog. It contains expenses/refunds, their IDs, dates, currencies, category names and refund links, plus monthly limits, including months without expenses.
+- Backups exclude API keys, settings/preferences, profile names/photos, icons and downloaded models. Missing expense categories are restored with a generic icon; existing category appearance is kept.
+- Import Data validates the compressed file and shows a confirmation before merging. Existing expense IDs are skipped, and backed-up limits replace limits for the same year, month and currency. Other expenses and limits are kept. Similar details under different IDs are flagged as possible duplicates and remain separate records.
+- Imports use one database transaction so a failure rolls back the complete import. Supported limits are 16 MiB compressed and 64 MiB expanded. Gzip provides compression and corruption checking, not encryption.
+- Export and Import show loading only on their own row. Import reports processed-record progress in the existing bottom notification bar; 100% appears after the transaction commits and the completion message dismisses automatically.
+
 ## Resources
 
 GitHub projects behind the app's AI models and inference runtimes:

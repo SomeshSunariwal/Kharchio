@@ -31,9 +31,13 @@ class _AppNotificationHostState extends State<AppNotificationHost>
   Timer? timer;
   String? message;
   bool isError = false;
+  double? progress;
   int generation = 0;
 
-  void show(String value, bool error) {
+  void show(String value, bool error, double? fraction) {
+    if (!mounted) return;
+    final updatingProgress =
+        message != null && progress != null && fraction != null;
     timer?.cancel();
     generation++;
     final reducedMotion = MediaQuery.disableAnimationsOf(context);
@@ -46,9 +50,12 @@ class _AppNotificationHostState extends State<AppNotificationHost>
     setState(() {
       message = value;
       isError = error;
+      progress = fraction;
     });
-    controller.forward(from: 0);
-    timer = Timer(const Duration(seconds: 5), hide);
+    controller.forward(from: updatingProgress ? null : 0);
+    if (fraction == null || fraction >= 1) {
+      timer = Timer(const Duration(seconds: 5), hide);
+    }
   }
 
   Future<void> hide() async {
@@ -95,7 +102,9 @@ class _AppNotificationHostState extends State<AppNotificationHost>
               position: slide,
               child: Dismissible(
                 key: ValueKey(generation),
-                direction: DismissDirection.down,
+                direction: progress != null && progress! < 1
+                    ? DismissDirection.none
+                    : DismissDirection.down,
                 resizeDuration: null,
                 onDismissed: (_) => dismiss(),
                 child: Semantics(
@@ -103,6 +112,7 @@ class _AppNotificationHostState extends State<AppNotificationHost>
                   child: AppNotificationCard(
                     message: message!,
                     isError: isError,
+                    progress: progress,
                   ),
                 ),
               ),
@@ -114,7 +124,7 @@ class _AppNotificationHostState extends State<AppNotificationHost>
 }
 
 class _NotificationScope extends InheritedWidget {
-  final void Function(String, bool) show;
+  final void Function(String, bool, double?) show;
   const _NotificationScope({required this.show, required super.child});
   @override
   bool updateShouldNotify(_NotificationScope oldWidget) => false;
@@ -123,10 +133,12 @@ class _NotificationScope extends InheritedWidget {
 class AppNotificationCard extends StatelessWidget {
   final String message;
   final bool isError;
+  final double? progress;
   const AppNotificationCard({
     super.key,
     required this.message,
     this.isError = false,
+    this.progress,
   });
   @override
   Widget build(BuildContext context) {
@@ -145,19 +157,55 @@ class AppNotificationCard extends StatelessWidget {
         child: Row(
           children: [
             Icon(
-              isError ? Icons.error_outline : Icons.check_circle_outline,
+              isError
+                  ? Icons.error_outline
+                  : progress != null && progress! < 1
+                  ? Icons.sync
+                  : Icons.check_circle_outline,
               color: tone,
               size: 20,
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: Text(
-                message,
-                style: TextStyle(
-                  fontSize: 13,
-                  height: 1.4,
-                  color: isError ? red : context.appColors.ink,
-                ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          message,
+                          style: TextStyle(
+                            fontSize: 13,
+                            height: 1.4,
+                            color: isError ? red : context.appColors.ink,
+                          ),
+                        ),
+                      ),
+                      if (progress != null) ...[
+                        const SizedBox(width: 10),
+                        Text(
+                          '${(progress! * 100).floor()}%',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  if (progress != null) ...[
+                    const SizedBox(height: 8),
+                    LinearProgressIndicator(
+                      value: progress,
+                      minHeight: 3,
+                      borderRadius: BorderRadius.circular(3),
+                      semanticsLabel: 'Import progress',
+                      semanticsValue: '${(progress! * 100).floor()}%',
+                    ),
+                  ],
+                ],
               ),
             ),
           ],
@@ -171,10 +219,11 @@ void showAppNotification(
   BuildContext context,
   String message, {
   bool isError = false,
+  double? progress,
 }) {
   final host = context.getInheritedWidgetOfExactType<_NotificationScope>();
   if (host != null) {
-    host.show(message, isError);
+    host.show(message, isError, progress);
     return;
   }
   // Standalone routes use the same rounded card, without the shell navigation.
@@ -187,7 +236,37 @@ void showAppNotification(
         elevation: 0,
         padding: EdgeInsets.zero,
         dismissDirection: DismissDirection.down,
-        content: AppNotificationCard(message: message, isError: isError),
+        duration: progress != null && progress < 1
+            ? const Duration(days: 1)
+            : const Duration(seconds: 5),
+        content: AppNotificationCard(
+          message: message,
+          isError: isError,
+          progress: progress,
+        ),
       ),
     );
+}
+
+typedef AppNotificationUpdate = void Function(
+  String message, {
+  bool isError,
+  double? progress,
+});
+
+/// Capture the shell messenger so a background import can finish after navigation.
+AppNotificationUpdate appNotificationUpdater(BuildContext context) {
+  final host = context.getInheritedWidgetOfExactType<_NotificationScope>();
+  return (message, {isError = false, progress}) {
+    if (host != null) {
+      host.show(message, isError, progress);
+    } else if (context.mounted) {
+      showAppNotification(
+        context,
+        message,
+        isError: isError,
+        progress: progress,
+      );
+    }
+  };
 }

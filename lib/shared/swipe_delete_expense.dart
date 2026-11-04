@@ -218,7 +218,6 @@ class _SwipeRevealDeleteState extends State<SwipeRevealDelete>
                   absorbing: slide.value > 0 || busy,
                   child: Material(
                     color: context.appColors.surface,
-                    borderRadius: BorderRadius.circular(12),
                     clipBehavior: Clip.antiAlias,
                     child: widget.child,
                   ),

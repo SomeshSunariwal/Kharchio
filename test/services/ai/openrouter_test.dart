@@ -43,7 +43,11 @@ class _Capture extends VoiceCapture {
   @override
   Uint8List snapshot() => audio.toBytes();
   void push() {
-    final pcm = Uint8List(64000);
+    final pcm = Uint8List(48000); // One shared 1.5-second speech chunk.
+    final data = ByteData.sublistView(pcm);
+    for (var i = 0; i < pcm.length; i += 2) {
+      data.setInt16(i, i % 4 == 0 ? 2000 : -2000, Endian.little);
+    }
     audio.add(pcm);
     onPcm?.call(pcm);
     onAudio?.call();

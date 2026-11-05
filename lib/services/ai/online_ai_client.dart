@@ -11,6 +11,7 @@ import '../../core/preferences.dart';
 import 'expense_extractor.dart';
 import 'live_transcriber.dart';
 import 'speech_output_language.dart';
+import '../audio/recording_speech_pipeline.dart';
 
 typedef OnlineAiClientFactory = OnlineAiClient Function(
   OnlineAiProvider,
@@ -676,7 +677,7 @@ class OnlineAiClient {
     if (_closed) {
       throw const OnlineAiConnectionException('Connection test was cancelled.');
     }
-    final live = _liveFactory(provider, _key, model);
+    final live = RecordingSpeechPipeline(_liveFactory(provider, _key, model));
     _checkingSpeech = live;
     final preview = Completer<void>();
     preview.future.ignore();

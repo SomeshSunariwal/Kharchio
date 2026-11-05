@@ -10,6 +10,7 @@ import '../../services/ai/online_ai_client.dart';
 import '../../services/ai/online_ai_settings.dart';
 import '../../services/ai/live_transcriber.dart';
 import '../../services/audio/voice_capture.dart';
+import '../../services/audio/recording_speech_pipeline.dart';
 import '../../services/ai/expense_extractor.dart';
 import '../../services/audio/live_transcription_queue.dart';
 
@@ -134,10 +135,12 @@ class _RecordState extends ConsumerState<RecordExpenseModal>
           onlineKey,
         );
         if (usesLiveSpeech) {
-          final speech = ref.read(onlineLiveFactoryProvider)(
-            provider,
-            onlineKey,
-            onlineModels!.speech,
+          final speech = RecordingSpeechPipeline(
+            ref.read(onlineLiveFactoryProvider)(
+              provider,
+              onlineKey,
+              onlineModels!.speech,
+            ),
           );
           onlineSpeech = speech;
           speech.onTranscript = (value) {

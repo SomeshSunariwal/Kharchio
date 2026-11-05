@@ -262,10 +262,14 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
       ),
       AnalysisPeriod.day => ConnectedListCard(
         child: ListView.separated(
-          padding: const EdgeInsets.fromLTRB(10, 2, 10, 72),
+          padding: const EdgeInsets.only(bottom: 72),
           itemCount: visible.isEmpty ? 1 : visible.length,
-          separatorBuilder: (context, index) =>
-              Divider(height: 1, color: context.appColors.line),
+          separatorBuilder: (context, index) => Divider(
+            height: 1,
+            indent: 10,
+            endIndent: 10,
+            color: context.appColors.line,
+          ),
           itemBuilder: (context, index) => visible.isEmpty
               ? Padding(
                   padding: const EdgeInsets.all(18),

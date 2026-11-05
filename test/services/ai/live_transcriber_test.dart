@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kharchio/core/preferences.dart';
 import 'package:kharchio/services/ai/live_transcriber.dart';
+import 'package:kharchio/services/audio/recording_speech_pipeline.dart';
 
 class _Socket extends Stream<dynamic> implements WebSocket {
   final events = StreamController<dynamic>();
@@ -119,6 +120,91 @@ class _OpenAiSocket extends _Socket {
 }
 
 void main() {
+  test('Gemini does not invent input text or open speech turns for silence and DC noise', () async {
+    final socket = _Socket();
+    final updates = <String>[];
+    final live = RecordingSpeechPipeline(
+      OnlineLiveTranscriber(
+        OnlineAiProvider.gemini,
+        'fake',
+        'gemini-live',
+        connector: (_, _) async => socket,
+      ),
+    )..onTranscript = updates.add;
+    await live.start(language: 'auto');
+    socket.emit({
+      'serverContent': {
+        'inputTranscription': {'text': '¿Qué?', 'finished': true},
+        'interimInputTranscription': {'text': '¿Qué?'},
+      },
+    });
+    live.addAudio(Uint8List(16000 * 2 * 5));
+    final dc = Uint8List(32000);
+    final data = ByteData.sublistView(dc);
+    for (var i = 0; i < dc.length; i += 2) {
+      data.setInt16(i, 2000, Endian.little);
+    }
+    live.addAudio(dc);
+    await Future<void>.delayed(const Duration(milliseconds: 70));
+    expect(socket.audio.length, 0);
+    expect(socket.ends, 0);
+    expect(updates, isEmpty);
+    expect(await live.finish(), '');
+  });
+
+  test(
+    'Gemini retains a bounded quiet lead-in and still transcribes soft speech',
+    () async {
+      final socket = _Socket();
+      final live = RecordingSpeechPipeline(
+        OnlineLiveTranscriber(
+          OnlineAiProvider.gemini,
+          'fake',
+          'gemini-live',
+          connector: (_, _) async => socket,
+        ),
+      );
+      await live.start(language: 'auto');
+      live.addAudio(Uint8List(32000));
+      final voice = _speech(1600);
+      final samples = ByteData.sublistView(voice);
+      for (var i = 0; i < voice.length; i += 2) {
+        samples.setInt16(
+          i,
+          samples.getInt16(i, Endian.little) ~/ 10,
+          Endian.little,
+        );
+      }
+      live.addAudio(voice);
+      expect(await live.finish(), 'Milk 100.');
+      expect(socket.audio.toBytes(), [...Uint8List(6400), ...voice]);
+    },
+  );
+
+  test(
+    'Gemini remains ready after quiet gaps and publishes the next speech chunk',
+    () async {
+      final socket = _Socket();
+      final live = RecordingSpeechPipeline(
+        OnlineLiveTranscriber(
+          OnlineAiProvider.gemini,
+          'fake',
+          'gemini-live',
+          connector: (_, _) async => socket,
+        ),
+      );
+      await live.start(language: 'auto');
+      live.addAudio(_speech(32000));
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      live.addAudio(Uint8List(16000 * 2 * 5));
+      expect(socket.ends, 1);
+      expect(live.transcript, 'Milk 100.');
+      live.addAudio(_speech(1600));
+      expect(await live.finish(), 'Milk 100. Bus 40.');
+      expect(socket.ends, 2);
+    },
+  );
+
   test('OpenAI pause also tolerates delayed completions and preserves resumed chunks', () async {
     final socket = _OpenAiSocket()..reply = false;
     final failures = <LiveTranscriptionException>[];
@@ -238,15 +324,18 @@ void main() {
     );
     await live.start(language: 'en');
     final pcm = _speech(80000);
-    live.addAudio(Uint8List.sublistView(pcm, 0, pcm.length - 1));
+    live.addAudio(Uint8List.sublistView(pcm, 0, 64000));
+    final pause = live.pause();
+    live.addAudio(Uint8List.sublistView(pcm, 64000, pcm.length - 1));
     live.addAudio(Uint8List.sublistView(pcm, pcm.length - 1));
     await Future<void>.delayed(const Duration(milliseconds: 300));
     expect(socket.ends, 1);
     expect(socket.audio.length, 64000);
     socket.reply = true;
     socket.completeSegment();
+    await pause;
     await live.finish();
-    expect(socket.ends, 3);
+    expect(socket.ends, 2);
     expect(socket.audio.toBytes(), pcm);
   });
 
@@ -264,6 +353,7 @@ void main() {
       await live.start(language: 'en');
       final first = _speech(32000), tail = _speech(8000);
       live.addAudio(first);
+      await live.pause();
       await Future<void>.delayed(const Duration(milliseconds: 70));
       expect(updates.last, 'Milk 100.');
       expect(socket.closed, isFalse);
@@ -286,7 +376,7 @@ void main() {
     );
     await live.start(language: 'en');
     live.addAudio(_speech(32000));
-    await Future<void>.delayed(const Duration(milliseconds: 10));
+    await live.pause();
     socket.reply = false;
     live.addAudio(_speech(8000));
     var completed = false;

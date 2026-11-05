@@ -102,10 +102,8 @@ class BudgetPlannerScreen extends ConsumerWidget {
                             )
                           else
                             SurfaceCard(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 12,
-                              ),
+                              padding: EdgeInsets.zero,
+                              clipBehavior: Clip.antiAlias,
                               child: Column(
                                 children: [
                                   for (var i = 0; i < rows.length; i++) ...[
@@ -115,7 +113,8 @@ class BudgetPlannerScreen extends ConsumerWidget {
                                           _delete(context, ref, rows[i]),
                                       child: ListTile(
                                         contentPadding: const EdgeInsets.only(
-                                          right: 10,
+                                          left: 12,
+                                          right: 22,
                                         ),
                                         minTileHeight: 50,
                                         dense: true,

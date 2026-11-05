@@ -16,6 +16,7 @@ import '../../shared/destructive_confirmation.dart';
 import '../../shared/preference_dropdown_row.dart';
 import '../../shared/widgets.dart';
 import 'model_check_dialog.dart';
+import 'backup_section.dart';
 import 'online_ai_section.dart';
 import 'user_profile_card.dart';
 
@@ -166,10 +167,12 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
             ),
             const SizedBox(height: 10),
             SurfaceCard(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+              padding: EdgeInsets.zero,
+              clipBehavior: Clip.antiAlias,
               child: Column(
                 children: [
                   PreferenceDropdownRow<ThemeMode>(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                     value: ref.watch(themeModeProvider),
                     label: 'Theme',
                     icon: Icons.palette_outlined,
@@ -192,8 +195,14 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
                     ],
                     onChanged: _setTheme,
                   ),
-                  Divider(height: 1, color: context.appColors.line),
+                  Divider(
+                    height: 1,
+                    indent: 12,
+                    endIndent: 12,
+                    color: context.appColors.line,
+                  ),
                   PreferenceDropdownRow<String>(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                     value: ref.watch(preferencesProvider).speechLanguage,
                     label: 'Speech Output',
                     description: preferences.aiMode == AiMode.online
@@ -222,8 +231,14 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
                     ],
                     onChanged: _setSpeechLanguage,
                   ),
-                  Divider(height: 1, color: context.appColors.line),
+                  Divider(
+                    height: 1,
+                    indent: 12,
+                    endIndent: 12,
+                    color: context.appColors.line,
+                  ),
                   PreferenceDropdownRow<AppCurrency>(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                     value: ref.watch(preferencesProvider).currency,
                     label: 'Currency',
                     icon: Icons.payments_outlined,
@@ -241,11 +256,18 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
                     ],
                     onChanged: _setCurrency,
                   ),
-                  Divider(height: 1, color: context.appColors.line),
+                  Divider(
+                    height: 1,
+                    indent: 12,
+                    endIndent: 12,
+                    color: context.appColors.line,
+                  ),
                   Material(
                     type: MaterialType.transparency,
                     child: ListTile(
-                      contentPadding: EdgeInsets.zero,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                      ),
                       dense: true,
                       minTileHeight: 54,
                       minVerticalPadding: 0,
@@ -280,11 +302,18 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
                       onTap: () => context.push('/budget-planner'),
                     ),
                   ),
-                  Divider(height: 1, color: context.appColors.line),
+                  Divider(
+                    height: 1,
+                    indent: 12,
+                    endIndent: 12,
+                    color: context.appColors.line,
+                  ),
                   Material(
                     type: MaterialType.transparency,
                     child: ListTile(
-                      contentPadding: EdgeInsets.zero,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                      ),
                       dense: true,
                       visualDensity: VisualDensity.standard,
                       minTileHeight: 54,
@@ -319,8 +348,14 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
                       onTap: () => context.push('/categories'),
                     ),
                   ),
-                  Divider(height: 1, color: context.appColors.line),
+                  Divider(
+                    height: 1,
+                    indent: 12,
+                    endIndent: 12,
+                    color: context.appColors.line,
+                  ),
                   PreferenceDropdownRow<AiMode>(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                     compactControl: true,
                     value: preferences.aiMode,
                     label: 'AI Mode',
@@ -460,13 +495,14 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
             ),
             const SizedBox(height: 8),
             SurfaceCard(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+              padding: EdgeInsets.zero,
+              clipBehavior: Clip.antiAlias,
               child: Material(
                 type: MaterialType.transparency,
                 child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14),
                   dense: true,
-                  minTileHeight: 64,
+                  minTileHeight: 54,
                   minLeadingWidth: 18,
                   horizontalTitleGap: 10,
                   leading: const Icon(
@@ -491,6 +527,8 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
               ),
             ),
             const SizedBox(height: 16),
+            const BackupSection(),
+            const SizedBox(height: 16),
             const Text(
               'Danger Zone',
               style: TextStyle(
@@ -510,6 +548,7 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
                 Icons.delete_forever_outlined,
                 'Reset Data',
                 'Delete all recorded expenses',
+                compact: true,
                 actionLabel: resettingExpenses ? 'Resetting…' : 'Reset All',
                 destructive: true,
                 iconColor: red,
@@ -524,7 +563,7 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
             ),
             const SizedBox(height: 8),
             SurfaceCard(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 13),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(minHeight: 48),
                 child: Row(
@@ -545,7 +584,7 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
                           ),
                           const SizedBox(height: 3),
                           Text(
-                            'Version 0.1.2',
+                            'Version 0.1.3',
                             style: TextStyle(
                               fontSize: 10,
                               color: context.appColors.muted,
@@ -770,14 +809,15 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
     required VoidCallback? onPressed,
     bool ready = false,
     bool destructive = false,
+    bool compact = false,
     Color iconColor = green,
     bool subtitleError = false,
     String? disabledMessage,
     VoidCallback? onDelete,
   }) => ConstrainedBox(
-    constraints: const BoxConstraints(minHeight: 74),
+    constraints: BoxConstraints(minHeight: compact ? 54 : 74),
     child: Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      padding: EdgeInsets.symmetric(vertical: compact ? 4 : 10),
       child: Row(
         children: [
           Icon(icon, size: 20, color: iconColor),

@@ -64,7 +64,6 @@ class OnlineLiveTranscriber implements OnlineSpeechTranscriber {
   final _openAiOrder = <String>[];
   final _openAiDone = <String>{};
   int _openAiCommits = 0, _openAiAcks = 0, _openAiBytes = 0;
-  int _segmentSamples = 0, _quietSamples = 0;
 
   OnlineLiveTranscriber(
     this.provider,
@@ -206,7 +205,8 @@ class OnlineLiveTranscriber implements OnlineSpeechTranscriber {
                 {
                   'text':
                       'Listen to expense and refund dictation. Do not speak, answer, or invent any words. '
-                      'Input transcription is displayed by the app. Detect the spoken language automatically and preserve its script, amounts and names exactly.',
+                      'Input transcription is displayed by the app. Detect the spoken language automatically and preserve its script, amounts and names exactly. '
+                      'Silence and background noise contain no words. Never invent text for them.',
                 },
               ],
             },
@@ -257,6 +257,13 @@ class OnlineLiveTranscriber implements OnlineSpeechTranscriber {
       );
       return;
     }
+    _openActivity();
+    _pending.add(pcm);
+    // Never queue an entire recording waiting for a timer tick.
+    if (_pending.length >= 3200) _sendAudio();
+  }
+
+  void _openActivity() {
     if (!_activityOpen) {
       _committed = _join(_committed, _turnText);
       _turnText = '';
@@ -266,9 +273,6 @@ class OnlineLiveTranscriber implements OnlineSpeechTranscriber {
       _geminiVoiceEnded = false;
       _activityOpen = true;
     }
-    _pending.add(pcm);
-    // Never queue an entire recording waiting for a timer tick.
-    if (_pending.length >= 3200) _sendAudio();
   }
 
   void _sendAudio() {
@@ -283,15 +287,6 @@ class OnlineLiveTranscriber implements OnlineSpeechTranscriber {
       }
       final end = (offset + 3200).clamp(0, length);
       final frame = Uint8List.sublistView(bytes, offset, end);
-      _segmentSamples += frame.length ~/ 2;
-      final samples = ByteData.sublistView(frame);
-      var energy = 0;
-      for (var i = 0; i < frame.length; i += 2) {
-        energy += samples.getInt16(i, Endian.little).abs();
-      }
-      _quietSamples = energy / (frame.length ~/ 2) < 500
-          ? _quietSamples + frame.length ~/ 2
-          : 0;
       if (provider == OnlineAiProvider.openai) {
         final converted = _resampler.convert(frame);
         _openAiBytes += converted.length;
@@ -299,12 +294,6 @@ class OnlineLiveTranscriber implements OnlineSpeechTranscriber {
           'type': 'input_audio_buffer.append',
           'audio': base64Encode(converted),
         });
-        // Prefer a word/speech gap, but cap continuous chunks at 1.5 seconds
-        // so even uninterrupted speech yields transcript deltas while talking.
-        if ((_segmentSamples >= 11200 && _quietSamples >= 1600) ||
-            _segmentSamples >= 24000) {
-          _commitOpenAi();
-        }
       } else {
         if (!_geminiSegmentOpen) {
           _send({
@@ -316,21 +305,7 @@ class OnlineLiveTranscriber implements OnlineSpeechTranscriber {
           _geminiVoiceEnded = false;
           _settleTimer?.cancel();
         }
-        _send({
-          'realtimeInput': {
-            'audio': {
-              'mimeType': 'audio/pcm;rate=16000',
-              'data': base64Encode(frame),
-            },
-          },
-        });
-        // Some Live models only publish input transcription when an activity
-        // ends. Close short speech windows while the microphone keeps running;
-        // waiting until Stop makes a streaming socket behave like batch ASR.
-        if ((_segmentSamples >= 12000 && _quietSamples >= 3200) ||
-            _segmentSamples >= 32000) {
-          _endGeminiSegment();
-        }
+        _sendGeminiFrame(frame);
       }
       sentBytes += end - offset;
     }
@@ -339,6 +314,15 @@ class OnlineLiveTranscriber implements OnlineSpeechTranscriber {
     }
   }
 
+  void _sendGeminiFrame(Uint8List frame) => _send({
+    'realtimeInput': {
+      'audio': {
+        'mimeType': 'audio/pcm;rate=16000',
+        'data': base64Encode(frame),
+      },
+    },
+  });
+
   void _endGeminiSegment() {
     if (!_geminiSegmentOpen) return;
     _geminiWaiting = true;
@@ -346,8 +330,6 @@ class OnlineLiveTranscriber implements OnlineSpeechTranscriber {
       'realtimeInput': {'activityEnd': {}},
     });
     _geminiSegmentOpen = false;
-    _segmentSamples = 0;
-    _quietSamples = 0;
   }
 
   @override
@@ -476,8 +458,6 @@ class OnlineLiveTranscriber implements OnlineSpeechTranscriber {
       'event_id': 'commit_$_openAiCommits',
     });
     _openAiBytes = 0;
-    _segmentSamples = 0;
-    _quietSamples = 0;
   }
 
   void _completeOpenAi() {
@@ -509,6 +489,7 @@ class OnlineLiveTranscriber implements OnlineSpeechTranscriber {
       _completeOpenAi();
     } else if (type == 'conversation.item.input_audio_transcription.delta' ||
         type == 'conversation.item.input_audio_transcription.completed') {
+      if (sentBytes == 0) return;
       final id = json['item_id'];
       if (id is! String) throw const FormatException();
       if (!_openAiOrder.contains(id)) _openAiOrder.add(id);
@@ -609,7 +590,7 @@ class OnlineLiveTranscriber implements OnlineSpeechTranscriber {
       }
       if (content is! Map) return;
       final finalPart = content['inputTranscription'];
-      if (finalPart is Map) {
+      if (finalPart is Map && sentBytes > 0) {
         final delta = finalPart['text'];
         if (delta is String && delta.isNotEmpty) {
           _turnText = _geminiSeparateText
@@ -626,7 +607,7 @@ class OnlineLiveTranscriber implements OnlineSpeechTranscriber {
         _notify();
       }
       final interim = content['interimInputTranscription'];
-      if (interim is Map && interim['text'] is String) {
+      if (interim is Map && interim['text'] is String && sentBytes > 0) {
         _interim = interim['text'] as String;
         _notify();
       }

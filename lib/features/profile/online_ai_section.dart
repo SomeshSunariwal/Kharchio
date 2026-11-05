@@ -237,7 +237,12 @@ class _OnlineAiSectionState extends ConsumerState<OnlineAiSection> {
                         'Auto',
                         icon: Icons.auto_awesome_outlined,
                       ),
-                      for (final name in models.availableSpeech.toSet())
+                      for (final name in _freeFirstModels(
+                        provider,
+                        models.availableSpeech,
+                        speech: true,
+                        freeModels: models.freeModels,
+                      ))
                         _modelOption(
                           provider,
                           name,
@@ -262,7 +267,11 @@ class _OnlineAiSectionState extends ConsumerState<OnlineAiSection> {
                       'Auto',
                       icon: Icons.auto_awesome_outlined,
                     ),
-                    for (final name in models.available.toSet())
+                    for (final name in _freeFirstModels(
+                      provider,
+                      models.available,
+                      freeModels: models.freeModels,
+                    ))
                       _modelOption(
                         provider,
                         name,
@@ -280,18 +289,43 @@ class _OnlineAiSectionState extends ConsumerState<OnlineAiSection> {
     );
   }
 
+  bool _isFreeModel(
+    OnlineAiProvider provider,
+    String model, {
+    bool speech = false,
+    List<String> freeModels = const [],
+  }) => provider == OnlineAiProvider.openrouter
+      ? freeModels.contains(model)
+      : provider == OnlineAiProvider.gemini &&
+            (speech
+                ? OnlineAiClient.freeTierGeminiLiveModels.contains(model)
+                : OnlineAiClient.freeTierGeminiModels.contains(model));
+
+  Iterable<String> _freeFirstModels(
+    OnlineAiProvider provider,
+    List<String> names, {
+    bool speech = false,
+    List<String> freeModels = const [],
+  }) sync* {
+    final unique = names.toSet();
+    bool free(String name) =>
+        _isFreeModel(provider, name, speech: speech, freeModels: freeModels);
+    yield* unique.where(free);
+    yield* unique.where((name) => !free(name));
+  }
+
   AppDropdownOption<String> _modelOption(
     OnlineAiProvider provider,
     String model, {
     bool speech = false,
     List<String> freeModels = const [],
   }) {
-    final free = provider == OnlineAiProvider.openrouter
-        ? freeModels.contains(model)
-        : provider == OnlineAiProvider.gemini &&
-              (speech
-                  ? OnlineAiClient.freeTierGeminiLiveModels.contains(model)
-                  : OnlineAiClient.freeTierGeminiModels.contains(model));
+    final free = _isFreeModel(
+      provider,
+      model,
+      speech: speech,
+      freeModels: freeModels,
+    );
     return AppDropdownOption(
       model,
       model,

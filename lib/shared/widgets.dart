@@ -51,16 +51,19 @@ class SurfaceCard extends StatelessWidget {
   final Color? color;
   final EdgeInsets padding;
   final BorderRadius borderRadius;
+  final Clip clipBehavior;
   const SurfaceCard({
     super.key,
     required this.child,
     this.color,
     this.padding = const EdgeInsets.all(18),
     this.borderRadius = const BorderRadius.all(Radius.circular(22)),
+    this.clipBehavior = Clip.none,
   });
   @override
   Widget build(BuildContext context) => Container(
     padding: padding,
+    clipBehavior: clipBehavior,
     decoration: BoxDecoration(
       color: color ?? context.appColors.surface,
       borderRadius: borderRadius,
@@ -126,9 +129,8 @@ class ExpenseTile extends StatelessWidget {
       expense: expense,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: EdgeInsets.symmetric(vertical: 8),
+          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           child: Row(
             children: [
               SizedBox(

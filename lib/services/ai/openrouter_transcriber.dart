@@ -16,7 +16,6 @@ class OpenRouterTranscriber implements OnlineSpeechTranscriber {
   final _chunk = BytesBuilder(copy: false);
   Future<void> _work = Future.value();
   bool _closed = false, _started = false;
-  int _quietSamples = 0;
   LiveTranscriptionException? _failure;
   @override
   String transcript = '';
@@ -60,23 +59,11 @@ class OpenRouterTranscriber implements OnlineSpeechTranscriber {
       offset += count;
       if (_chunk.length == 64000) _enqueue();
     }
-    if (_chunk.length >= 24000 && pcm.length.isEven && pcm.isNotEmpty) {
-      final samples = ByteData.sublistView(pcm);
-      var energy = 0;
-      for (var i = 0; i < pcm.length; i += 2) {
-        energy += samples.getInt16(i, Endian.little).abs();
-      }
-      _quietSamples = energy / (pcm.length ~/ 2) < 500
-          ? _quietSamples + pcm.length ~/ 2
-          : 0;
-      if (_quietSamples >= 3200 && _chunk.length.isEven) _enqueue();
-    }
   }
 
   void _enqueue() {
     if (_chunk.isEmpty || _closed) return;
     final pcm = _chunk.takeBytes();
-    _quietSamples = 0;
     _work = _work
         .then((_) async {
           if (_closed || _failure != null) return;

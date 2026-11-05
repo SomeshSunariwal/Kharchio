@@ -360,13 +360,14 @@ class _DashboardState extends ConsumerState<DashboardScreen>
                   child: visible.isEmpty
                       ? const Center(child: Text('No transactions found'))
                       : ListView.separated(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 2,
-                          ),
+                          padding: EdgeInsets.zero,
                           itemCount: visible.length,
-                          separatorBuilder: (context, index) =>
-                              Divider(height: 1, color: context.appColors.line),
+                          separatorBuilder: (context, index) => Divider(
+                            height: 1,
+                            indent: 10,
+                            endIndent: 10,
+                            color: context.appColors.line,
+                          ),
                           itemBuilder: (context, index) => ExpenseTile(
                             visible[index],
                             onTap: () =>

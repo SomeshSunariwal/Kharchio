@@ -1,11 +1,11 @@
-package com.expense.kharchio.widgets;
+package com.somesh.kharchio.widgets;
 
 import android.app.Activity;
 import android.content.Intent;
 import android.widget.Toast;
-import com.expense.kharchio.R;
-import com.expense.kharchio.widgets.manualexpense.ExpenseEntryActivity;
-import com.expense.kharchio.widgets.spending.SpendingWidget;
+import com.somesh.kharchio.R;
+import com.somesh.kharchio.widgets.manualexpense.ExpenseEntryActivity;
+import com.somesh.kharchio.widgets.spending.SpendingWidget;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -14,7 +14,7 @@ import io.flutter.plugin.common.MethodChannel;
 
 /** Shared cold/warm launch dispatch for home-screen widgets. No database access. */
 public final class WidgetActionBridge {
-    public static final String CHANNEL = "com.expense.kharchio/home_widgets";
+    public static final String CHANNEL = "com.somesh.kharchio/home_widgets";
     public static final String EXTRA_ACTION = "kharchio.widget.action";
     private final MethodChannel channel;
     private Map<String, String> pending;

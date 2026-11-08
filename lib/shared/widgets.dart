@@ -46,6 +46,44 @@ class AppIcon extends StatelessWidget {
   );
 }
 
+class SettingsRowLabel extends StatelessWidget {
+  const SettingsRowLabel(
+    this.title,
+    this.description, {
+    super.key,
+    this.descriptionError = false,
+  });
+
+  final String title;
+  final String description;
+  final bool descriptionError;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    mainAxisSize: MainAxisSize.min,
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+      ),
+      const SizedBox(height: 3),
+      Text(
+        description,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 10,
+          height: 1.2,
+          color: descriptionError ? red : context.appColors.muted,
+        ),
+      ),
+    ],
+  );
+}
+
 class SurfaceCard extends StatelessWidget {
   final Widget child;
   final Color? color;
@@ -70,6 +108,36 @@ class SurfaceCard extends StatelessWidget {
       border: Border.all(color: context.appColors.line),
     ),
     child: child,
+  );
+}
+
+/// A fixed rounded frame with rows that scroll inside it.
+class ScrollableListCard extends StatelessWidget {
+  const ScrollableListCard({
+    super.key,
+    required this.itemCount,
+    required this.itemBuilder,
+    this.padding = EdgeInsets.zero,
+  });
+
+  final int itemCount;
+  final IndexedWidgetBuilder itemBuilder;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) => SurfaceCard(
+    padding: EdgeInsets.zero,
+    child: ClipRRect(
+      // Follow the inner edge of SurfaceCard's 1 px border.
+      borderRadius: BorderRadius.circular(21),
+      child: ListView.separated(
+        padding: padding,
+        itemCount: itemCount,
+        itemBuilder: itemBuilder,
+        separatorBuilder: (context, _) =>
+            Divider(height: 1, color: context.appColors.line),
+      ),
+    ),
   );
 }
 

@@ -11,7 +11,7 @@ import 'model_download_store.dart';
 final modelDirectoryProvider = FutureProvider<Directory>((ref) async {
   late final Directory directory;
   if (Platform.isAndroid) {
-    final path = await const MethodChannel('com.expense.kharchio/models')
+    final path = await const MethodChannel('com.somesh.kharchio/models')
         .invokeMethod<String>('modelDirectory');
     if (path == null) throw StateError('Cannot open model storage.');
     directory = Directory(path);

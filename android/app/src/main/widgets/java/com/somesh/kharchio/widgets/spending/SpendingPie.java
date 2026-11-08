@@ -1,4 +1,4 @@
-package com.expense.kharchio.widgets.spending;
+package com.somesh.kharchio.widgets.spending;
 
 import android.graphics.Bitmap;
 import android.graphics.Canvas;

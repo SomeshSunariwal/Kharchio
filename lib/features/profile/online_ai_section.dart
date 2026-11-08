@@ -85,7 +85,7 @@ class _OnlineAiSectionState extends ConsumerState<OnlineAiSection> {
         ),
         const SizedBox(height: 8),
         SurfaceCard(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Column(
             children: [
               PreferenceDropdownRow<OnlineAiProvider>(
@@ -130,7 +130,9 @@ class _OnlineAiSectionState extends ConsumerState<OnlineAiSection> {
               ),
               Divider(height: 1, color: context.appColors.line),
               ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: 54),
+                constraints: const BoxConstraints(
+                  minHeight: settingsRowMinHeight,
+                ),
                 child: Row(
                   children: [
                     Icon(
@@ -140,34 +142,17 @@ class _OnlineAiSectionState extends ConsumerState<OnlineAiSection> {
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'API Key',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            !hasProvider
-                                ? 'Select a provider first'
-                                : keyState.isLoading
-                                ? 'Checking saved key…'
-                                : keyState.hasError
-                                ? 'Could not read saved key'
-                                : keyState.value == true
-                                ? 'Key saved securely on this device'
-                                : 'Use your own ${provider.label} key',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: context.appColors.muted,
-                            ),
-                          ),
-                        ],
+                      child: SettingsRowLabel(
+                        'API Key',
+                        !hasProvider
+                            ? 'Select a provider first'
+                            : keyState.isLoading
+                            ? 'Checking saved key…'
+                            : keyState.hasError
+                            ? 'Could not read saved key'
+                            : keyState.value == true
+                            ? 'Key saved securely on this device'
+                            : 'Use your own ${provider.label} key',
                       ),
                     ),
                     const SizedBox(width: 8),

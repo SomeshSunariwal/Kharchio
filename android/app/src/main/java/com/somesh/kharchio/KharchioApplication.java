@@ -1,4 +1,4 @@
-package com.expense.kharchio;
+package com.somesh.kharchio;
 
 import android.app.Application;
 import android.content.SharedPreferences;

@@ -1,4 +1,4 @@
-package com.expense.kharchio.sharing;
+package com.somesh.kharchio.sharing;
 
 import android.Manifest;
 import android.app.Activity;
@@ -31,7 +31,7 @@ import java.util.concurrent.*;
 
 /** Wi-Fi Direct discovery plus certificate-pinned TLS. No cloud or shared files. */
 public final class LocalShareBridge implements AutoCloseable {
-    private static final String BASE = "com.expense.kharchio/local_share";
+    private static final String BASE = "com.somesh.kharchio/local_share";
     private static final int PERMISSIONS = 7242, MAX_FRAME = 2 * 1024 * 1024;
     private final Activity activity;
     private final Handler main = new Handler(Looper.getMainLooper());

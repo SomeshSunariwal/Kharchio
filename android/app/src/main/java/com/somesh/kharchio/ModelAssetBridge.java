@@ -1,4 +1,4 @@
-package com.expense.kharchio;
+package com.somesh.kharchio;
 
 import android.content.Context;
 import android.os.Handler;
@@ -17,7 +17,7 @@ final class ModelAssetBridge {
     private volatile boolean closed;
 
     ModelAssetBridge(Context context, FlutterEngine engine) {
-        channel = new MethodChannel(engine.getDartExecutor().getBinaryMessenger(), "com.expense.kharchio/models");
+        channel = new MethodChannel(engine.getDartExecutor().getBinaryMessenger(), "com.somesh.kharchio/models");
         channel.setMethodCallHandler((call, result) -> {
             if (!"modelDirectory".equals(call.method)) {
                 result.notImplemented();

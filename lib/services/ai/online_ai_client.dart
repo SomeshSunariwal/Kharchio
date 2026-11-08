@@ -758,12 +758,14 @@ class OnlineAiClient {
     required String currency,
     required OnlineAiModels models,
     String language = 'auto',
+    bool paymentNotification = false,
   }) async => (await extractRecording(
     text: text,
     categories: categories,
     currency: currency,
     models: models,
     language: language,
+    paymentNotification: paymentNotification,
   )).expenses;
 
   /// Final transcript and cards share one context request and locked model.
@@ -776,6 +778,7 @@ class OnlineAiClient {
     required OnlineAiModels models,
     String language = 'auto',
     bool translateTranscript = false,
+    bool paymentNotification = false,
   }) async {
     final includeTranscript = translateTranscript && language == 'en';
     if (text.trim().isEmpty) {
@@ -794,6 +797,7 @@ class OnlineAiClient {
       currency: currency,
       plainText: true,
       outputLanguage: language == 'en' ? 'en' : 'source',
+      paymentNotification: paymentNotification,
     );
     final schema = <String, Object?>{
       'type': 'object',
@@ -829,6 +833,7 @@ class OnlineAiClient {
       system: system,
       schema: schema,
       models: models,
+      maxOutputTokens: paymentNotification ? 1024 : 12000,
     );
     try {
       final decoded = jsonDecode(result);
@@ -841,6 +846,7 @@ class OnlineAiClient {
       final expenses = extractor.validateTransactions(
         decoded['transactions'],
         categories: categories,
+        allowEmpty: paymentNotification,
       );
       return (transcript: transcript, expenses: expenses);
     } on FormatException catch (error) {

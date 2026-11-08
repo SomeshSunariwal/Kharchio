@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/expense_store.dart';
 import '../core/theme.dart';
+import 'app_notification.dart';
 import 'destructive_confirmation.dart';
 
 Future<bool> confirmExpenseDeletion(
@@ -55,11 +56,13 @@ class SwipeRevealDelete extends StatefulWidget {
   final Widget child;
   final Future<void> Function() onDelete;
   final String errorMessage;
+  final String actionLabel;
   const SwipeRevealDelete({
     super.key,
     required this.child,
     required this.onDelete,
     this.errorMessage = 'Could not delete this item. Please try again.',
+    this.actionLabel = 'Delete',
   });
   @override
   State<SwipeRevealDelete> createState() => _SwipeRevealDeleteState();
@@ -102,8 +105,7 @@ class _SwipeRevealDeleteState extends State<SwipeRevealDelete>
       await widget.onDelete();
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(widget.errorMessage)));
+        showAppNotification(context, widget.errorMessage, isError: true);
       }
     } finally {
       if (mounted) {
@@ -124,7 +126,9 @@ class _SwipeRevealDeleteState extends State<SwipeRevealDelete>
     animation: slide,
     builder: (context, _) => Semantics(
       customSemanticsActions: {
-        const CustomSemanticsAction(label: 'Show delete button'): () =>
+        CustomSemanticsAction(
+          label: 'Show ${widget.actionLabel.toLowerCase()} button',
+        ): () =>
             settle(true),
       },
       child: ClipRect(
@@ -151,24 +155,29 @@ class _SwipeRevealDeleteState extends State<SwipeRevealDelete>
                           clipBehavior: Clip.antiAlias,
                           child: InkWell(
                             onTap: remove,
-                            child: const Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.delete_outline_rounded,
-                                  color: Colors.white,
-                                  size: 21,
+                            child: Center(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.delete_outline_rounded,
+                                      color: Colors.white,
+                                      size: 21,
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      widget.actionLabel,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                SizedBox(height: 3),
-                                Text(
-                                  'Delete',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ],
+                              ),
                             ),
                           ),
                         ),

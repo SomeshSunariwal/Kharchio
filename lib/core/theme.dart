@@ -4,6 +4,8 @@ const green = Color(0xFF00AE87),
     blue = Color(0xFF365CFF),
     red = Color(0xFFFF233F);
 
+const settingsRowMinHeight = 54.0;
+
 /// Semantic surfaces and text colours shared by every screen and modal.
 class AppColors {
   final bool dark;
@@ -75,6 +77,9 @@ ThemeData appTheme({Brightness brightness = Brightness.light}) {
       foregroundColor: colors.ink,
       surfaceTintColor: Colors.transparent,
       centerTitle: false,
+      // A centered 24 px back icon leaves 10 px before the title.
+      leadingWidth: 44,
+      titleSpacing: 0,
     ),
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: colors.surface,

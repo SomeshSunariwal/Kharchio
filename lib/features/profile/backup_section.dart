@@ -7,6 +7,7 @@ import '../../core/monthly_budgets.dart';
 import '../../core/theme.dart';
 import '../../database/local_store.dart';
 import '../../services/backup/expense_backup.dart';
+import '../../shared/app_confirmation.dart';
 import '../../shared/app_notification.dart';
 import '../../shared/widgets.dart';
 
@@ -63,33 +64,20 @@ class _BackupSectionState extends ConsumerState<BackupSection> {
     final repository = ExpenseBackupRepository(ref.read(localStoreProvider));
     final possible = await repository.possibleDuplicates(backup);
     if (!mounted) return;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Import expense data?'),
-        content: SingleChildScrollView(
-          child: Text(
-            '${backup.expenses.length} expense/refund records and '
-            '${backup.limits.length} monthly limits.\n\n'
-            'Records with an existing ID will be skipped. Monthly limits in the backup '
-            'will replace limits for the same month and currency. Other data is kept.'
-            '${possible == 0 ? '' : '\n\n$possible records have matching details but different IDs. '
-                      'These may be separate purchases and will also be imported.'}',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Import'),
-          ),
-        ],
-      ),
+    final confirmed = await showAppConfirmation(
+      context,
+      title: 'Import expense data?',
+      message:
+          '${backup.expenses.length} expense/refund records and '
+          '${backup.limits.length} monthly limits.\n\n'
+          'Records with an existing ID will be skipped. Monthly limits in the backup '
+          'will replace limits for the same month and currency. Other data is kept.'
+          '${possible == 0 ? '' : '\n\n$possible records have matching details but different IDs. '
+                    'These may be separate purchases and will also be imported.'}',
+      confirmLabel: 'Import',
+      icon: Icons.file_download_outlined,
     );
-    if (confirmed != true || !mounted) return;
+    if (!confirmed || !mounted) return;
     final providers = ProviderScope.containerOf(context, listen: false);
     final update = appNotificationUpdater(context);
     update('Importing expenses and monthly limits…', progress: 0);
@@ -172,19 +160,13 @@ class _BackupSectionState extends ConsumerState<BackupSection> {
     child: ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 14),
       dense: true,
-      minTileHeight: 54,
+      minTileHeight: settingsRowMinHeight,
+      minVerticalPadding: 0,
       minLeadingWidth: 18,
       horizontalTitleGap: 10,
       enabled: working == null,
       leading: Icon(icon, size: 20, color: green),
-      title: Text(
-        title,
-        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-      ),
-      subtitle: Text(
-        description,
-        style: TextStyle(fontSize: 10, color: context.appColors.muted),
-      ),
+      title: SettingsRowLabel(title, description),
       trailing: busy
           ? SizedBox(
               width: 18,

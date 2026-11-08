@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -12,43 +11,10 @@ import '../../database/local_store.dart';
 import '../../shared/app_dropdown.dart';
 import '../../shared/expense_date_picker.dart';
 import '../../shared/widgets.dart';
+import 'expense_draft_card.dart';
 import 'record_expense_modal.dart';
 
-class ExpenseDraft {
-  final String id;
-  final TextEditingController title, description, amount;
-  String category;
-  TransactionType type;
-  String? originalExpenseId;
-  DateTime? date;
-  ExpenseDraft({
-    String? id,
-    String title = '',
-    String description = '',
-    String amount = '',
-    this.category = 'Groceries',
-    this.type = TransactionType.expense,
-    this.originalExpenseId,
-    this.date,
-  }) : id = id ?? DateTime.now().microsecondsSinceEpoch.toString(),
-       title = TextEditingController(text: title),
-       description = TextEditingController(text: description),
-       amount = TextEditingController(
-         text: double.tryParse(amount)?.toStringAsFixed(2) ?? amount,
-       );
-  void formatAmount() {
-    final value = double.tryParse(amount.text);
-    if (value != null && value.isFinite) {
-      amount.text = value.toStringAsFixed(2);
-    }
-  }
-
-  void dispose() {
-    title.dispose();
-    description.dispose();
-    amount.dispose();
-  }
-}
+export 'expense_draft_card.dart' show ExpenseDraft;
 
 class AddExpenseScreen extends ConsumerStatefulWidget {
   final Object? expense;
@@ -283,8 +249,6 @@ class _AddExpenseState extends ConsumerState<AddExpenseScreen> {
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
       toolbarHeight: 52,
-      leadingWidth: 40,
-      titleSpacing: 0,
       title: Text(
         editing
             ? (original == null && !loadingHistory
@@ -359,7 +323,7 @@ class _AddExpenseState extends ConsumerState<AddExpenseScreen> {
                                     for (var i = 0; i < drafts.length; i++)
                                       Padding(
                                         padding: EdgeInsets.only(bottom: 8),
-                                        child: _card(drafts[i], i),
+                                        child: _card(drafts[i]),
                                       ),
                                   ],
                                 ),
@@ -464,320 +428,72 @@ class _AddExpenseState extends ConsumerState<AddExpenseScreen> {
     ),
   );
 
-  InputDecoration _input(String label, {String? hint}) => InputDecoration(
-    labelText: label,
-    hintText: hint,
-    labelStyle: TextStyle(fontSize: 12, color: context.appColors.muted),
-    contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-  );
-
-  Widget _card(ExpenseDraft d, int index) => SurfaceCard(
-    key: ValueKey(d.id),
-    padding: EdgeInsets.all(10),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Container(
-                  constraints: const BoxConstraints(maxWidth: 210),
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    color: context.appColors.field,
-                    border: Border.all(color: context.appColors.line),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Stack(
-                    children: [
-                      Positioned.fill(
-                        child: AnimatedAlign(
-                          duration: MediaQuery.disableAnimationsOf(context)
-                              ? Duration.zero
-                              : const Duration(milliseconds: 220),
-                          curve: Curves.easeInOutCubic,
-                          alignment: d.type == TransactionType.refund
-                              ? Alignment.centerRight
-                              : Alignment.centerLeft,
-                          child: FractionallySizedBox(
-                            widthFactor: .5,
-                            heightFactor: 1,
-                            child: AnimatedContainer(
-                              key: ValueKey(
-                                'transaction-type-highlight-${d.id}',
-                              ),
-                              duration: MediaQuery.disableAnimationsOf(context)
-                                  ? Duration.zero
-                                  : const Duration(milliseconds: 220),
-                              curve: Curves.easeInOutCubic,
-                              decoration: BoxDecoration(
-                                color:
-                                    (d.type == TransactionType.refund
-                                            ? green
-                                            : red)
-                                        .withValues(
-                                          alpha: context.appColors.dark
-                                              ? .15
-                                              : .08,
-                                        ),
-                                borderRadius: BorderRadius.circular(9),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          _typeTab(
-                            d,
-                            TransactionType.expense,
-                            'Expense',
-                            Icons.north_east,
-                            red,
-                          ),
-                          _typeTab(
-                            d,
-                            TransactionType.refund,
-                            'Refund',
-                            Icons.south_west,
-                            green,
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            IconButton(
-              tooltip: d.type == TransactionType.refund
-                  ? 'Remove refund card'
-                  : 'Remove expense card',
-              style: IconButton.styleFrom(foregroundColor: red),
-              visualDensity: VisualDensity.compact,
-              constraints: BoxConstraints(minWidth: 32, minHeight: 32),
-              padding: EdgeInsets.zero,
-              onPressed: saving
-                  ? null
-                  : editing && d.type == TransactionType.expense
-                  ? null
-                  : drafts.length == 1
-                  ? null
-                  : () => setState(() {
-                      drafts.remove(d);
-                      if (savedEntries.containsKey(d.id)) {
-                        removedRefunds.add(d.id);
-                      }
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        d.dispose();
-                      });
-                    }),
-              icon: Icon(Icons.delete_outline, size: 18),
-              color: red,
-            ),
-          ],
-        ),
+  Widget _card(ExpenseDraft d) => ExpenseDraftCard(
+    d: d,
+    categories: context.expenseCategories,
+    currency: context.currency,
+    editable: !saving,
+    onCategoryChanged: (value) => setState(() => d.category = value),
+    onTypeChanged: editing ? null : (type) => setState(() => d.type = type),
+    onRemove:
+        saving ||
+            (editing && d.type == TransactionType.expense) ||
+            drafts.length == 1
+        ? null
+        : () => setState(() {
+            drafts.remove(d);
+            if (savedEntries.containsKey(d.id)) removedRefunds.add(d.id);
+            WidgetsBinding.instance.addPostFrameCallback((_) => d.dispose());
+          }),
+    additionalFields: [
+      if (d.type == TransactionType.refund &&
+          (!editing || original == null)) ...[
         SizedBox(height: 10),
-        TextFormField(
-          controller: d.title,
-          readOnly: saving,
-          style: TextStyle(fontSize: 12),
-          textCapitalization: TextCapitalization.sentences,
-          decoration: _input('Title'),
-          validator: (v) =>
-              v == null || v.trim().isEmpty ? 'Enter a title' : null,
-        ),
-        SizedBox(height: 8),
-        TextFormField(
-          controller: d.description,
-          readOnly: saving,
-          style: TextStyle(fontSize: 12),
-          minLines: 1,
-          maxLines: 2,
-          textCapitalization: TextCapitalization.sentences,
-          decoration: _input('Description (optional)', hint: 'Add a note…'),
-        ),
-        SizedBox(height: 10),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              flex: 3,
-              child: AppDropdown<String>(
-                value: d.category,
-                label: 'Category',
-                enabled: !saving,
-                leadingIcon:
-                    context.categoryIcons[context.categoryIndex(d.category)],
-                scrollIntoViewOnOpen: true,
-                options: [
-                  for (var i = 0; i < context.categoryNames.length; i++)
-                    AppDropdownOption(
-                      context.categoryNames[i],
-                      context.categoryNames[i],
-                      icon: context.categoryIcons[i],
-                    ),
-                ],
-                onChanged: (value) => setState(() => d.category = value),
-              ),
-            ),
-            SizedBox(width: 8),
-            Expanded(
-              flex: 2,
-              child: Focus(
-                onFocusChange: (focused) {
-                  if (!focused) d.formatAmount();
-                },
-                child: TextFormField(
-                  controller: d.amount,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: d.type == TransactionType.refund ? green : red,
-                  ),
-                  keyboardType: TextInputType.numberWithOptions(decimal: true),
-                  decoration:
-                      _input(
-                        'Amount (${context.currency.symbol})',
-                        hint: '0.00',
-                      ).copyWith(
-                        prefixIcon: Icon(
-                          d.type == TransactionType.refund
-                              ? Icons.south_west
-                              : Icons.north_east,
-                          size: 16,
-                          color: d.type == TransactionType.refund ? green : red,
-                        ),
-                        prefixIconConstraints: const BoxConstraints(
-                          minWidth: 28,
-                          minHeight: 36,
-                        ),
-                      ),
-                  inputFormatters: [
-                    TextInputFormatter.withFunction(
-                      (oldValue, newValue) =>
-                          RegExp(r'^\d{0,10}(\.\d{0,2})?$')
-                              .hasMatch(newValue.text)
-                          ? newValue
-                          : oldValue,
-                    ),
-                  ],
-                  validator: (v) {
-                    final n = double.tryParse(v ?? '');
-                    return n == null || !n.isFinite || n <= 0
-                        ? 'Invalid amount'
-                        : null;
-                  },
-                ),
-              ),
-            ),
-          ],
-        ),
-        if (d.type == TransactionType.refund &&
-            (!editing || original == null)) ...[
-          SizedBox(height: 10),
-          _originalPayment(d),
-        ],
-        if (editing && d.date != null) ...[
-          SizedBox(height: 4),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton.icon(
-              key: ValueKey('transaction-date-${d.id}'),
-              style: TextButton.styleFrom(
-                minimumSize: Size.zero,
-                padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                visualDensity: VisualDensity.compact,
-                foregroundColor: green,
-                disabledForegroundColor: context.appColors.muted,
-              ),
-              onPressed: saving || d.type == TransactionType.expense
-                  ? null
-                  : () async {
-                      final picked = await showExpenseDatePicker(
-                        context,
-                        d.date!,
-                      );
-                      if (picked != null && mounted) {
-                        setState(
-                          () => d.date = DateTime(
-                            picked.year,
-                            picked.month,
-                            picked.day,
-                            d.date!.hour,
-                            d.date!.minute,
-                          ),
-                        );
-                      }
-                    },
-              icon: const Icon(Icons.calendar_today_outlined, size: 13),
-              label: Text(
-                DateFormat('dd MMM yy').format(d.date!),
-                style: const TextStyle(fontSize: 11),
-              ),
-            ),
-          ),
-        ],
+        _originalPayment(d),
       ],
-    ),
-  );
-
-  Widget _typeTab(
-    ExpenseDraft draft,
-    TransactionType type,
-    String label,
-    IconData icon,
-    Color color,
-  ) {
-    final selected = draft.type == type;
-    return Expanded(
-      child: Semantics(
-        selected: selected,
-        button: true,
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(9),
-            onTap: saving || editing
+      if (editing && d.date != null) ...[
+        SizedBox(height: 4),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton.icon(
+            key: ValueKey('transaction-date-${d.id}'),
+            style: TextButton.styleFrom(
+              minimumSize: Size.zero,
+              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: VisualDensity.compact,
+              foregroundColor: green,
+              disabledForegroundColor: context.appColors.muted,
+            ),
+            onPressed: saving || d.type == TransactionType.expense
                 ? null
-                : () => setState(() => draft.type = type),
-            child: Container(
-              constraints: const BoxConstraints(minHeight: 34),
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    icon,
-                    size: 14,
-                    color: selected ? color : context.appColors.muted,
-                  ),
-                  const SizedBox(width: 4),
-                  Flexible(
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: selected
-                            ? FontWeight.w600
-                            : FontWeight.w400,
-                        color: selected ? color : context.appColors.muted,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                : () async {
+                    final picked = await showExpenseDatePicker(
+                      context,
+                      d.date!,
+                    );
+                    if (picked != null && mounted) {
+                      setState(
+                        () => d.date = DateTime(
+                          picked.year,
+                          picked.month,
+                          picked.day,
+                          d.date!.hour,
+                          d.date!.minute,
+                        ),
+                      );
+                    }
+                  },
+            icon: const Icon(Icons.calendar_today_outlined, size: 13),
+            label: Text(
+              DateFormat('dd MMM yy').format(d.date!),
+              style: const TextStyle(fontSize: 11),
             ),
           ),
         ),
-      ),
-    );
-  }
+      ],
+    ],
+  );
 
   Widget _originalPayment(ExpenseDraft draft) {
     final currency = editing

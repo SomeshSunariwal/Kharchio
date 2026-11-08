@@ -1,10 +1,10 @@
-package com.expense.kharchio.widgets.manualexpense;
+package com.somesh.kharchio.widgets.manualexpense;
 
 import android.appwidget.AppWidgetManager;
 import android.appwidget.AppWidgetProvider;
 import android.content.Context;
 import android.widget.RemoteViews;
-import com.expense.kharchio.R;
+import com.somesh.kharchio.R;
 
 /** Compact 2-by-1 Add Expense button opening the quick-entry popup. */
 public final class ExpenseFormWidget extends AppWidgetProvider {

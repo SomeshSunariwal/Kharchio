@@ -63,36 +63,36 @@ class CategoriesScreen extends ConsumerWidget {
             child: Column(
               children: [
                 Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.all(14),
-                    children: [
-                      Text(
-                        'Choose categories when adding expenses. Your dashboard and analysis use the same categories.',
-                        style: TextStyle(
-                          color: context.appColors.muted,
-                          fontSize: 12,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 14, 14, 6),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          'Choose categories when adding expenses. Your dashboard and analysis use the same categories.',
+                          style: Theme.of(context).textTheme.bodySmall,
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      SurfaceCard(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 2,
-                        ),
-                        child: Column(
-                          children: [
-                            for (var i = 0; i < categories.length; i++) ...[
-                              Padding(
+                        const SizedBox(height: 12),
+                        Expanded(
+                          child: ScrollableListCard(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 2,
+                            ),
+                            itemCount: categories.length,
+                            itemBuilder: (_, index) {
+                              final category = categories[index];
+                              return Padding(
                                 padding: const EdgeInsets.symmetric(
                                   vertical: 6,
                                 ),
                                 child: Row(
                                   children: [
-                                    CategoryIcon(categories[i].name, size: 28),
+                                    CategoryIcon(category.name, size: 28),
                                     const SizedBox(width: 10),
                                     Expanded(
                                       child: Text(
-                                        categories[i].name,
+                                        category.name,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(fontSize: 12),
@@ -100,7 +100,7 @@ class CategoriesScreen extends ConsumerWidget {
                                     ),
                                     const SizedBox(width: 8),
                                     IconButton(
-                                      tooltip: 'Remove ${categories[i].name}',
+                                      tooltip: 'Remove ${category.name}',
                                       style: IconButton.styleFrom(
                                         backgroundColor: red,
                                         foregroundColor: Colors.white,
@@ -116,7 +116,7 @@ class CategoriesScreen extends ConsumerWidget {
                                           : () => removeCategory(
                                               context,
                                               ref,
-                                              categories[i],
+                                              category,
                                             ),
                                       icon: const Icon(
                                         Icons.remove_rounded,
@@ -126,17 +126,12 @@ class CategoriesScreen extends ConsumerWidget {
                                     ),
                                   ],
                                 ),
-                              ),
-                              if (i < categories.length - 1)
-                                Divider(
-                                  height: 1,
-                                  color: context.appColors.line,
-                                ),
-                            ],
-                          ],
+                              );
+                            },
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
                 Padding(

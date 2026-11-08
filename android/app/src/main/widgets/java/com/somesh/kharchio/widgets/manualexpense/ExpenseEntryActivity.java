@@ -1,9 +1,9 @@
-package com.expense.kharchio.widgets.manualexpense;
+package com.somesh.kharchio.widgets.manualexpense;
 
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
-import com.expense.kharchio.MainActivity;
+import com.somesh.kharchio.MainActivity;
 import io.flutter.embedding.android.FlutterActivity;
 import io.flutter.embedding.android.FlutterActivityLaunchConfigs.BackgroundMode;
 
@@ -22,7 +22,7 @@ public final class ExpenseEntryActivity extends MainActivity {
             .backgroundMode(BackgroundMode.transparent)
             .initialRoute("/widgets/entry?focus=" + field)
             .build(context);
-        intent.setAction("com.expense.kharchio.widget.entry." + field);
+        intent.setAction("com.somesh.kharchio.widget.entry." + field);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         return PendingIntent.getActivity(context, code, intent,
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);

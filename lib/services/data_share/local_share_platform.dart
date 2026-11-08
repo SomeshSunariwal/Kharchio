@@ -6,9 +6,9 @@ abstract interface class LocalSharePlatform {
 }
 
 class AndroidLocalSharePlatform implements LocalSharePlatform {
-  static const channel = MethodChannel('com.expense.kharchio/local_share');
+  static const channel = MethodChannel('com.somesh.kharchio/local_share');
   static const eventChannel = EventChannel(
-    'com.expense.kharchio/local_share/events',
+    'com.somesh.kharchio/local_share/events',
   );
   @override
   Stream<Map<String, dynamic>> get events => eventChannel

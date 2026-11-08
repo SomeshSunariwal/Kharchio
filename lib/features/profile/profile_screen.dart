@@ -19,6 +19,7 @@ import 'model_check_dialog.dart';
 import 'backup_section.dart';
 import 'online_ai_section.dart';
 import 'user_profile_card.dart';
+import 'payment_notifications_section.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -269,7 +270,7 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
                         horizontal: 12,
                       ),
                       dense: true,
-                      minTileHeight: 54,
+                      minTileHeight: settingsRowMinHeight,
                       minVerticalPadding: 0,
                       minLeadingWidth: 18,
                       horizontalTitleGap: 8,
@@ -316,7 +317,7 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
                       ),
                       dense: true,
                       visualDensity: VisualDensity.standard,
-                      minTileHeight: 54,
+                      minTileHeight: settingsRowMinHeight,
                       minVerticalPadding: 0,
                       minLeadingWidth: 18,
                       horizontalTitleGap: 8,
@@ -394,6 +395,7 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
                 ],
               ),
             ),
+            const PaymentNotificationsSection(),
             const SizedBox(height: 16),
             const Text(
               'Offline AI',
@@ -401,7 +403,7 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
             ),
             const SizedBox(height: 8),
             SurfaceCard(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+              padding: const EdgeInsets.symmetric(horizontal: 10),
               child: Column(
                 children: [
                   if (downloads.isLoading) const LinearProgressIndicator(),
@@ -410,6 +412,9 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
                       type: MaterialType.transparency,
                       child: ListTile(
                         contentPadding: EdgeInsets.zero,
+                        dense: true,
+                        minTileHeight: settingsRowMinHeight,
+                        minVerticalPadding: 0,
                         title: const Text(
                           'Could not read model storage.',
                           style: TextStyle(color: red, fontSize: 12),
@@ -502,7 +507,8 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
                 child: ListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 14),
                   dense: true,
-                  minTileHeight: 54,
+                  minTileHeight: settingsRowMinHeight,
+                  minVerticalPadding: 0,
                   minLeadingWidth: 18,
                   horizontalTitleGap: 10,
                   leading: const Icon(
@@ -510,16 +516,9 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
                     size: 20,
                     color: green,
                   ),
-                  title: const Text(
+                  title: const SettingsRowLabel(
                     'Share App Data with Others',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: Text(
                     'Send expenses over a local connection',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: context.appColors.muted,
-                    ),
                   ),
                   trailing: const Icon(Icons.chevron_right, size: 18),
                   onTap: () => context.push('/data-share'),
@@ -543,12 +542,11 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
                 red.withValues(alpha: 0.08),
                 context.appColors.surface,
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+              padding: const EdgeInsets.symmetric(horizontal: 10),
               child: _modelActionRow(
                 Icons.delete_forever_outlined,
                 'Reset Data',
                 'Delete all recorded expenses',
-                compact: true,
                 actionLabel: resettingExpenses ? 'Resetting…' : 'Reset All',
                 destructive: true,
                 iconColor: red,
@@ -563,35 +561,17 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
             ),
             const SizedBox(height: 8),
             SurfaceCard(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+              padding: const EdgeInsets.symmetric(horizontal: 10),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: 48),
+                constraints: const BoxConstraints(
+                  minHeight: settingsRowMinHeight,
+                ),
                 child: Row(
                   children: [
                     const Icon(Icons.info_outline, size: 20, color: green),
                     const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'About',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            'Version 0.1.3',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: context.appColors.muted,
-                            ),
-                          ),
-                        ],
-                      ),
+                    const Expanded(
+                      child: SettingsRowLabel('About', 'Version 0.1.3'),
                     ),
                   ],
                 ),
@@ -809,40 +789,23 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
     required VoidCallback? onPressed,
     bool ready = false,
     bool destructive = false,
-    bool compact = false,
     Color iconColor = green,
     bool subtitleError = false,
     String? disabledMessage,
     VoidCallback? onDelete,
   }) => ConstrainedBox(
-    constraints: BoxConstraints(minHeight: compact ? 54 : 74),
+    constraints: const BoxConstraints(minHeight: settingsRowMinHeight),
     child: Padding(
-      padding: EdgeInsets.symmetric(vertical: compact ? 4 : 10),
+      padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         children: [
           Icon(icon, size: 20, color: iconColor),
           const SizedBox(width: 10),
           Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: subtitleError ? red : context.appColors.muted,
-                  ),
-                ),
-              ],
+            child: SettingsRowLabel(
+              title,
+              subtitle,
+              descriptionError: subtitleError,
             ),
           ),
           const SizedBox(width: 8),

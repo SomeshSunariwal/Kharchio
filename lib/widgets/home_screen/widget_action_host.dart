@@ -7,7 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import 'widget_capture_lifecycle.dart';
 
-const homeWidgetChannel = MethodChannel('com.expense.kharchio/home_widgets');
+const homeWidgetChannel = MethodChannel('com.somesh.kharchio/home_widgets');
 
 String? widgetActionRoute(Object? value) {
   if (value is! Map ||

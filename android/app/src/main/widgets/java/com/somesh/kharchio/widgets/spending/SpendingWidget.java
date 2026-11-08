@@ -1,4 +1,4 @@
-package com.expense.kharchio.widgets.spending;
+package com.somesh.kharchio.widgets.spending;
 
 import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;
@@ -12,8 +12,8 @@ import android.os.Bundle;
 import android.view.View;
 import android.util.Log;
 import android.widget.RemoteViews;
-import com.expense.kharchio.MainActivity;
-import com.expense.kharchio.R;
+import com.somesh.kharchio.MainActivity;
+import com.somesh.kharchio.R;
 import java.text.SimpleDateFormat;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
@@ -21,7 +21,7 @@ import java.util.concurrent.Executors;
 
 /** Current-month spending: pie left, scrollable category amounts right. */
 public final class SpendingWidget extends AppWidgetProvider {
-    private static final String REFRESH = "com.expense.kharchio.widgets.REFRESH_SPENDING";
+    private static final String REFRESH = "com.somesh.kharchio.widgets.REFRESH_SPENDING";
     private static final ExecutorService WORKER = Executors.newSingleThreadExecutor();
     public static void requestRefresh(Context context) {
         AppWidgetManager manager = AppWidgetManager.getInstance(context);

@@ -147,6 +147,7 @@ class _QuickExpenseScreenState extends ConsumerState<QuickExpenseScreen> {
       child: Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
+          titleSpacing: 14,
           title: Text(
             'Quick Expense',
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),

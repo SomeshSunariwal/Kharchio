@@ -1,4 +1,4 @@
-package com.expense.kharchio.widgets.quickexpense;
+package com.somesh.kharchio.widgets.quickexpense;
 
 import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;
@@ -6,10 +6,10 @@ import android.appwidget.AppWidgetProvider;
 import android.content.Context;
 import android.content.Intent;
 import android.widget.RemoteViews;
-import com.expense.kharchio.MainActivity;
-import com.expense.kharchio.R;
-import com.expense.kharchio.widgets.WidgetActionBridge;
-import com.expense.kharchio.widgets.manualexpense.ExpenseEntryActivity;
+import com.somesh.kharchio.MainActivity;
+import com.somesh.kharchio.R;
+import com.somesh.kharchio.widgets.WidgetActionBridge;
+import com.somesh.kharchio.widgets.manualexpense.ExpenseEntryActivity;
 
 /** Stateless launcher widget; Flutter owns recording, validation and SQLite. */
 public final class QuickExpenseWidget extends AppWidgetProvider {
@@ -25,7 +25,7 @@ public final class QuickExpenseWidget extends AppWidgetProvider {
 
     private static PendingIntent action(Context context, String action, int requestCode) {
         Intent intent = new Intent(context, MainActivity.class)
-            .setAction("com.expense.kharchio.widget." + action)
+            .setAction("com.somesh.kharchio.widget." + action)
             .putExtra(WidgetActionBridge.EXTRA_ACTION, action)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         return PendingIntent.getActivity(context, requestCode, intent,

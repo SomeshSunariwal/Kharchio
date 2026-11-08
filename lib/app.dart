@@ -14,6 +14,8 @@ import 'features/profile/categories_screen.dart';
 import 'features/profile/budget_planner_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
 import 'features/expenses/add_expense_screen.dart';
+import 'features/expenses/payment_review_host.dart';
+import 'features/expenses/pending_payment_reviews_screen.dart';
 import 'features/analysis/analysis_screen.dart';
 import 'features/profile/profile_screen.dart';
 import 'features/data_share/data_share_screen.dart';
@@ -24,7 +26,9 @@ import 'widgets/home_screen/quick_expense_screen.dart';
 import 'widgets/home_screen/manual_entry/expense_entry_popup.dart';
 import 'widgets/home_screen/widget_data_refresh_host.dart';
 
+final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final _router = GoRouter(
+  navigatorKey: _rootNavigatorKey,
   routes: [
     StatefulShellRoute(
       builder: (context, state, navigationShell) =>
@@ -74,6 +78,10 @@ final _router = GoRouter(
       builder: (_, _) => const QuickExpenseScreen(record: true),
     ),
     GoRoute(path: '/data-share', builder: (_, _) => const DataShareScreen()),
+    GoRoute(
+      path: '/payment-reviews',
+      builder: (_, _) => const PendingPaymentReviewsScreen(),
+    ),
     GoRoute(
       path: '/categories',
       pageBuilder: (context, state) {
@@ -156,7 +164,10 @@ class KharchioApp extends ConsumerWidget {
             child: WidgetDataRefreshHost(
               child: HomeWidgetActionHost(
                 router: _router,
-                child: child ?? const SizedBox.shrink(),
+                child: PaymentReviewHost(
+                  navigatorKey: _rootNavigatorKey,
+                  child: child ?? const SizedBox.shrink(),
+                ),
               ),
             ),
           ),

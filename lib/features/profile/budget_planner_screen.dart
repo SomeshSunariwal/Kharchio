@@ -27,7 +27,6 @@ class BudgetPlannerScreen extends ConsumerWidget {
       title: 'Delete monthly budget?',
       message:
           'Delete the budget for ${budgetMonth(budget)}? The month and its expenses will be kept.',
-      filledAction: true,
     );
     if (confirmed == true) {
       await ref.read(monthlyBudgetsProvider.notifier).delete(budget);
@@ -72,45 +71,42 @@ class BudgetPlannerScreen extends ConsumerWidget {
                       final rows = all
                           .where((b) => b.currency == currency.code)
                           .toList();
-                      return ListView(
-                        padding: const EdgeInsets.all(14),
-                        children: [
-                          Text(
-                            'Set a spending budget for each month. Tap a budget to edit it, or swipe left to delete.',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: context.appColors.muted,
+                      return Padding(
+                        padding: const EdgeInsets.fromLTRB(14, 14, 14, 6),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text(
+                              'Set a spending budget for each month. Tap a budget to edit it, or swipe left to delete.',
+                              style: Theme.of(context).textTheme.bodySmall,
                             ),
-                          ),
-                          const SizedBox(height: 12),
-                          if (rows.isEmpty)
-                            SurfaceCard(
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 24,
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    'No monthly budgets yet.',
-                                    style: TextStyle(
-                                      color: context.appColors.muted,
-                                      fontSize: 12,
+                            const SizedBox(height: 12),
+                            if (rows.isEmpty)
+                              SurfaceCard(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 24,
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      'No monthly budgets yet.',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall,
                                     ),
                                   ),
                                 ),
-                              ),
-                            )
-                          else
-                            SurfaceCard(
-                              padding: EdgeInsets.zero,
-                              clipBehavior: Clip.antiAlias,
-                              child: Column(
-                                children: [
-                                  for (var i = 0; i < rows.length; i++) ...[
-                                    SwipeRevealDelete(
-                                      key: ValueKey(rows[i].key),
+                              )
+                            else
+                              Expanded(
+                                child: ScrollableListCard(
+                                  itemCount: rows.length,
+                                  itemBuilder: (_, index) {
+                                    final budget = rows[index];
+                                    return SwipeRevealDelete(
+                                      key: ValueKey(budget.key),
                                       onDelete: () =>
-                                          _delete(context, ref, rows[i]),
+                                          _delete(context, ref, budget),
                                       child: ListTile(
                                         contentPadding: const EdgeInsets.only(
                                           left: 12,
@@ -120,14 +116,14 @@ class BudgetPlannerScreen extends ConsumerWidget {
                                         dense: true,
                                         minVerticalPadding: 0,
                                         title: Text(
-                                          budgetMonth(rows[i]),
+                                          budgetMonth(budget),
                                           style: const TextStyle(
                                             fontSize: 12,
                                             fontWeight: FontWeight.w600,
                                           ),
                                         ),
                                         trailing: Text(
-                                          currency.formatChart(rows[i].amount),
+                                          currency.formatChart(budget.amount),
                                           style: const TextStyle(
                                             fontSize: 13,
                                             fontWeight: FontWeight.w700,
@@ -138,21 +134,16 @@ class BudgetPlannerScreen extends ConsumerWidget {
                                           context: context,
                                           builder: (_) => _BudgetDialog(
                                             currency: currency,
-                                            budget: rows[i],
+                                            budget: budget,
                                           ),
                                         ),
                                       ),
-                                    ),
-                                    if (i < rows.length - 1)
-                                      Divider(
-                                        height: 1,
-                                        color: context.appColors.line,
-                                      ),
-                                  ],
-                                ],
+                                    );
+                                  },
+                                ),
                               ),
-                            ),
-                        ],
+                          ],
+                        ),
                       );
                     },
                   ),

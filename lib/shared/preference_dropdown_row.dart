@@ -45,7 +45,7 @@ class PreferenceDropdownRow<T> extends StatelessWidget {
         return Opacity(
           opacity: 1,
           child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: matchModelRows ? 74 : 54),
+            constraints: const BoxConstraints(minHeight: settingsRowMinHeight),
             child: Row(
               children: [
                 Icon(

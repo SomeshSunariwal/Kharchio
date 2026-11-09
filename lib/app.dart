@@ -166,6 +166,12 @@ class KharchioApp extends ConsumerWidget {
                 router: _router,
                 child: PaymentReviewHost(
                   navigatorKey: _rootNavigatorKey,
+                  openReviews: () {
+                    final matches = _router.routerDelegate.currentConfiguration;
+                    if (matches.last.matchedLocation != '/payment-reviews') {
+                      _router.push<void>('/payment-reviews');
+                    }
+                  },
                   child: child ?? const SizedBox.shrink(),
                 ),
               ),

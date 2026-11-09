@@ -571,7 +571,7 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
                     const Icon(Icons.info_outline, size: 20, color: green),
                     const SizedBox(width: 10),
                     const Expanded(
-                      child: SettingsRowLabel('About', 'Version 0.1.3'),
+                      child: SettingsRowLabel('About', 'Version 1.0.0'),
                     ),
                   ],
                 ),

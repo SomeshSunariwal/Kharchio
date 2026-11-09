@@ -9,6 +9,7 @@ import 'payment_notification_parser.dart';
 const paymentNotificationChannel = MethodChannel(
   'com.somesh.kharchio/payment_notifications',
 );
+const paymentReviewGroupTap = '@group';
 bool get supportsPaymentNotifications =>
     !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 

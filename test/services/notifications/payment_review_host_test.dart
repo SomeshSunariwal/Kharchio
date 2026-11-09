@@ -187,14 +187,18 @@ void main() {
           child: MaterialApp(
             theme: appTheme(),
             navigatorKey: navigatorKey,
-            builder: (_, child) =>
-                PaymentReviewHost(navigatorKey: navigatorKey, child: child!),
+            builder: (_, child) => PaymentReviewHost(
+              navigatorKey: navigatorKey,
+              openReviews: () => fail('A single alert should open its draft'),
+              child: child!,
+            ),
             home: const Scaffold(),
           ),
         ),
       );
       await tester.pumpAndSettle();
       expect(find.text('Review detected expense'), findsOneWidget);
+      expect(find.byIcon(Icons.receipt_long_outlined), findsOneWidget);
       expect(
         tester.getTopLeft(find.textContaining('The AI button sends')).dx,
         tester.getTopLeft(find.text('Review detected expense')).dx,
@@ -292,87 +296,104 @@ void main() {
     },
   );
 
-  testWidgets('pending list reviews one row and dismisses another by swiping', (
-    tester,
-  ) async {
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-    final messenger = tester.binding.defaultBinaryMessenger;
-    final queue = {
-      'coffee': 'Spent Rs.145 on HDFC Bank Card 9027 at COFFEE SHOP. Not you? Call 18002586161',
-      'groceries': 'You paid Rs.299 to BLINKIT via UPI',
-    };
-    messenger.setMockMethodCallHandler(paymentNotificationChannel, (
-      call,
-    ) async {
-      switch (call.method) {
-        case 'pending':
-          return jsonEncode([
-            for (final entry in queue.entries)
-              {'id': entry.key, 'text': entry.value, 'postedAt': 1794139200000},
-          ]);
-        case 'resolve':
-          final arguments = call.arguments as Map;
-          expect(arguments['outcome'], 'dismissed');
-          expect(queue.remove(arguments['id']), isNotNull);
-      }
-      return null;
-    });
-    addTearDown(
-      () =>
-          messenger.setMockMethodCallHandler(paymentNotificationChannel, null),
-    );
-    final navigatorKey = GlobalKey<NavigatorState>();
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [categoriesProvider.overrideWith(_TestCategories.new)],
-        child: MaterialApp(
-          navigatorKey: navigatorKey,
-          theme: appTheme(),
-          builder: (_, child) =>
-              PaymentReviewHost(navigatorKey: navigatorKey, child: child!),
-          home: const Scaffold(),
+  testWidgets(
+    'group alert opens the list, where drafts can be reviewed or dismissed',
+    (tester) async {
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      final messenger = tester.binding.defaultBinaryMessenger;
+      var tap = paymentReviewGroupTap;
+      final queue = {
+        'coffee': 'Spent Rs.145 on HDFC Bank Card 9027 at COFFEE SHOP. Not you? Call 18002586161',
+        'groceries': 'You paid Rs.299 to BLINKIT via UPI',
+      };
+      messenger.setMockMethodCallHandler(paymentNotificationChannel, (
+        call,
+      ) async {
+        switch (call.method) {
+          case 'consumeReviewTap':
+            final target = tap;
+            tap = '';
+            return target.isEmpty ? null : target;
+          case 'pending':
+            return jsonEncode([
+              for (final entry in queue.entries)
+                {
+                  'id': entry.key,
+                  'text': entry.value,
+                  'postedAt': 1794139200000,
+                },
+            ]);
+          case 'resolve':
+            final arguments = call.arguments as Map;
+            expect(arguments['outcome'], 'dismissed');
+            expect(queue.remove(arguments['id']), isNotNull);
+        }
+        return null;
+      });
+      addTearDown(
+        () => messenger.setMockMethodCallHandler(
+          paymentNotificationChannel,
+          null,
         ),
-      ),
-    );
-    navigatorKey.currentState!.push<void>(
-      MaterialPageRoute(builder: (_) => const PendingPaymentReviewsScreen()),
-    );
-    await tester.pumpAndSettle();
-    final heading = find.text('Pending expense reviews');
-    expect(heading, findsOneWidget);
-    final arrow = find.descendant(
-      of: find.byType(BackButton),
-      matching: find.byType(Icon),
-    );
-    expect(
-      tester.getTopLeft(heading).dx - tester.getTopRight(arrow).dx,
-      closeTo(10, .1),
-    );
-    expect(find.text('₹ 145.00'), findsOneWidget);
-    expect(find.textContaining('9027'), findsNothing);
-    expect(find.textContaining('18002586161'), findsNothing);
-    await tester.drag(find.text('COFFEE SHOP'), const Offset(-110, 0));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Dismiss').hitTestable());
-    await tester.pumpAndSettle();
-    expect(find.text('COFFEE SHOP'), findsNothing);
-    expect(find.text('Review dismissed.'), findsOneWidget);
-    await tester.tap(find.text('BLINKIT'));
-    await tester.pumpAndSettle();
-    expect(find.text('299.00'), findsOneWidget);
-    expect(find.byTooltip('Extract with on-device AI'), findsOneWidget);
-    await tester.tap(find.text('Review later'));
-    await tester.pumpAndSettle();
-    expect(find.text('Review detected expense'), findsNothing);
-    expect(queue.keys, ['groceries']);
-    await tester.drag(find.text('BLINKIT'), const Offset(-110, 0));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Dismiss').hitTestable());
-    await tester.pumpAndSettle();
-    expect(find.text('No pending expense reviews.'), findsOneWidget);
-    expect(
-      find.textContaining('Detected payments appear here'),
-      findsOneWidget,
-    );
-  });
+      );
+      final navigatorKey = GlobalKey<NavigatorState>();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [categoriesProvider.overrideWith(_TestCategories.new)],
+          child: MaterialApp(
+            navigatorKey: navigatorKey,
+            theme: appTheme(),
+            builder: (_, child) => PaymentReviewHost(
+              navigatorKey: navigatorKey,
+              openReviews: () => navigatorKey.currentState!.push<void>(
+                MaterialPageRoute(
+                  builder: (_) => const PendingPaymentReviewsScreen(),
+                ),
+              ),
+              child: child!,
+            ),
+            home: const Scaffold(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final heading = find.text('Pending expense reviews');
+      expect(heading, findsOneWidget);
+      expect(find.text('Review detected expense'), findsNothing);
+      final arrow = find.descendant(
+        of: find.byType(BackButton),
+        matching: find.byType(Icon),
+      );
+      expect(
+        tester.getTopLeft(heading).dx - tester.getTopRight(arrow).dx,
+        closeTo(10, .1),
+      );
+      expect(find.text('₹ 145.00'), findsOneWidget);
+      expect(find.textContaining('9027'), findsNothing);
+      expect(find.textContaining('18002586161'), findsNothing);
+      await tester.drag(find.text('COFFEE SHOP'), const Offset(-110, 0));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Dismiss').hitTestable());
+      await tester.pumpAndSettle();
+      expect(find.text('COFFEE SHOP'), findsNothing);
+      expect(find.text('Review dismissed.'), findsOneWidget);
+      await tester.tap(find.text('BLINKIT'));
+      await tester.pumpAndSettle();
+      expect(find.text('299.00'), findsOneWidget);
+      expect(find.byTooltip('Extract with on-device AI'), findsOneWidget);
+      await tester.tap(find.text('Review later'));
+      await tester.pumpAndSettle();
+      expect(find.text('Review detected expense'), findsNothing);
+      expect(queue.keys, ['groceries']);
+      await tester.drag(find.text('BLINKIT'), const Offset(-110, 0));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Dismiss').hitTestable());
+      await tester.pumpAndSettle();
+      expect(find.text('No pending expense reviews.'), findsOneWidget);
+      expect(
+        find.textContaining('Detected payments appear here'),
+        findsOneWidget,
+      );
+    },
+  );
 }

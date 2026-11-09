@@ -15,12 +15,16 @@ import androidx.core.app.NotificationCompat;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /** Captures likely payments without starting Flutter or running AI. */
@@ -29,9 +33,18 @@ public class PaymentNotificationListener extends NotificationListenerService {
     private static final String QUEUE = "pending";
     private static final String REVIEWED = "reviewed";
     private static final String CHANNEL = "payment_review";
+    private static final String ALERT_GROUP = "payment_reviews";
+    private static final String GROUP_TAP = "@group";
+    private static final int REVIEW_ALERT_ID = 1;
+    private static final int REVIEW_SUMMARY_ID = 2;
     static final String ACTION_PREFIX = "com.somesh.kharchio.REVIEW_PAYMENT.";
     private static final long MAX_AGE = 7 * 24 * 60 * 60 * 1000L;
-    private static final Pattern AMOUNT = Pattern.compile("(?:[₹$]|\\b(?:INR|USD|Rs\\.?))\\s*\\d", Pattern.CASE_INSENSITIVE);
+    private static final Pattern AMOUNT = Pattern.compile(
+            "(₹|\\$|\\b(?:INR|USD|Rs\\.?))\\s*(\\d[\\d,]*(?:\\.\\d{1,2})?)(?![\\d,.]\\d|\\d)",
+            Pattern.CASE_INSENSITIVE);
+    // Match the timestamp format understood by the Dart payment parser.
+    private static final Pattern PAYMENT_TIMESTAMP = Pattern.compile(
+            "\\b\\d{4}-\\d{2}-\\d{2}[: T]\\d{2}:\\d{2}:\\d{2}\\b");
     private static final Pattern SPEND = Pattern.compile(
             "\\b(?:spent|debited|paid|payment (?:of|done|successful)|sent|transferred|purchase|charged)\\b",
             Pattern.CASE_INSENSITIVE);
@@ -57,12 +70,18 @@ public class PaymentNotificationListener extends NotificationListenerService {
         JSONArray queue = read(prefs, QUEUE);
         NotificationManager manager = context.getSystemService(NotificationManager.class);
         boolean changed = false;
-        for (int i = queue.length() - 1; i >= 0; i--) {
+        Set<String> seenPayments = new HashSet<>();
+        for (int i = 0; i < queue.length();) {
             JSONObject item = queue.optJSONObject(i);
-            if (item == null || System.currentTimeMillis() - item.optLong("postedAt") > MAX_AGE) {
-                if (item != null) manager.cancel(item.optString("id"), 1);
+            boolean expired = item == null
+                    || System.currentTimeMillis() - item.optLong("postedAt") > MAX_AGE;
+            String paymentId = expired ? null : paymentFingerprint(item.optString("text"));
+            if (expired || (paymentId != null && !seenPayments.add(paymentId))) {
+                if (item != null) manager.cancel(item.optString("id"), REVIEW_ALERT_ID);
                 queue.remove(i);
                 changed = true;
+            } else {
+                i++;
             }
         }
         if (changed) prefs.edit().putString(QUEUE, queue.toString()).apply();
@@ -91,6 +110,10 @@ public class PaymentNotificationListener extends NotificationListenerService {
                 continue;
             }
             reviewed.put(outcome + ":" + fingerprint(itemId));
+            String paymentId = paymentFingerprint(item.optString("text"));
+            if (paymentId != null && !paymentId.equals(itemId)) {
+                reviewed.put(outcome + ":" + fingerprint(paymentId));
+            }
             resolved.add(itemId);
         }
         if (resolved.isEmpty()) return 0;
@@ -98,7 +121,7 @@ public class PaymentNotificationListener extends NotificationListenerService {
         prefs.edit().putString(QUEUE, remaining.toString())
                 .putString(REVIEWED, reviewed.toString()).apply();
         NotificationManager manager = context.getSystemService(NotificationManager.class);
-        for (String itemId : resolved) manager.cancel(itemId, 1);
+        for (String itemId : resolved) manager.cancel(itemId, REVIEW_ALERT_ID);
         return resolved.size();
     }
 
@@ -112,11 +135,26 @@ public class PaymentNotificationListener extends NotificationListenerService {
         }
     }
 
+    private static String paymentFingerprint(String text) {
+        Matcher timestamp = PAYMENT_TIMESTAMP.matcher(text);
+        Matcher amount = AMOUNT.matcher(text);
+        if (!timestamp.find() || !amount.find()) return null;
+        String marker = amount.group(1);
+        String currency = "USD".equalsIgnoreCase(marker) || "$".equals(marker) ? "USD" : "INR";
+        String value = new BigDecimal(amount.group(2).replace(",", "")).stripTrailingZeros().toPlainString();
+        String dateTime = timestamp.group();
+        dateTime = dateTime.substring(0, 10) + " " + dateTime.substring(11);
+        return fingerprint("payment\n" + currency + "\n" + value + "\n" + dateTime);
+    }
+
     @Override
     public void onNotificationPosted(StatusBarNotification notification) {
         Notification source = notification.getNotification();
-        if (getPackageName().equals(notification.getPackageName())
-                || (source.flags & Notification.FLAG_GROUP_SUMMARY) != 0) return;
+        if (getPackageName().equals(notification.getPackageName())) {
+            if (isReviewAlert(notification)) refreshReviewSummary();
+            return;
+        }
+        if ((source.flags & Notification.FLAG_GROUP_SUMMARY) != 0) return;
         Bundle extras = source.extras;
         if (extras == null) return;
         long messageTime = source.when > 0 ? source.when : notification.getPostTime();
@@ -143,14 +181,20 @@ public class PaymentNotificationListener extends NotificationListenerService {
                 || !SPEND.matcher(text).find() || EXCLUDE.matcher(text).find()) return;
         SharedPreferences prefs = preferences(this);
         JSONArray queue = pending(this);
-        String id = fingerprint(notification.getKey() + "\n" + messageTime + "\n" + text);
+        String deliveryId = fingerprint(notification.getKey() + "\n" + messageTime + "\n" + text);
+        String paymentId = paymentFingerprint(text);
+        String id = paymentId == null ? deliveryId : paymentId;
         for (int i = 0; i < queue.length(); i++) {
-            if (id.equals(queue.optJSONObject(i).optString("id"))) return;
+            JSONObject item = queue.optJSONObject(i);
+            if (id.equals(item.optString("id"))
+                    || (paymentId != null && paymentId.equals(paymentFingerprint(item.optString("text"))))) return;
         }
         JSONArray reviewed = read(prefs, REVIEWED);
         String suffix = ":" + fingerprint(id);
+        String deliverySuffix = id.equals(deliveryId) ? suffix : ":" + fingerprint(deliveryId);
         for (int i = 0; i < reviewed.length(); i++) {
-            if (reviewed.optString(i).endsWith(suffix)) return;
+            String entry = reviewed.optString(i);
+            if (entry.endsWith(suffix) || entry.endsWith(deliverySuffix)) return;
         }
         try {
             queue.put(new JSONObject().put("id", id).put("text", text)
@@ -159,7 +203,7 @@ public class PaymentNotificationListener extends NotificationListenerService {
             NotificationManager manager = getSystemService(NotificationManager.class);
             while (queue.length() > 30) {
                 JSONObject expired = (JSONObject) queue.remove(0);
-                manager.cancel(expired.optString("id"), 1);
+                manager.cancel(expired.optString("id"), REVIEW_ALERT_ID);
             }
             prefs.edit().putString(QUEUE, queue.toString()).apply();
             if (foregroundReview != null) foregroundReview.accept(id);
@@ -173,24 +217,79 @@ public class PaymentNotificationListener extends NotificationListenerService {
         if (!manager.areNotificationsEnabled()) return;
         if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(
                 android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) return;
-        Notification.Builder builder;
         if (Build.VERSION.SDK_INT >= 26) {
             NotificationChannel channel = new NotificationChannel(
                     CHANNEL, "Payment reviews", NotificationManager.IMPORTANCE_DEFAULT);
             channel.setLockscreenVisibility(Notification.VISIBILITY_PRIVATE);
             manager.createNotificationChannel(channel);
-            builder = new Notification.Builder(this, CHANNEL);
-        } else {
-            builder = new Notification.Builder(this);
         }
+        manager.notify(id, REVIEW_ALERT_ID, reviewBuilder()
+                .setContentTitle("Possible expense detected")
+                .setContentText("Tap to review in Kharchio")
+                .setAutoCancel(true)
+                .setContentIntent(reviewTap(id))
+                .addAction(0, "Review all", reviewTap(GROUP_TAP))
+                .build());
+    }
+
+    @Override
+    public void onListenerConnected() {
+        refreshReviewSummary();
+    }
+
+    @Override
+    public void onNotificationRemoved(StatusBarNotification notification) {
+        if (getPackageName().equals(notification.getPackageName()) && isReviewAlert(notification)) {
+            refreshReviewSummary();
+        }
+    }
+
+    private static boolean isReviewAlert(StatusBarNotification notification) {
+        return notification.getId() == REVIEW_ALERT_ID && notification.getTag() != null
+                && ALERT_GROUP.equals(notification.getNotification().getGroup());
+    }
+
+    private void refreshReviewSummary() {
+        NotificationManager manager = getSystemService(NotificationManager.class);
+        int count = 0;
+        String lastId = null;
+        boolean hasSummary = false;
+        for (StatusBarNotification alert : manager.getActiveNotifications()) {
+            if (isReviewAlert(alert)) {
+                count++;
+                lastId = alert.getTag();
+            } else if (alert.getId() == REVIEW_SUMMARY_ID && alert.getTag() == null) {
+                hasSummary = true;
+            }
+        }
+        if (count == 0) {
+            if (hasSummary) manager.cancel(REVIEW_SUMMARY_ID);
+            return;
+        }
+        // Canceling a summary can also dismiss its children. If only one is left,
+        // keep the existing summary and point it at that draft.
+        if (count == 1 && !hasSummary) return;
+        NotificationCompat.Builder summary = reviewBuilder()
+                .setGroupSummary(true)
+                .setContentTitle(count == 1 ? "Possible expense detected" : "Review detected expenses")
+                .setContentText(count == 1 ? "Tap to review in Kharchio" : count + " expenses to review")
+                .setContentIntent(reviewTap(count == 1 ? lastId : GROUP_TAP));
+        if (count > 1) summary.addAction(0, "Review all", reviewTap(GROUP_TAP));
+        manager.notify(REVIEW_SUMMARY_ID, summary.build());
+    }
+
+    private NotificationCompat.Builder reviewBuilder() {
+        return new NotificationCompat.Builder(this, CHANNEL)
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+                .setGroup(ALERT_GROUP)
+                .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_CHILDREN);
+    }
+
+    private PendingIntent reviewTap(String id) {
         Intent intent = new Intent(this, MainActivity.class)
                 .setAction(ACTION_PREFIX + id)
                 .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        PendingIntent tap = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE);
-        manager.notify(id, 1, builder.setSmallIcon(android.R.drawable.ic_dialog_info)
-                .setContentTitle("Possible expense detected")
-                .setContentText("Tap to review in Kharchio")
-                .setVisibility(Notification.VISIBILITY_PRIVATE)
-                .setAutoCancel(true).setContentIntent(tap).build());
+        return PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE);
     }
 }

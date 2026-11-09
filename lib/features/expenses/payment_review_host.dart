@@ -27,10 +27,12 @@ class PaymentReviewHost extends ConsumerStatefulWidget {
   const PaymentReviewHost({
     super.key,
     required this.navigatorKey,
+    required this.openReviews,
     required this.child,
   });
 
   final GlobalKey<NavigatorState> navigatorKey;
+  final VoidCallback openReviews;
   final Widget child;
 
   static void reviewItem(BuildContext context, String id) =>
@@ -93,6 +95,7 @@ class _PaymentReviewHostState extends ConsumerState<PaymentReviewHost>
       final id = await paymentNotificationChannel.invokeMethod<String>(
         'consumeReviewTap',
       );
+      if (!mounted) return;
       if (id != null) _requested.add(id);
       _schedule();
     } on PlatformException {
@@ -121,6 +124,12 @@ class _PaymentReviewHostState extends ConsumerState<PaymentReviewHost>
   Future<void> _review() async {
     final context = widget.navigatorKey.currentContext;
     if (_showing || context == null || _requested.isEmpty) return;
+    if (_requested.contains(paymentReviewGroupTap)) {
+      _requested.clear();
+      ref.invalidate(pendingPaymentReviewsProvider);
+      widget.openReviews();
+      return;
+    }
     _showing = true;
     final ids = _requested.toSet();
     _requested.removeAll(ids);
@@ -432,7 +441,15 @@ class _PaymentReviewDialogState extends ConsumerState<_PaymentReviewDialog>
                 children: [
                   Row(
                     children: [
-                      CategoryIcon(_draft.category, size: 28),
+                      CircleAvatar(
+                        radius: 14,
+                        backgroundColor: green.withValues(alpha: .12),
+                        foregroundColor: green,
+                        child: const Icon(
+                          Icons.receipt_long_outlined,
+                          size: 15,
+                        ),
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Column(

@@ -49,7 +49,8 @@ final class SpendingData {
             }
             List<Category> categories = new ArrayList<>();
             long total = 0;
-            String sql = "SELECT c.id, c.name, c.color_value, SUM(e.minor) AS spent "
+            String sql = "SELECT c.id, c.name, c.color_value, "
+                + "SUM(CASE WHEN e.transaction_type = 'refund' THEN -e.minor ELSE e.minor END) AS spent "
                 + "FROM expenses e JOIN categories c ON c.id = e.category_id "
                 + "JOIN monthly_budgets m ON m.id = e.month_id "
                 + "WHERE m.year = ? AND m.month = ? AND e.currency_code = ? "
@@ -61,8 +62,13 @@ final class SpendingData {
                 while (rows.moveToNext()) {
                     long amount = rows.getLong(3);
                     categories.add(new Category(rows.getString(0), rows.getString(1), (int) rows.getLong(2), amount));
-                    total += amount;
                 }
+            }
+            String totalSql = "SELECT COALESCE(SUM(CASE WHEN e.transaction_type = 'refund' THEN -e.minor ELSE e.minor END), 0) "
+                + "FROM expenses e JOIN monthly_budgets m ON m.id = e.month_id "
+                + "WHERE m.year = ? AND m.month = ? AND e.currency_code = ?";
+            try (Cursor totalRow = db.rawQuery(totalSql, args)) {
+                if (totalRow.moveToFirst()) total = totalRow.getLong(0);
             }
             return new SpendingData(categories, total, month, true, currency);
         } catch (Exception error) {

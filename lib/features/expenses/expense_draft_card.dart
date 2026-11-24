@@ -56,6 +56,11 @@ class ExpenseDraftCard extends StatelessWidget {
     this.onTypeChanged,
     this.onRemove,
     this.additionalFields = const [],
+    this.expenseLabel = 'Expense',
+    this.allowRefund = true,
+    this.linkMode = false,
+    this.onLinkModeChanged,
+    this.linkFields = const [],
   });
 
   final ExpenseDraft d;
@@ -67,6 +72,11 @@ class ExpenseDraftCard extends StatelessWidget {
   final ValueChanged<TransactionType>? onTypeChanged;
   final VoidCallback? onRemove;
   final List<Widget> additionalFields;
+  final String expenseLabel;
+  final bool allowRefund;
+  final bool linkMode;
+  final ValueChanged<bool>? onLinkModeChanged;
+  final List<Widget> linkFields;
 
   Widget _field(BuildContext context, Widget child) => CustomPaint(
     foregroundPainter: shimmer == null
@@ -87,235 +97,268 @@ class ExpenseDraftCard extends StatelessWidget {
       );
 
   @override
-  Widget build(BuildContext context) => SurfaceCard(
-    key: ValueKey(d.id),
-    padding: EdgeInsets.all(10),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Container(
-                  constraints: const BoxConstraints(maxWidth: 210),
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    color: context.appColors.field,
-                    border: Border.all(color: context.appColors.line),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Stack(
-                    children: [
-                      Positioned.fill(
-                        child: AnimatedAlign(
-                          duration: MediaQuery.disableAnimationsOf(context)
-                              ? Duration.zero
-                              : const Duration(milliseconds: 220),
-                          curve: Curves.easeInOutCubic,
-                          alignment: d.type == TransactionType.refund
-                              ? Alignment.centerRight
-                              : Alignment.centerLeft,
-                          child: FractionallySizedBox(
-                            widthFactor: .5,
-                            heightFactor: 1,
-                            child: AnimatedContainer(
-                              key: ValueKey(
-                                'transaction-type-highlight-${d.id}',
-                              ),
-                              duration: MediaQuery.disableAnimationsOf(context)
-                                  ? Duration.zero
-                                  : const Duration(milliseconds: 220),
-                              curve: Curves.easeInOutCubic,
-                              decoration: BoxDecoration(
-                                color:
-                                    (d.type == TransactionType.refund
-                                            ? green
-                                            : red)
-                                        .withValues(
-                                          alpha: context.appColors.dark
-                                              ? .15
-                                              : .08,
-                                        ),
-                                borderRadius: BorderRadius.circular(9),
+  Widget build(BuildContext context) {
+    final hasSecondTab = allowRefund || onLinkModeChanged != null;
+    final selectedRight = onLinkModeChanged != null
+        ? linkMode
+        : d.type == TransactionType.refund;
+    final ValueChanged<bool>? onTabChanged = !editable
+        ? null
+        : onLinkModeChanged ??
+              (onTypeChanged == null
+                  ? null
+                  : (right) => onTypeChanged!(
+                      right ? TransactionType.refund : TransactionType.expense,
+                    ));
+    return SurfaceCard(
+      key: ValueKey(d.id),
+      padding: EdgeInsets.all(10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Container(
+                    constraints: BoxConstraints(
+                      maxWidth: hasSecondTab ? 210 : 110,
+                    ),
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      color: context.appColors.line.withValues(alpha: .45),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Positioned.fill(
+                          child: AnimatedAlign(
+                            duration: MediaQuery.disableAnimationsOf(context)
+                                ? Duration.zero
+                                : const Duration(milliseconds: 220),
+                            curve: Curves.easeInOutCubic,
+                            alignment: selectedRight
+                                ? Alignment.centerRight
+                                : Alignment.centerLeft,
+                            child: FractionallySizedBox(
+                              widthFactor: hasSecondTab ? .5 : 1,
+                              heightFactor: 1,
+                              child: AnimatedContainer(
+                                key: ValueKey(
+                                  'transaction-type-highlight-${d.id}',
+                                ),
+                                duration:
+                                    MediaQuery.disableAnimationsOf(context)
+                                    ? Duration.zero
+                                    : const Duration(milliseconds: 220),
+                                curve: Curves.easeInOutCubic,
+                                decoration: BoxDecoration(
+                                  color: selectedRight ? green : red,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: context.appColors.dark
+                                            ? .2
+                                            : .12,
+                                      ),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                  borderRadius: BorderRadius.circular(9),
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                      Row(
-                        children: [
-                          _typeTab(
-                            context,
-                            d,
-                            TransactionType.expense,
-                            'Expense',
-                            Icons.north_east,
-                            red,
+                        Row(
+                          children: [
+                            _typeTab(
+                              context,
+                              expenseLabel,
+                              Icons.north_east,
+                              red,
+                              selected: !selectedRight,
+                              onTap: onTabChanged == null
+                                  ? null
+                                  : () => onTabChanged(false),
+                            ),
+                            if (hasSecondTab)
+                              _typeTab(
+                                context,
+                                onLinkModeChanged != null ? 'Link' : 'Refund',
+                                onLinkModeChanged != null
+                                    ? Icons.link_rounded
+                                    : Icons.south_west,
+                                green,
+                                selected: selectedRight,
+                                onTap: onTabChanged == null
+                                    ? null
+                                    : () => onTabChanged(true),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              IconButton(
+                tooltip: d.type == TransactionType.refund
+                    ? 'Remove refund card'
+                    : 'Remove expense card',
+                style: IconButton.styleFrom(foregroundColor: red),
+                visualDensity: VisualDensity.compact,
+                constraints: BoxConstraints(minWidth: 32, minHeight: 32),
+                padding: EdgeInsets.zero,
+                onPressed: onRemove,
+                icon: Icon(Icons.delete_outline, size: 18),
+                color: red,
+              ),
+            ],
+          ),
+          SizedBox(height: 10),
+          if (linkMode)
+            ...linkFields
+          else ...[
+            _field(
+              context,
+              TextFormField(
+                controller: d.title,
+                enabled: editable,
+                style: TextStyle(fontSize: 12),
+                textCapitalization: TextCapitalization.sentences,
+                decoration: _input(context, 'Title'),
+                validator: (v) =>
+                    v == null || v.trim().isEmpty ? 'Enter a title' : null,
+              ),
+            ),
+            SizedBox(height: 8),
+            _field(
+              context,
+              TextFormField(
+                controller: d.description,
+                enabled: editable,
+                style: TextStyle(fontSize: 12),
+                minLines: 1,
+                maxLines: 2,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: _input(
+                  context,
+                  'Description (optional)',
+                  hint: 'Add a note…',
+                ),
+              ),
+            ),
+            SizedBox(height: 10),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: _field(
+                    context,
+                    AppDropdown<String>(
+                      value: d.category,
+                      label: 'Category',
+                      enabled: editable,
+                      leadingIcon: categories
+                          .where((c) => c.name == d.category)
+                          .firstOrNull
+                          ?.icon,
+                      scrollIntoViewOnOpen: true,
+                      options: [
+                        for (final category in categories)
+                          AppDropdownOption(
+                            category.name,
+                            category.name,
+                            icon: category.icon,
                           ),
-                          _typeTab(
-                            context,
-                            d,
-                            TransactionType.refund,
-                            'Refund',
-                            Icons.south_west,
-                            green,
+                      ],
+                      onChanged: onCategoryChanged,
+                    ),
+                  ),
+                ),
+                SizedBox(width: 8),
+                Expanded(
+                  flex: 2,
+                  child: _field(
+                    context,
+                    Focus(
+                      onFocusChange: (focused) {
+                        if (!focused) d.formatAmount();
+                      },
+                      child: TextFormField(
+                        controller: d.amount,
+                        enabled: editable,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: d.type == TransactionType.refund ? green : red,
+                        ),
+                        keyboardType: TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        decoration:
+                            _input(
+                              context,
+                              'Amount (${currency.symbol})',
+                              hint: '0.00',
+                            ).copyWith(
+                              prefixIcon: Icon(
+                                d.type == TransactionType.refund
+                                    ? Icons.south_west
+                                    : Icons.north_east,
+                                size: 16,
+                                color: d.type == TransactionType.refund
+                                    ? green
+                                    : red,
+                              ),
+                              prefixIconConstraints: const BoxConstraints(
+                                minWidth: 28,
+                                minHeight: 36,
+                              ),
+                            ),
+                        inputFormatters: [
+                          TextInputFormatter.withFunction(
+                            (oldValue, newValue) =>
+                                RegExp(r'^\d{0,10}(\.\d{0,2})?$')
+                                    .hasMatch(newValue.text)
+                                ? newValue
+                                : oldValue,
                           ),
                         ],
+                        validator: (v) {
+                          final n = double.tryParse(v ?? '');
+                          return n == null || !n.isFinite || n <= 0
+                              ? 'Invalid amount'
+                              : null;
+                        },
                       ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
-            IconButton(
-              tooltip: d.type == TransactionType.refund
-                  ? 'Remove refund card'
-                  : 'Remove expense card',
-              style: IconButton.styleFrom(foregroundColor: red),
-              visualDensity: VisualDensity.compact,
-              constraints: BoxConstraints(minWidth: 32, minHeight: 32),
-              padding: EdgeInsets.zero,
-              onPressed: onRemove,
-              icon: Icon(Icons.delete_outline, size: 18),
-              color: red,
-            ),
+            ...additionalFields,
           ],
-        ),
-        SizedBox(height: 10),
-        _field(
-          context,
-          TextFormField(
-            controller: d.title,
-            enabled: editable,
-            style: TextStyle(fontSize: 12),
-            textCapitalization: TextCapitalization.sentences,
-            decoration: _input(context, 'Title'),
-            validator: (v) =>
-                v == null || v.trim().isEmpty ? 'Enter a title' : null,
-          ),
-        ),
-        SizedBox(height: 8),
-        _field(
-          context,
-          TextFormField(
-            controller: d.description,
-            enabled: editable,
-            style: TextStyle(fontSize: 12),
-            minLines: 1,
-            maxLines: 2,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: _input(
-              context,
-              'Description (optional)',
-              hint: 'Add a note…',
-            ),
-          ),
-        ),
-        SizedBox(height: 10),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              flex: 3,
-              child: _field(
-                context,
-                AppDropdown<String>(
-                  value: d.category,
-                  label: 'Category',
-                  enabled: editable,
-                  leadingIcon: categories
-                      .where((c) => c.name == d.category)
-                      .firstOrNull
-                      ?.icon,
-                  scrollIntoViewOnOpen: true,
-                  options: [
-                    for (final category in categories)
-                      AppDropdownOption(
-                        category.name,
-                        category.name,
-                        icon: category.icon,
-                      ),
-                  ],
-                  onChanged: onCategoryChanged,
-                ),
-              ),
-            ),
-            SizedBox(width: 8),
-            Expanded(
-              flex: 2,
-              child: _field(
-                context,
-                Focus(
-                  onFocusChange: (focused) {
-                    if (!focused) d.formatAmount();
-                  },
-                  child: TextFormField(
-                    controller: d.amount,
-                    enabled: editable,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: d.type == TransactionType.refund ? green : red,
-                    ),
-                    keyboardType: TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    decoration:
-                        _input(
-                          context,
-                          'Amount (${currency.symbol})',
-                          hint: '0.00',
-                        ).copyWith(
-                          prefixIcon: Icon(
-                            d.type == TransactionType.refund
-                                ? Icons.south_west
-                                : Icons.north_east,
-                            size: 16,
-                            color: d.type == TransactionType.refund
-                                ? green
-                                : red,
-                          ),
-                          prefixIconConstraints: const BoxConstraints(
-                            minWidth: 28,
-                            minHeight: 36,
-                          ),
-                        ),
-                    inputFormatters: [
-                      TextInputFormatter.withFunction(
-                        (oldValue, newValue) =>
-                            RegExp(r'^\d{0,10}(\.\d{0,2})?$')
-                                .hasMatch(newValue.text)
-                            ? newValue
-                            : oldValue,
-                      ),
-                    ],
-                    validator: (v) {
-                      final n = double.tryParse(v ?? '');
-                      return n == null || !n.isFinite || n <= 0
-                          ? 'Invalid amount'
-                          : null;
-                    },
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-        ...additionalFields,
-      ],
-    ),
-  );
+        ],
+      ),
+    );
+  }
 
   Widget _typeTab(
     BuildContext context,
-    ExpenseDraft draft,
-    TransactionType type,
     String label,
     IconData icon,
-    Color color,
-  ) {
-    final selected = draft.type == type;
+    Color color, {
+    required bool selected,
+    VoidCallback? onTap,
+  }) {
+    final foreground = selected
+        ? (color == red ? Colors.white : const AppColors(false).ink)
+        : color;
     return Expanded(
       child: Semantics(
         selected: selected,
@@ -324,9 +367,11 @@ class ExpenseDraftCard extends StatelessWidget {
           color: Colors.transparent,
           child: InkWell(
             borderRadius: BorderRadius.circular(9),
-            onTap: !editable || onTypeChanged == null
-                ? null
-                : () => onTypeChanged!(type),
+            splashFactory: NoSplash.splashFactory,
+            highlightColor: Colors.transparent,
+            hoverColor: Colors.transparent,
+            focusColor: Colors.transparent,
+            onTap: onTap,
             child: Container(
               constraints: const BoxConstraints(minHeight: 34),
               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
@@ -334,11 +379,7 @@ class ExpenseDraftCard extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    icon,
-                    size: 14,
-                    color: selected ? color : context.appColors.muted,
-                  ),
+                  Icon(icon, size: 14, color: foreground),
                   const SizedBox(width: 4),
                   Flexible(
                     child: Text(
@@ -349,8 +390,8 @@ class ExpenseDraftCard extends StatelessWidget {
                         fontSize: 12,
                         fontWeight: selected
                             ? FontWeight.w600
-                            : FontWeight.w400,
-                        color: selected ? color : context.appColors.muted,
+                            : FontWeight.w500,
+                        color: foreground,
                       ),
                     ),
                   ),

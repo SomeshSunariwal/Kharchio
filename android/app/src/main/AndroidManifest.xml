@@ -1,6 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
@@ -19,6 +20,14 @@
         android:roundIcon="@mipmap/ic_launcher">
         <uses-native-library android:name="libOpenCL.so" android:required="false" />
         <uses-native-library android:name="libcdsprpc.so" android:required="false" />
+        <receiver android:name=".SubscriptionReminderReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
         <service android:name=".PaymentNotificationListener"
             android:label="Kharchio payment detection"
             android:exported="false"
@@ -34,6 +43,18 @@
                 android:resource="@xml/widget_spending_info" />
         </receiver>
         <service android:name=".widgets.spending.SpendingLegendService"
+            android:exported="false" android:permission="android.permission.BIND_REMOTEVIEWS" />
+        <receiver android:name=".widgets.subscriptions.SubscriptionWidget"
+            android:exported="false" android:label="@string/widget_subscriptions_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider"
+                android:resource="@xml/widget_subscriptions_info" />
+        </receiver>
+        <service android:name=".widgets.subscriptions.SubscriptionWidgetService"
             android:exported="false" android:permission="android.permission.BIND_REMOTEVIEWS" />
         <activity
             android:name=".widgets.manualexpense.ExpenseEntryActivity"

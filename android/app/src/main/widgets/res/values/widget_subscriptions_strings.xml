@@ -1,0 +1,17 @@
+<resources>
+    <string name="widget_subscriptions_label">Kharchio Subscriptions</string>
+    <string name="widget_subscriptions_title">Subscriptions</string>
+    <string name="widget_subscriptions_description">Upcoming and overdue subscription renewals</string>
+    <string name="widget_subscriptions_column_name">Subscription</string>
+    <string name="widget_subscriptions_column_amount">Amount</string>
+    <string name="widget_subscriptions_column_days">Remaining Days</string>
+    <string name="widget_subscriptions_empty">No unpaid renewals this month</string>
+    <string name="widget_subscriptions_setup">Open Kharchio to set up subscriptions</string>
+    <string name="widget_subscriptions_today">Due today</string>
+    <plurals name="widget_subscriptions_days">
+        <item quantity="one">%1$s%2$d day</item>
+        <item quantity="other">%1$s%2$d days</item>
+    </plurals>
+    <dimen name="widget_subscriptions_amount_width">76dp</dimen>
+    <dimen name="widget_subscriptions_days_width">91dp</dimen>
+</resources>

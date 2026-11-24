@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
@@ -7,6 +8,7 @@ import 'core/preferences.dart';
 import 'core/theme_settings.dart';
 import 'database/app_database.dart';
 import 'database/local_store.dart';
+import 'services/subscription_demo.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,7 +21,11 @@ Future<void> main() async {
       /* Fresh install. */
     }
     await store.initialize(legacy);
+    if (kDebugMode && const bool.fromEnvironment('SUBSCRIPTION_DEMO_DATA')) {
+      await seedSubscriptionDemo(store, DateTime.now());
+    }
   } catch (error, stack) {
+    if (kDebugMode) debugPrint('Local database startup failed: $error');
     await store.db.close();
     FlutterError.reportError(
       FlutterErrorDetails(exception: error, stack: stack),
@@ -54,7 +60,7 @@ Future<void> main() async {
         ),
         initialPreferencesProvider.overrideWithValue(
           AppPreferences.fromMap({
-            'aiMode': settings['ai_mode'] ?? 'onDevice',
+            if (settings['ai_mode'] case final String mode) 'aiMode': mode,
             'onlineAiProvider': settings['online_ai_provider'] ?? 'none',
             'currency': settings['default_currency'] ?? 'INR',
             'speechLanguage': settings['speech_language'] ?? 'auto',

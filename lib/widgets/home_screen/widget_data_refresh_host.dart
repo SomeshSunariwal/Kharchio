@@ -7,7 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/categories.dart';
 import '../../core/expense_store.dart';
 import '../../core/preferences.dart';
-import 'spending_widget_updates.dart';
+import '../../database/subscription_store.dart';
+import 'home_widget_updates.dart';
 
 /// The popup uses another Flutter engine/SQLite connection. Refresh on resume
 /// because Drift notifications are scoped to the connection that made a write.
@@ -25,7 +26,7 @@ class _WidgetDataRefreshHostState extends ConsumerState<WidgetDataRefreshHost>
   void _queueWidgetRefresh() {
     refreshTimer?.cancel();
     refreshTimer = Timer(const Duration(milliseconds: 150), () {
-      if (mounted) unawaited(SpendingWidgetUpdates.refresh());
+      if (mounted) unawaited(HomeWidgetUpdates.refreshSpending());
     });
   }
 
@@ -49,6 +50,7 @@ class _WidgetDataRefreshHostState extends ConsumerState<WidgetDataRefreshHost>
   }
 
   Future<void> _refresh() async {
+    unawaited(HomeWidgetUpdates.refreshSubscriptions());
     try {
       await ref.read(expensesProvider.notifier).refresh();
     } catch (e) {
@@ -58,6 +60,9 @@ class _WidgetDataRefreshHostState extends ConsumerState<WidgetDataRefreshHost>
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(subscriptionsProvider, (_, next) {
+      if (next.hasValue) unawaited(HomeWidgetUpdates.refreshSubscriptions());
+    });
     ref.listen(expensesProvider, (_, _) => _queueWidgetRefresh());
     ref.listen(categoriesProvider, (_, _) => _queueWidgetRefresh());
     ref.listen(

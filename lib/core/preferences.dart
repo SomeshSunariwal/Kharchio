@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../database/local_store.dart';
+import 'network_connectivity.dart';
 
 enum AppCurrency {
   inr('INR', '₹', 'en_IN'),
@@ -10,6 +11,12 @@ enum AppCurrency {
 
   final String code, symbol, locale;
   const AppCurrency(this.code, this.symbol, this.locale);
+
+  static final _byCode = {
+    for (final currency in values) currency.code: currency,
+  };
+  static AppCurrency fromCode(String code) =>
+      _byCode[code] ?? (throw StateError('No element'));
 
   static final _formatters = <String, NumberFormat>{};
 
@@ -67,13 +74,14 @@ enum OnlineAiProvider {
 }
 
 class AppPreferences {
+  /// Online follows connectivity. On Device is a manual override.
   final AiMode aiMode;
   final OnlineAiProvider onlineAiProvider;
   final AppCurrency currency;
   final String speechLanguage;
   final ProcessingMode speechProcessing, expenseProcessing;
   const AppPreferences({
-    this.aiMode = AiMode.onDevice,
+    this.aiMode = AiMode.online,
     this.onlineAiProvider = OnlineAiProvider.none,
     this.currency = AppCurrency.inr,
     this.speechLanguage = 'auto',
@@ -84,7 +92,7 @@ class AppPreferences {
   factory AppPreferences.fromMap(Map<String, String> values) => AppPreferences(
     aiMode: AiMode.values.firstWhere(
       (mode) => mode.name == values['aiMode'],
-      orElse: () => AiMode.onDevice,
+      orElse: () => AiMode.online,
     ),
     onlineAiProvider: OnlineAiProvider.values.firstWhere(
       (provider) => provider.name == values['onlineAiProvider'],
@@ -134,22 +142,33 @@ final preferencesProvider = NotifierProvider<PreferencesStore, AppPreferences>(
   PreferencesStore.new,
 );
 
+final activeAiModeProvider = Provider<AiMode>((ref) {
+  final mode = ref.watch(preferencesProvider.select((p) => p.aiMode));
+  final connected = ref.watch(networkConnectivityProvider).value == true;
+  return connected ? mode : AiMode.onDevice;
+});
+
+final usesOnlineAiProvider = Provider<bool>((ref) {
+  final mode = ref.watch(activeAiModeProvider);
+  final provider = ref.watch(
+    preferencesProvider.select((p) => p.onlineAiProvider),
+  );
+  return mode == AiMode.online && provider != OnlineAiProvider.none;
+});
+
+final showOfflineAiNoticeProvider = Provider<bool>((ref) {
+  final mode = ref.watch(preferencesProvider.select((p) => p.aiMode));
+  final connected = ref.watch(networkConnectivityProvider).value;
+  return mode == AiMode.online && connected == false;
+});
+
 class PreferencesStore extends Notifier<AppPreferences> {
   @override
   AppPreferences build() => ref.read(initialPreferencesProvider);
 
   Future<void> setAiMode(AiMode mode) async {
-    final store = ref.read(localStoreProvider);
-    await store.db.transaction(() async {
-      await store.writeSetting('ai_mode', mode.name);
-      if (mode == AiMode.onDevice) {
-        await store.writeSetting('online_ai_provider', OnlineAiProvider.none.name);
-      }
-    });
-    state = state.copyWith(
-      aiMode: mode,
-      onlineAiProvider: mode == AiMode.onDevice ? OnlineAiProvider.none : null,
-    );
+    await ref.read(localStoreProvider).writeSetting('ai_mode', mode.name);
+    state = state.copyWith(aiMode: mode);
   }
 
   Future<void> setOnlineAiProvider(OnlineAiProvider provider) async {

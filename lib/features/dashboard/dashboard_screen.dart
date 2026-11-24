@@ -9,6 +9,7 @@ import '../../core/expense_summary_provider.dart';
 import '../../core/monthly_budgets.dart';
 import '../../core/preferences.dart';
 import '../../core/theme.dart';
+import '../../database/subscription_store.dart';
 import '../../shared/category_donut.dart';
 import '../../shared/collapsing_expense_overview.dart';
 import '../../shared/widgets.dart';
@@ -72,6 +73,7 @@ class _DashboardState extends ConsumerState<DashboardScreen>
         ? null
         : context.categoryNames.indexOf(categoryFilter);
     final expenses = currentSummary.expenses;
+    final subscriptions = ref.watch(subscriptionsProvider).value;
     final total = currentSummary.total;
     final budget = ref.watch(
       monthBudgetProvider((
@@ -356,24 +358,19 @@ class _DashboardState extends ConsumerState<DashboardScreen>
               // the header. NestedScrollView consumes header travel before rows.
               body: Padding(
                 padding: EdgeInsets.fromLTRB(14, chartHeader.minExtent, 14, 0),
-                child: ConnectedListCard(
-                  child: visible.isEmpty
-                      ? const Center(child: Text('No transactions found'))
-                      : ListView.separated(
-                          padding: EdgeInsets.zero,
-                          itemCount: visible.length,
-                          separatorBuilder: (context, index) => Divider(
-                            height: 1,
-                            indent: 10,
-                            endIndent: 10,
-                            color: context.appColors.line,
-                          ),
-                          itemBuilder: (context, index) => ExpenseTile(
-                            visible[index],
-                            onTap: () =>
-                                context.push('/add', extra: visible[index]),
-                          ),
-                        ),
+                child: TransactionList(
+                  empty: const Center(child: Text('No transactions found')),
+                  itemCount: visible.length,
+                  itemBuilder: (context, index) {
+                    final expense = visible[index];
+                    return ExpenseTile(
+                      expense,
+                      subscriptionName: subscriptions
+                          ?.planForExpense(expense.id)
+                          ?.name,
+                      onTap: () => context.push('/add', extra: expense),
+                    );
+                  },
                 ),
               ),
             ),

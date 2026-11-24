@@ -2,21 +2,43 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../core/theme.dart';
+import 'app_dropdown.dart';
+import 'widgets.dart';
 
 /// Shared transaction date dialog, including month/year navigation.
 class ModernDatePicker extends StatefulWidget {
   final DateTime initialDate;
-  const ModernDatePicker({super.key, required this.initialDate});
+  final bool includeTime;
+  final DateTime? firstDate;
+  const ModernDatePicker({
+    super.key,
+    required this.initialDate,
+    this.includeTime = false,
+    this.firstDate,
+  });
   @override
   State<ModernDatePicker> createState() => _ModernDatePickerState();
 }
 
 class _ModernDatePickerState extends State<ModernDatePicker> {
-  static final firstDate = DateTime(2000);
+  double get controlHeight =>
+      36 + (MediaQuery.textScalerOf(context).scale(12) - 12).clamp(0, 24);
+  DateTime get firstDate =>
+      DateUtils.dateOnly(widget.firstDate ?? DateTime(2000));
   static final lastDate = DateTime(2100);
   late DateTime selected;
   late DateTime month;
+  late double monthSelectorWidth;
   bool choosingYear = false;
+  late int hour = widget.initialDate.hour;
+  late int minute = widget.initialDate.minute;
+
+  int get calendarCells {
+    final firstWeekday = MaterialLocalizations.of(context).firstDayOfWeekIndex;
+    final offset = (month.weekday % 7 - firstWeekday + 7) % 7;
+    final days = DateUtils.getDaysInMonth(month.year, month.month);
+    return ((offset + days) / 7).ceil() * 7;
+  }
 
   DateTime bounded(DateTime value) => value.isBefore(firstDate)
       ? firstDate
@@ -29,6 +51,27 @@ class _ModernDatePickerState extends State<ModernDatePicker> {
     super.initState();
     selected = bounded(DateUtils.dateOnly(widget.initialDate));
     month = DateTime(selected.year, selected.month);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final monthLabel = TextPainter(
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      maxLines: 1,
+    );
+    var widestMonth = 0.0;
+    for (var value = 1; value <= 12; value++) {
+      monthLabel.text = TextSpan(
+        text: DateFormat('MMMM yyyy').format(DateTime(8888, value)),
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(fontSize: 12),
+      );
+      monthLabel.layout();
+      if (monthLabel.width > widestMonth) widestMonth = monthLabel.width;
+    }
+    monthLabel.dispose();
+    monthSelectorWidth = widestMonth.ceilToDouble() + 48;
   }
 
   @override
@@ -51,7 +94,9 @@ class _ModernDatePickerState extends State<ModernDatePicker> {
                   children: [
                     Expanded(
                       child: Text(
-                        'Select date',
+                        widget.includeTime
+                            ? 'Select date and time'
+                            : 'Select date',
                         style: TextStyle(fontSize: 12, color: colors.muted),
                       ),
                     ),
@@ -91,22 +136,30 @@ class _ModernDatePickerState extends State<ModernDatePicker> {
                       child: Align(
                         alignment: Alignment.centerLeft,
                         child: OutlinedButton(
+                          key: const ValueKey('calendar-month-selector'),
                           onPressed: () =>
                               setState(() => choosingYear = !choosingYear),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: colors.ink,
-                            backgroundColor: colors.field,
-                            side: BorderSide(color: colors.line),
-                            minimumSize: const Size(0, 36),
+                            backgroundColor: Colors.transparent,
+                            side: BorderSide.none,
+                            minimumSize: Size(
+                              monthSelectorWidth,
+                              controlHeight,
+                            ),
+                            maximumSize: Size(
+                              monthSelectorWidth,
+                              double.infinity,
+                            ),
+                            visualDensity: VisualDensity.standard,
                             padding: const EdgeInsets.symmetric(horizontal: 10),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(11),
                             ),
                           ),
                           child: Row(
-                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              Flexible(
+                              Expanded(
                                 child: Text(
                                   choosingYear
                                       ? 'Select year'
@@ -148,82 +201,141 @@ class _ModernDatePickerState extends State<ModernDatePicker> {
                 const SizedBox(height: 8),
                 if (choosingYear)
                   SizedBox(
-                    height: 240,
-                    child: YearPicker(
-                      firstDate: firstDate,
-                      lastDate: lastDate,
-                      selectedDate: month,
-                      onChanged: (value) => setState(() {
-                        month = DateTime(
-                          value.year,
-                          value.year == lastDate.year ? 1 : month.month,
-                        );
-                        choosingYear = false;
-                      }),
+                    height: 30 + calendarCells / 7 * 40,
+                    child: DividerTheme(
+                      data: const DividerThemeData(
+                        color: Colors.transparent,
+                        space: 0,
+                        thickness: 0,
+                      ),
+                      child: YearPicker(
+                        firstDate: firstDate,
+                        lastDate: lastDate,
+                        selectedDate: month,
+                        onChanged: (value) => setState(() {
+                          final target = bounded(
+                            DateTime(
+                              value.year,
+                              value.year == lastDate.year ? 1 : month.month,
+                            ),
+                          );
+                          month = DateTime(target.year, target.month);
+                          choosingYear = false;
+                        }),
+                      ),
                     ),
                   )
                 else
                   _calendar(),
+                if (widget.includeTime) ...[
+                  const SizedBox(height: 12),
+                  Divider(height: 1, color: colors.line),
+                  const SizedBox(height: 16),
+                  Row(
+                    spacing: 8,
+                    children: [
+                      Expanded(
+                        child: AppDropdown<int>(
+                          label: 'Hour',
+                          value: hour % 12 == 0 ? 12 : hour % 12,
+                          options: [
+                            for (var value = 1; value <= 12; value++)
+                              AppDropdownOption(value, '$value'),
+                          ],
+                          onChanged: (value) => setState(
+                            () => hour = value % 12 + (hour >= 12 ? 12 : 0),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: AppDropdown<int>(
+                          label: 'Minute',
+                          value: minute,
+                          options: [
+                            for (var value = 0; value < 60; value++)
+                              AppDropdownOption(
+                                value,
+                                value.toString().padLeft(2, '0'),
+                              ),
+                          ],
+                          onChanged: (value) => setState(() => minute = value),
+                        ),
+                      ),
+                      Expanded(
+                        child: AppDropdown<bool>(
+                          label: 'AM / PM',
+                          value: hour >= 12,
+                          options: const [
+                            AppDropdownOption(false, 'AM'),
+                            AppDropdownOption(true, 'PM'),
+                          ],
+                          onChanged: (value) => setState(
+                            () => hour = hour % 12 + (value ? 12 : 0),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 10),
                 Divider(height: 1, color: colors.line),
                 const SizedBox(height: 10),
-                Wrap(
-                  alignment: WrapAlignment.spaceBetween,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  runSpacing: 4,
-                  children: [
-                    TextButton(
-                      onPressed: () => setState(() {
-                        selected = bounded(DateUtils.dateOnly(DateTime.now()));
-                        month = DateTime(selected.year, selected.month);
-                        choosingYear = false;
-                      }),
-                      style: TextButton.styleFrom(
-                        foregroundColor: green,
-                        padding: const EdgeInsets.symmetric(horizontal: 6),
-                        minimumSize: const Size(0, 36),
+                if (!widget.includeTime)
+                  Row(
+                    children: [
+                      TextButton(
+                        onPressed: _selectToday,
+                        style: TextButton.styleFrom(foregroundColor: green),
+                        child: const Text(
+                          'Today',
+                          style: TextStyle(fontSize: 12),
+                        ),
                       ),
-                      child: const Text(
-                        'Today',
-                        style: TextStyle(fontSize: 12),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: TextButton.styleFrom(
+                          foregroundColor: colors.muted,
+                        ),
+                        child: const Text(
+                          'Cancel',
+                          style: TextStyle(fontSize: 12),
+                        ),
                       ),
-                    ),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          style: TextButton.styleFrom(
-                            foregroundColor: colors.muted,
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            minimumSize: const Size(0, 36),
-                          ),
-                          child: const Text(
-                            'Cancel',
-                            style: TextStyle(fontSize: 12),
+                      const SizedBox(width: 4),
+                      FilledButton(
+                        onPressed: () => Navigator.pop(context, selected),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: green,
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size(0, 36),
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
                           ),
                         ),
-                        const SizedBox(width: 4),
-                        FilledButton(
-                          onPressed: () => Navigator.pop(context, selected),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: green,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size(0, 36),
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          child: const Text(
-                            'Apply',
-                            style: TextStyle(fontSize: 12),
-                          ),
+                        child: const Text(
+                          'Apply',
+                          style: TextStyle(fontSize: 12),
                         ),
-                      ],
+                      ),
+                    ],
+                  )
+                else
+                  DialogActionRow(
+                    onSecondary: () => Navigator.pop(context),
+                    onPrimary: () => Navigator.pop(
+                      context,
+                      DateTime(
+                        selected.year,
+                        selected.month,
+                        selected.day,
+                        hour,
+                        minute,
+                      ),
                     ),
-                  ],
-                ),
+                    primaryLabel: const Text('Apply'),
+                  ),
               ],
             ),
           ),
@@ -232,9 +344,16 @@ class _ModernDatePickerState extends State<ModernDatePicker> {
     );
   }
 
+  void _selectToday() => setState(() {
+    selected = bounded(DateUtils.dateOnly(DateTime.now()));
+    month = DateTime(selected.year, selected.month);
+    choosingYear = false;
+  });
+
   Widget _arrow(String label, IconData icon, int offset) {
     final next = DateTime(month.year, month.month + offset);
-    final available = !next.isBefore(firstDate) && !next.isAfter(lastDate);
+    final monthEnd = DateTime(next.year, next.month + 1, 0);
+    final available = !monthEnd.isBefore(firstDate) && !next.isAfter(lastDate);
     return IconButton(
       tooltip: label,
       onPressed: available ? () => setState(() => month = next) : null,
@@ -242,9 +361,11 @@ class _ModernDatePickerState extends State<ModernDatePicker> {
         backgroundColor: context.appColors.field,
         foregroundColor: context.appColors.ink,
         side: BorderSide(color: context.appColors.line),
-        minimumSize: const Size(34, 34),
-        visualDensity: VisualDensity.compact,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        fixedSize: Size.square(controlHeight),
+        minimumSize: Size.square(controlHeight),
+        visualDensity: VisualDensity.standard,
+        padding: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
       ),
       icon: Icon(icon, size: 19),
     );
@@ -255,7 +376,7 @@ class _ModernDatePickerState extends State<ModernDatePicker> {
     final colors = context.appColors;
     final offset = (month.weekday % 7 - locale.firstDayOfWeekIndex + 7) % 7;
     final count = DateUtils.getDaysInMonth(month.year, month.month);
-    final cells = ((offset + count) / 7).ceil() * 7;
+    final cells = calendarCells;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [

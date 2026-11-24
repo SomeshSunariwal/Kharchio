@@ -11,8 +11,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/categories.dart';
 import '../../core/expense_store.dart';
 import '../../core/preferences.dart';
+import '../../core/subscriptions.dart';
 import '../../core/theme.dart';
 import '../../database/local_store.dart';
+import '../../database/subscription_store.dart';
 import '../../services/ai/expense_extractor.dart';
 import '../../services/ai/model_manager.dart';
 import '../../services/ai/native_ai.dart';
@@ -197,6 +199,7 @@ class _PaymentReviewDialogState extends ConsumerState<_PaymentReviewDialog>
   bool _extracting = false;
   bool _saving = false;
   bool _rejected = false;
+  SubscriptionDue? _confirmedRenewal;
   String? _status;
   NativeAiJob? _job;
   late final _shimmer = AnimationController(
@@ -222,14 +225,32 @@ class _PaymentReviewDialogState extends ConsumerState<_PaymentReviewDialog>
   void initState() {
     super.initState();
     final draft = widget.draft;
-    _currency = AppCurrency.values.firstWhere(
-      (value) => value.code == draft.currency,
-    );
+    _currency = AppCurrency.fromCode(draft.currency);
     final names = ref.read(categoriesProvider).map((category) => category.name);
     _draft = ExpenseDraft(
       title: draft.merchant,
       amount: draft.amount.toStringAsFixed(2),
       category: names.contains(draft.category) ? draft.category : names.first,
+    );
+    _draft.title.addListener(_refreshSubscriptionMatch);
+    _draft.amount.addListener(_refreshSubscriptionMatch);
+  }
+
+  void _refreshSubscriptionMatch() => setState(() {});
+
+  SubscriptionMatch? _subscriptionMatch(SubscriptionState? subscriptions) {
+    final amount = double.tryParse(_draft.amount.text.trim());
+    if (amount == null || !amount.isFinite || amount <= 0) return null;
+    return subscriptions?.match(
+      Expense(
+        id: '',
+        title: _draft.title.text.trim(),
+        category: _draft.category,
+        amount: amount,
+        date: widget.draft.date,
+        type: _draft.type,
+        currencyCode: _currency.code,
+      ),
     );
   }
 
@@ -260,13 +281,10 @@ class _PaymentReviewDialogState extends ConsumerState<_PaymentReviewDialog>
       final text = redactPaymentText(widget.text);
       final currency = widget.draft.currency;
       final List<ExtractedExpense> result;
-      if (preferences.aiMode == AiMode.online) {
+      if (ref.read(usesOnlineAiProvider)) {
         final provider = preferences.onlineAiProvider;
         final keys = ref.read(onlineAiKeysProvider);
         final createClient = ref.read(onlineAiClientFactoryProvider);
-        if (provider == OnlineAiProvider.none) {
-          throw StateError('No AI provider selected.');
-        }
         final key = await keys.read(provider);
         final models = await keys.models(provider);
         if (!mounted) return;
@@ -366,33 +384,45 @@ class _PaymentReviewDialogState extends ConsumerState<_PaymentReviewDialog>
       final amount = double.parse(_draft.amount.text.trim());
       final existing = await ref.read(localStoreProvider).readExpenses();
       if (!mounted) return;
-      final date = DateTime.now();
-      final duplicate = existing.any(
-        (expense) =>
-            expense.id == id ||
-            (expense.type == _draft.type &&
-                expense.currencyCode == _currency.code &&
-                expense.amount == amount &&
-                expense.title.toLowerCase() == title.toLowerCase() &&
-                expense.date.difference(widget.draft.date).abs() <
-                    const Duration(seconds: 60)),
+      final date = widget.draft.date;
+      final duplicate = existing
+          .where(
+            (expense) =>
+                expense.id == id ||
+                (expense.type == _draft.type &&
+                    expense.currencyCode == _currency.code &&
+                    expense.amount == amount &&
+                    expense.title.toLowerCase() == title.toLowerCase() &&
+                    expense.date.difference(widget.draft.date).abs() <
+                        const Duration(seconds: 60)),
+          )
+          .firstOrNull;
+      final expense = Expense(
+        id: id,
+        title: title,
+        description: _draft.description.text.trim(),
+        amount: amount,
+        category: _draft.category,
+        type: _draft.type,
+        date: date,
+        currencyCode: _currency.code,
       );
-      if (!duplicate) {
-        await ref.read(expensesProvider.notifier).save([
-          Expense(
-            id: id,
-            title: title,
-            description: _draft.description.text.trim(),
-            amount: amount,
-            category: _draft.category,
-            type: _draft.type,
-            date: date,
-            currencyCode: _currency.code,
-          ),
-        ]);
+      final match = _subscriptionMatch(ref.read(subscriptionsProvider).value);
+      final confirmed = _confirmedRenewal;
+      if (confirmed != null &&
+          match?.plan.id == confirmed.planId &&
+          match?.dueDay == confirmed.dueDay) {
+        final store = ref.read(subscriptionStoreProvider);
+        if (duplicate == null) {
+          await store.saveAndLink(expense, confirmed.planId, confirmed.dueDay);
+        } else {
+          await store.link(confirmed.planId, {confirmed.dueDay: duplicate.id});
+        }
+      } else if (duplicate == null) {
+        await ref.read(expensesProvider.notifier).save([expense]);
       }
       if (mounted) {
-        if (duplicate) {
+        if (duplicate != null) {
           notice(context, 'This expense is already recorded.');
         }
         Navigator.pop(context, 'saved');
@@ -412,7 +442,8 @@ class _PaymentReviewDialogState extends ConsumerState<_PaymentReviewDialog>
   Widget build(BuildContext context) {
     final categories = ref.watch(categoriesProvider);
     final preferences = ref.watch(preferencesProvider);
-    final online = preferences.aiMode == AiMode.online;
+    final online = ref.watch(usesOnlineAiProvider);
+    final match = _subscriptionMatch(ref.watch(subscriptionsProvider).value);
     final subtitle =
         _status ??
         (online
@@ -492,6 +523,28 @@ class _PaymentReviewDialogState extends ConsumerState<_PaymentReviewDialog>
                         ? null
                         : () => Navigator.pop(context, 'dismissed'),
                   ),
+                  if (match != null)
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      title: Text('Link to ${match.plan.name} renewal'),
+                      subtitle: Text(
+                        'Due ${MaterialLocalizations.of(context).formatMediumDate(subscriptionDate(match.dueDay))}',
+                      ),
+                      value:
+                          _confirmedRenewal ==
+                          (planId: match.plan.id, dueDay: match.dueDay),
+                      onChanged: editable
+                          ? (value) => setState(() {
+                              _confirmedRenewal = value == true
+                                  ? (
+                                      planId: match.plan.id,
+                                      dueDay: match.dueDay,
+                                    )
+                                  : null;
+                            })
+                          : null,
+                    ),
                   const SizedBox(height: 12),
                   Row(
                     children: [

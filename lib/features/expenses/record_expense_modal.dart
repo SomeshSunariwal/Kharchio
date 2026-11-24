@@ -46,7 +46,9 @@ class _RecordState extends ConsumerState<RecordExpenseModal>
   final transcriptScroll = ScrollController();
   final summaryScroll = ScrollController();
   late final capture = ref.read(voiceCaptureFactoryProvider)();
-  AppPreferences sessionPreferences = const AppPreferences();
+  AppPreferences sessionPreferences = const AppPreferences(
+    aiMode: AiMode.onDevice,
+  );
   bool get online => sessionPreferences.aiMode == AiMode.online;
   bool get usesLocalSpeech =>
       !online ||
@@ -94,7 +96,13 @@ class _RecordState extends ConsumerState<RecordExpenseModal>
 
   Future<void> startRecording() async {
     if (!mounted) return;
-    sessionPreferences = ref.read(preferencesProvider);
+    sessionPreferences = ref
+        .read(preferencesProvider)
+        .copyWith(
+          aiMode: ref.read(usesOnlineAiProvider)
+              ? AiMode.online
+              : AiMode.onDevice,
+        );
     onlineClient?.close();
     onlineSpeech?.close();
     onlineSpeech = null;
@@ -116,11 +124,6 @@ class _RecordState extends ConsumerState<RecordExpenseModal>
       OfflineModels? models;
       if (online) {
         final provider = sessionPreferences.onlineAiProvider;
-        if (provider == OnlineAiProvider.none) {
-          throw StateError(
-            'Select an online provider in Profile & Settings → Online AI.',
-          );
-        }
         final keys = ref.read(onlineAiKeysProvider);
         onlineModels = await keys.models(provider);
         final onlineKey = await keys.read(provider);

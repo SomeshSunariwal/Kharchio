@@ -10,12 +10,16 @@ class AppDropdownOption<T> {
   final IconData? icon;
   final String? badge;
   final Color? badgeColor;
+  final String? leadingText;
+  final String? trailingText;
   const AppDropdownOption(
     this.value,
     this.label, {
     this.icon,
     this.badge,
     this.badgeColor,
+    this.leadingText,
+    this.trailingText,
   });
 }
 
@@ -29,6 +33,7 @@ class AppDropdown<T> extends StatefulWidget {
   final bool enabled;
   final bool scrollIntoViewOnOpen;
   final IconData? leadingIcon;
+  final bool searchable;
   const AppDropdown({
     super.key,
     required this.value,
@@ -39,6 +44,7 @@ class AppDropdown<T> extends StatefulWidget {
     this.enabled = true,
     this.scrollIntoViewOnOpen = false,
     this.leadingIcon,
+    this.searchable = false,
   });
 
   @override
@@ -65,6 +71,12 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
       final maxMenuWidth = math.max(1.0, MediaQuery.sizeOf(context).width - 16);
       final menuWidth = constraints.maxWidth.clamp(1.0, maxMenuWidth);
       return InkWell(
+        // The field's outline is its focus feedback. Ink painted on the
+        // surrounding dialog can otherwise peek out below the filled field.
+        splashFactory: NoSplash.splashFactory,
+        highlightColor: Colors.transparent,
+        hoverColor: Colors.transparent,
+        focusColor: Colors.transparent,
         onTap: !widget.enabled
             ? null
             : () async {
@@ -86,6 +98,7 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
                 final value = await Navigator.of(context).push<T>(
                   _DropdownRoute<T>(
                     anchor: anchor,
+                    minimumHeight: widget.searchable ? 220 : 48,
                     width: menuWidth,
                     reducedMotion: reducedMotion,
                     barrierText: MaterialLocalizations.of(context)
@@ -94,6 +107,7 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
                       context,
                       _ScrollableDropdownEntry<T>(
                         options: widget.options,
+                        searchable: widget.searchable,
                         value: widget.value,
                         width: menuWidth,
                       ),
@@ -228,14 +242,19 @@ class _ScrollableDropdownEntry<T> extends PopupMenuEntry<T> {
   final List<AppDropdownOption<T>> options;
   final T value;
   final double width;
+  final bool searchable;
   const _ScrollableDropdownEntry({
     required this.options,
     required this.value,
     required this.width,
+    this.searchable = false,
   });
 
   @override
-  double get height => (options.length * 42.0).clamp(0.0, 284.0);
+  double get height => (options.length * 42.0).clamp(
+    searchable ? 42.0 : 0.0,
+    searchable ? 5 * 42.0 : 284.0,
+  );
   @override
   bool represents(T? value) => options.any((option) => option.value == value);
   @override
@@ -246,6 +265,18 @@ class _ScrollableDropdownEntry<T> extends PopupMenuEntry<T> {
 class _ScrollableDropdownEntryState<T>
     extends State<_ScrollableDropdownEntry<T>> {
   ScrollController? controller;
+  String query = '';
+  late final searchableOptions = [
+    for (final option in widget.options)
+      (
+        option: option,
+        text: [
+          option.label,
+          option.leadingText,
+          option.trailingText,
+        ].whereType<String>().join(' ').toLowerCase(),
+      ),
+  ];
 
   @override
   void dispose() {
@@ -256,9 +287,28 @@ class _ScrollableDropdownEntryState<T>
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
+    final options = query.isEmpty
+        ? widget.options
+        : [
+            for (final entry in searchableOptions)
+              if (entry.text.contains(query)) entry.option,
+          ];
     return LayoutBuilder(
       builder: (context, constraints) {
-        final viewportHeight = math.min(widget.height, constraints.maxHeight);
+        final searchHeight = widget.searchable
+            ? math.max(
+                    38.0,
+                    MediaQuery.textScalerOf(context).scale(13) * 1.5 + 20,
+                  ) +
+                  8
+            : 0.0;
+        final listHeight = widget.searchable
+            ? (options.length * 42.0).clamp(42.0, 5 * 42.0)
+            : widget.height;
+        final viewportHeight = math.min(
+          listHeight + searchHeight,
+          constraints.maxHeight,
+        );
         final selectedIndex = widget.options.indexWhere(
           (option) => option.value == widget.value,
         );
@@ -281,75 +331,155 @@ class _ScrollableDropdownEntryState<T>
           child: SizedBox(
             width: widget.width,
             height: viewportHeight,
-            child: Scrollbar(
-              controller: scroll,
-              interactive: true,
-              thumbVisibility: true,
-              trackVisibility: true,
-              thickness: 3,
-              radius: const Radius.circular(3),
-              child: ListView.builder(
-                controller: scroll,
-                primary: false,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                itemExtent: 42,
-                itemCount: widget.options.length,
-                itemBuilder: (context, index) {
-                  final option = widget.options[index];
-                  final selected = option.value == widget.value;
-                  final selectedColor = option.badgeColor ?? green;
-                  return Semantics(
-                    selected: selected,
-                    button: true,
-                    child: Material(
-                      color: selected
-                          ? selectedColor.withValues(alpha: .09)
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(8),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(8),
-                        onTap: () => Navigator.pop(context, option.value),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          child: Row(
-                            children: [
-                              if (option.icon != null) ...[
-                                Icon(
-                                  option.icon,
-                                  size: 18,
+            child: Column(
+              children: [
+                if (widget.searchable)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                    child: TextField(
+                      style: const TextStyle(fontSize: 13, height: 1.5),
+                      textInputAction: TextInputAction.search,
+                      decoration: InputDecoration(
+                        hintText: 'Search expenses',
+                        hintStyle: TextStyle(fontSize: 13, color: colors.muted),
+                        filled: true,
+                        fillColor: colors.field,
+                        prefixIcon: Icon(
+                          Icons.search_rounded,
+                          size: 19,
+                          color: colors.muted,
+                        ),
+                        prefixIconConstraints: const BoxConstraints(
+                          minWidth: 38,
+                          minHeight: 38,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        isDense: true,
+                      ),
+                      onChanged: (value) => setState(() {
+                        query = value.trim().toLowerCase();
+                        if (scroll.hasClients) scroll.jumpTo(0);
+                      }),
+                    ),
+                  ),
+                Expanded(
+                  child: options.isEmpty
+                      ? const Center(child: Text('No matching expenses.'))
+                      : Scrollbar(
+                          controller: scroll,
+                          interactive: true,
+                          thumbVisibility: true,
+                          trackVisibility: true,
+                          thickness: 3,
+                          radius: const Radius.circular(3),
+                          child: ListView.builder(
+                            controller: scroll,
+                            primary: false,
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            itemExtent: 42,
+                            itemCount: options.length,
+                            itemBuilder: (context, index) {
+                              final option = options[index];
+                              final selected = option.value == widget.value;
+                              final selectedColor = option.badgeColor ?? green;
+                              return Semantics(
+                                selected: selected,
+                                button: true,
+                                child: Material(
                                   color: selected
-                                      ? selectedColor
-                                      : colors.muted,
-                                ),
-                                const SizedBox(width: 8),
-                              ],
-                              Expanded(
-                                child: _DropdownLabel(
-                                  label: option.label,
-                                  badge: selected ? null : option.badge,
-                                  badgeColor: option.badgeColor,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: colors.ink,
+                                      ? selectedColor.withValues(alpha: .09)
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(8),
+                                    onTap: () =>
+                                        Navigator.pop(context, option.value),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          if (option.leadingText != null) ...[
+                                            SizedBox(
+                                              width: 48,
+                                              child: Text(
+                                                option.leadingText!,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  color: colors.muted,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                          ],
+                                          if (option.icon != null) ...[
+                                            Icon(
+                                              option.icon,
+                                              size: 18,
+                                              color: selected
+                                                  ? selectedColor
+                                                  : colors.muted,
+                                            ),
+                                            const SizedBox(width: 8),
+                                          ],
+                                          Expanded(
+                                            child: _DropdownLabel(
+                                              label: option.label,
+                                              badge: selected
+                                                  ? null
+                                                  : option.badge,
+                                              badgeColor: option.badgeColor,
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                color: colors.ink,
+                                              ),
+                                            ),
+                                          ),
+                                          if (option.trailingText != null) ...[
+                                            const SizedBox(width: 8),
+                                            ConstrainedBox(
+                                              constraints: BoxConstraints(
+                                                maxWidth: widget.width * .38,
+                                              ),
+                                              child: Text(
+                                                option.trailingText!,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                textAlign: TextAlign.right,
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: colors.ink,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                          if (selected &&
+                                              option.trailingText == null) ...[
+                                            const SizedBox(width: 8),
+                                            Icon(
+                                              Icons.check_rounded,
+                                              size: 18,
+                                              color: selectedColor,
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
-                              if (selected) ...[
-                                const SizedBox(width: 8),
-                                Icon(
-                                  Icons.check_rounded,
-                                  size: 18,
-                                  color: selectedColor,
-                                ),
-                              ],
-                            ],
+                              );
+                            },
                           ),
                         ),
-                      ),
-                    ),
-                  );
-                },
-              ),
+                ),
+              ],
             ),
           ),
         );
@@ -361,6 +491,7 @@ class _ScrollableDropdownEntryState<T>
 /// Reveals every menu vertically from its top edge, without horizontal scaling.
 class _DropdownRoute<T> extends PopupRoute<T> {
   final Rect anchor;
+  final double minimumHeight;
   final double width;
   final bool reducedMotion;
   final String barrierText;
@@ -369,6 +500,7 @@ class _DropdownRoute<T> extends PopupRoute<T> {
   final Color border;
   _DropdownRoute({
     required this.anchor,
+    this.minimumHeight = 48,
     required this.width,
     required this.reducedMotion,
     required this.barrierText,
@@ -398,7 +530,10 @@ class _DropdownRoute<T> extends PopupRoute<T> {
     final bottom =
         media.size.height - media.padding.bottom - media.viewInsets.bottom - 8;
     final top = (anchor.bottom + 4)
-        .clamp(media.padding.top + 8, bottom - 48)
+        .clamp(
+          media.padding.top + 8,
+          math.max(media.padding.top + 8, bottom - minimumHeight),
+        )
         .toDouble();
     final left = anchor.left
         .clamp(8.0, media.size.width - width - 8)

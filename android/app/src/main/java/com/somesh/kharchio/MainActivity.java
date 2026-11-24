@@ -15,7 +15,9 @@ import io.flutter.embedding.android.FlutterActivity;
 import io.flutter.embedding.engine.FlutterEngine;
 import io.flutter.plugin.common.MethodChannel;
 
-/** Launcher activity: starts Dart main() and connects native Android services. */
+/**
+ * Launcher activity: starts Dart main() and connects native Android services.
+ */
 public class MainActivity extends FlutterActivity {
     private static final String SETTINGS_CHANNEL = "com.somesh.kharchio/settings";
     private static final String PAYMENTS_CHANNEL = "com.somesh.kharchio/payment_notifications";
@@ -23,12 +25,15 @@ public class MainActivity extends FlutterActivity {
     private static final String THEME_KEY = "appearance.themeMode";
     private MethodChannel settingsChannel;
     private MethodChannel paymentsChannel;
+    private MethodChannel subscriptionChannel;
     private final java.util.function.Consumer<String> foregroundPayment = id -> {
-        if (paymentsChannel != null) paymentsChannel.invokeMethod("paymentDetected", id);
+        if (paymentsChannel != null)
+            paymentsChannel.invokeMethod("paymentDetected", id);
     };
     private ModelAssetBridge modelAssets;
     private WidgetActionBridge widgetActions;
     private LocalShareBridge localShare;
+    private NetworkConnectivityBridge networkConnectivity;
 
     @Override
     public void configureFlutterEngine(@NonNull FlutterEngine flutterEngine) {
@@ -36,6 +41,34 @@ public class MainActivity extends FlutterActivity {
         widgetActions = new WidgetActionBridge(this, flutterEngine);
         localShare = new LocalShareBridge(this, flutterEngine);
         modelAssets = new ModelAssetBridge(getApplicationContext(), flutterEngine);
+        networkConnectivity = new NetworkConnectivityBridge(this, flutterEngine.getDartExecutor().getBinaryMessenger());
+        subscriptionChannel = new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(),
+                "com.somesh.kharchio/subscription_reminders");
+        subscriptionChannel.setMethodCallHandler((call, result) -> {
+            switch (call.method) {
+                case "replaceReminders":
+                    try {
+                        SubscriptionReminderReceiver.replace(this, (String) call.arguments);
+                        result.success(null);
+                    } catch (org.json.JSONException error) {
+                        result.error("INVALID_REMINDERS", error.getMessage(), null);
+                    }
+                    break;
+                case "consumeTap":
+                    Intent intent = getIntent();
+                    Map<String, Object> tap = null;
+                    if (intent != null && SubscriptionReminderReceiver.OPEN.equals(intent.getAction())) {
+                        tap = new HashMap<>();
+                        tap.put("planId", intent.getStringExtra("planId"));
+                        tap.put("dueDay", intent.getIntExtra("dueDay", 0));
+                        intent.setAction(Intent.ACTION_MAIN);
+                    }
+                    result.success(tap);
+                    break;
+                default:
+                    result.notImplemented();
+            }
+        });
         SharedPreferences settings = ((KharchioApplication) getApplication()).getSettings();
         settingsChannel = new MethodChannel(
                 flutterEngine.getDartExecutor().getBinaryMessenger(), SETTINGS_CHANNEL);
@@ -69,14 +102,14 @@ public class MainActivity extends FlutterActivity {
                                 .putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName()));
                     } else if (Build.VERSION.SDK_INT >= 33) {
                         getPreferences(MODE_PRIVATE).edit().putBoolean("requestedPaymentAlerts", true).apply();
-                        requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS},
+                        requestPermissions(new String[] { android.Manifest.permission.POST_NOTIFICATIONS },
                                 PAYMENT_ALERT_PERMISSION);
                     } else {
                         Intent settingsIntent = Build.VERSION.SDK_INT >= 26
                                 ? new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-                                    .putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName())
+                                        .putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName())
                                 : new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                                    android.net.Uri.fromParts("package", getPackageName(), null));
+                                        android.net.Uri.fromParts("package", getPackageName(), null));
                         startActivity(settingsIntent);
                     }
                     result.success(null);
@@ -107,7 +140,8 @@ public class MainActivity extends FlutterActivity {
                     }
                     result.success(null);
                     break;
-                default: result.notImplemented();
+                default:
+                    result.notImplemented();
             }
         });
         settingsChannel.setMethodCallHandler((call, result) -> {
@@ -127,7 +161,7 @@ public class MainActivity extends FlutterActivity {
                             && ("INR".equals(value) || "USD".equals(value));
                     boolean validLanguage = "speechLanguage".equals(key)
                             && ("auto".equals(value) || "hi".equals(value)
-                            || "en".equals(value) || "hinglish".equals(value));
+                                    || "en".equals(value) || "hinglish".equals(value));
                     boolean validCategories = false;
                     if ("categories".equals(key) && value != null && value.length() <= 65536) {
                         try {
@@ -178,7 +212,8 @@ public class MainActivity extends FlutterActivity {
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grants) {
-        if (localShare != null && localShare.onPermissions(requestCode, grants)) return;
+        if (localShare != null && localShare.onPermissions(requestCode, grants))
+            return;
         super.onRequestPermissionsResult(requestCode, permissions, grants);
     }
 
@@ -186,15 +221,36 @@ public class MainActivity extends FlutterActivity {
     protected void onNewIntent(@NonNull Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
-        if (widgetActions != null) widgetActions.onNewIntent(intent);
-        if (paymentsChannel != null) paymentsChannel.invokeMethod("reviewTapped", null);
+        if (widgetActions != null)
+            widgetActions.onNewIntent(intent);
+        if (paymentsChannel != null)
+            paymentsChannel.invokeMethod("reviewTapped", null);
+        if (subscriptionChannel != null && SubscriptionReminderReceiver.OPEN.equals(intent.getAction()))
+            subscriptionChannel.invokeMethod("reminderTapped", null);
     }
 
     @Override
     public void cleanUpFlutterEngine(@NonNull FlutterEngine flutterEngine) {
-        if (localShare != null) { localShare.close(); localShare = null; }
-        if (widgetActions != null) { widgetActions.close(); widgetActions = null; }
-        if (modelAssets != null) { modelAssets.close(); modelAssets = null; }
+        if (subscriptionChannel != null) {
+            subscriptionChannel.setMethodCallHandler(null);
+            subscriptionChannel = null;
+        }
+        if (networkConnectivity != null) {
+            networkConnectivity.close();
+            networkConnectivity = null;
+        }
+        if (localShare != null) {
+            localShare.close();
+            localShare = null;
+        }
+        if (widgetActions != null) {
+            widgetActions.close();
+            widgetActions = null;
+        }
+        if (modelAssets != null) {
+            modelAssets.close();
+            modelAssets = null;
+        }
         if (settingsChannel != null) {
             settingsChannel.setMethodCallHandler(null);
             settingsChannel = null;

@@ -140,17 +140,16 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
         inventory?.anyReady == true &&
         current?.active == null;
     final preferences = ref.watch(preferencesProvider);
+    final activeAiMode = ref.watch(activeAiModeProvider);
+    final usesOnlineAi = ref.watch(usesOnlineAiProvider);
     final onlineUsesWhisper =
-        preferences.aiMode == AiMode.online &&
+        usesOnlineAi &&
         (preferences.onlineAiProvider == OnlineAiProvider.claude ||
-            preferences.onlineAiProvider != OnlineAiProvider.none &&
-                ref
-                        .watch(
-                          onlineAiModelsProvider(preferences.onlineAiProvider),
-                        )
-                        .value
-                        ?.usesOnDeviceSpeech ==
-                    true);
+            ref
+                    .watch(onlineAiModelsProvider(preferences.onlineAiProvider))
+                    .value
+                    ?.usesOnDeviceSpeech ==
+                true);
     return SafeArea(
       child: FixedHeaderPage(
         header: const Text(
@@ -206,7 +205,7 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                     value: ref.watch(preferencesProvider).speechLanguage,
                     label: 'Speech Output',
-                    description: preferences.aiMode == AiMode.online
+                    description: usesOnlineAi
                         ? onlineUsesWhisper
                               ? 'Local Whisper: always English'
                               : switch (preferences.speechLanguage) {
@@ -322,6 +321,37 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
                       minLeadingWidth: 18,
                       horizontalTitleGap: 8,
                       leading: const Icon(
+                        Icons.autorenew_rounded,
+                        size: 18,
+                        color: green,
+                      ),
+                      title: const SettingsRowLabel(
+                        'Subscription Planner',
+                        'Manage renewals and reminders',
+                      ),
+                      trailing: const Icon(Icons.chevron_right, size: 18),
+                      onTap: () => context.push('/subscription-planner'),
+                    ),
+                  ),
+                  Divider(
+                    height: 1,
+                    indent: 12,
+                    endIndent: 12,
+                    color: context.appColors.line,
+                  ),
+                  Material(
+                    type: MaterialType.transparency,
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                      ),
+                      dense: true,
+                      visualDensity: VisualDensity.standard,
+                      minTileHeight: settingsRowMinHeight,
+                      minVerticalPadding: 0,
+                      minLeadingWidth: 18,
+                      horizontalTitleGap: 8,
+                      leading: const Icon(
                         Icons.category_outlined,
                         size: 18,
                         color: green,
@@ -358,7 +388,7 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
                   PreferenceDropdownRow<AiMode>(
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                     compactControl: true,
-                    value: preferences.aiMode,
+                    value: activeAiMode,
                     label: 'AI Mode',
                     icon: Icons.auto_awesome_outlined,
                     options: const [
@@ -373,9 +403,15 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
                         icon: Icons.cloud_outlined,
                       ),
                     ],
-                    description: preferences.aiMode == AiMode.online
-                        ? 'Uses your selected online provider'
-                        : null,
+                    description: switch (activeAiMode) {
+                      AiMode.online when usesOnlineAi =>
+                        'Uses On Device if the connection is lost',
+                      AiMode.online => 'Choose a provider to use online AI',
+                      AiMode.onDevice
+                          when preferences.aiMode == AiMode.online =>
+                        'Switches to Online when connected',
+                      AiMode.onDevice => 'Always uses on-device AI',
+                    },
                     onChanged: (mode) async {
                       try {
                         await ref
@@ -571,7 +607,7 @@ class _ProfileState extends ConsumerState<ProfileScreen> {
                     const Icon(Icons.info_outline, size: 20, color: green),
                     const SizedBox(width: 10),
                     const Expanded(
-                      child: SettingsRowLabel('About', 'Version 1.0.0'),
+                      child: SettingsRowLabel('About', 'Version 1.0.1'),
                     ),
                   ],
                 ),

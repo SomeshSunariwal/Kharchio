@@ -10,8 +10,10 @@ import 'core/theme.dart';
 import 'core/theme_settings.dart';
 import 'core/preferences.dart';
 import 'core/categories.dart';
+import 'core/subscriptions.dart';
 import 'features/profile/categories_screen.dart';
 import 'features/profile/budget_planner_screen.dart';
+import 'features/profile/subscription_planner_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
 import 'features/expenses/add_expense_screen.dart';
 import 'features/expenses/payment_review_host.dart';
@@ -21,12 +23,42 @@ import 'features/profile/profile_screen.dart';
 import 'features/data_share/data_share_screen.dart';
 import 'shared/directional_tab_view.dart';
 import 'shared/active_text_navigation.dart';
+import 'services/notifications/subscription_reminders.dart';
 import 'widgets/home_screen/widget_action_host.dart';
 import 'widgets/home_screen/quick_expense_screen.dart';
 import 'widgets/home_screen/manual_entry/expense_entry_popup.dart';
 import 'widgets/home_screen/widget_data_refresh_host.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
+
+CustomTransitionPage<void> _settingsPage(
+  BuildContext context,
+  GoRouterState state,
+  Widget child,
+) {
+  final reducedMotion = MediaQuery.disableAnimationsOf(context);
+  return CustomTransitionPage<void>(
+    key: state.pageKey,
+    transitionDuration: reducedMotion
+        ? Duration.zero
+        : const Duration(milliseconds: 280),
+    reverseTransitionDuration: reducedMotion
+        ? Duration.zero
+        : const Duration(milliseconds: 220),
+    child: child,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+        SlideTransition(
+          position: animation.drive(
+            Tween<Offset>(
+              begin: const Offset(1, 0),
+              end: Offset.zero,
+            ).chain(CurveTween(curve: Curves.easeInOutCubic)),
+          ),
+          child: child,
+        ),
+  );
+}
+
 final _router = GoRouter(
   navigatorKey: _rootNavigatorKey,
   routes: [
@@ -83,56 +115,33 @@ final _router = GoRouter(
       builder: (_, _) => const PendingPaymentReviewsScreen(),
     ),
     GoRoute(
-      path: '/categories',
+      path: '/subscription-planner',
       pageBuilder: (context, state) {
-        final reducedMotion = MediaQuery.disableAnimationsOf(context);
-        return CustomTransitionPage<void>(
-          key: state.pageKey,
-          transitionDuration: reducedMotion
-              ? Duration.zero
-              : const Duration(milliseconds: 280),
-          reverseTransitionDuration: reducedMotion
-              ? Duration.zero
-              : const Duration(milliseconds: 220),
-          child: const CategoriesScreen(),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) =>
-              SlideTransition(
-                position: animation.drive(
-                  Tween<Offset>(
-                    begin: const Offset(1, 0),
-                    end: Offset.zero,
-                  ).chain(CurveTween(curve: Curves.easeInOutCubic)),
-                ),
-                child: child,
-              ),
+        final planId = state.uri.queryParameters['plan'];
+        final dueDay = int.tryParse(state.uri.queryParameters['due'] ?? '');
+        final SubscriptionDue? target =
+            planId == null ||
+                dueDay == null ||
+                dueDay < 20000101 ||
+                dueDay > 21991231
+            ? null
+            : (planId: planId, dueDay: dueDay);
+        return _settingsPage(
+          context,
+          state,
+          SubscriptionPlannerScreen(openRenewal: target),
         );
       },
     ),
     GoRoute(
+      path: '/categories',
+      pageBuilder: (context, state) =>
+          _settingsPage(context, state, const CategoriesScreen()),
+    ),
+    GoRoute(
       path: '/budget-planner',
-      pageBuilder: (context, state) {
-        final reducedMotion = MediaQuery.disableAnimationsOf(context);
-        return CustomTransitionPage<void>(
-          key: state.pageKey,
-          transitionDuration: reducedMotion
-              ? Duration.zero
-              : const Duration(milliseconds: 280),
-          reverseTransitionDuration: reducedMotion
-              ? Duration.zero
-              : const Duration(milliseconds: 220),
-          child: const BudgetPlannerScreen(),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) =>
-              SlideTransition(
-                position: animation.drive(
-                  Tween<Offset>(
-                    begin: const Offset(1, 0),
-                    end: Offset.zero,
-                  ).chain(CurveTween(curve: Curves.easeInOutCubic)),
-                ),
-                child: child,
-              ),
-        );
-      },
+      pageBuilder: (context, state) =>
+          _settingsPage(context, state, const BudgetPlannerScreen()),
     ),
   ],
 );
@@ -172,7 +181,14 @@ class KharchioApp extends ConsumerWidget {
                       _router.push<void>('/payment-reviews');
                     }
                   },
-                  child: child ?? const SizedBox.shrink(),
+                  child: _OfflineAiNotice(
+                    child: SubscriptionReminderHost(
+                      openRenewal: (renewal) => _router.push<void>(
+                        subscriptionRenewalLocation(renewal),
+                      ),
+                      child: child ?? const SizedBox.shrink(),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -182,6 +198,61 @@ class KharchioApp extends ConsumerWidget {
     ),
     routerConfig: _router,
   );
+}
+
+class _OfflineAiNotice extends ConsumerStatefulWidget {
+  const _OfflineAiNotice({required this.child});
+
+  final Widget child;
+
+  @override
+  ConsumerState<_OfflineAiNotice> createState() => _OfflineAiNoticeState();
+}
+
+class _OfflineAiNoticeState extends ConsumerState<_OfflineAiNotice> {
+  late final AppLifecycleListener _lifecycle;
+  bool _shown = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _lifecycle = AppLifecycleListener(onResume: _showIfOffline);
+    ref.listenManual(showOfflineAiNoticeProvider, (_, showNotice) {
+      if (showNotice) {
+        _showIfOffline();
+      } else {
+        _shown = false;
+      }
+    }, fireImmediately: true);
+  }
+
+  void _showIfOffline() {
+    final binding = WidgetsBinding.instance;
+    binding.addPostFrameCallback((_) {
+      if (!mounted ||
+          _shown ||
+          binding.lifecycleState != AppLifecycleState.resumed ||
+          !ref.read(showOfflineAiNoticeProvider)) {
+        return;
+      }
+      _shown = true;
+      showAppNotification(
+        context,
+        'No network available. Please check your connection. Using On Device AI.',
+        isError: true,
+      );
+    });
+    binding.ensureVisualUpdate();
+  }
+
+  @override
+  void dispose() {
+    _lifecycle.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 class MainShell extends StatelessWidget {

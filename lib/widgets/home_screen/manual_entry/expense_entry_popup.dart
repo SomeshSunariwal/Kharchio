@@ -11,7 +11,7 @@ import '../../../shared/app_dropdown.dart';
 import '../../../shared/app_notification.dart';
 import '../../../shared/widgets.dart';
 import '../quick_expense_batch.dart';
-import '../spending_widget_updates.dart';
+import '../home_widget_updates.dart';
 import '../widget_action_host.dart';
 
 /// Runs in a translucent Android task, with the launcher visible behind it.
@@ -80,7 +80,7 @@ class _ExpenseEntryPopupState extends ConsumerState<ExpenseEntryPopup> {
         ),
       ]);
       // Complete the refresh request before this popup's Flutter engine exits.
-      await SpendingWidgetUpdates.refresh();
+      await HomeWidgetUpdates.refreshSpending();
       if (mounted) await _close(saved: true);
     } catch (_) {
       if (mounted) {

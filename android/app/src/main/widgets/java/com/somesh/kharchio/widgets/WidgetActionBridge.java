@@ -6,6 +6,7 @@ import android.widget.Toast;
 import com.somesh.kharchio.R;
 import com.somesh.kharchio.widgets.manualexpense.ExpenseEntryActivity;
 import com.somesh.kharchio.widgets.spending.SpendingWidget;
+import com.somesh.kharchio.widgets.subscriptions.SubscriptionWidget;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -32,6 +33,9 @@ public final class WidgetActionBridge {
             } else if ("refreshSpendingWidget".equals(call.method)) {
                 SpendingWidget.requestRefresh(activity.getApplicationContext());
                 result.success(null);
+            } else if ("refreshSubscriptionWidget".equals(call.method)) {
+                SubscriptionWidget.requestRefresh(activity.getApplicationContext());
+                result.success(null);
             } else if ("closeEntry".equals(call.method) && activity instanceof ExpenseEntryActivity) {
                 if (Boolean.TRUE.equals(call.argument("saved"))) {
                     Toast.makeText(activity, R.string.widget_form_saved, Toast.LENGTH_SHORT).show();
@@ -46,7 +50,7 @@ public final class WidgetActionBridge {
         if (intent == null) return;
         String action = intent.getStringExtra(EXTRA_ACTION);
         intent.removeExtra(EXTRA_ACTION); // Configuration changes must not replay it.
-        if (!"add".equals(action) && !"record".equals(action)) return;
+        if (!"add".equals(action) && !"record".equals(action) && !"subscriptions".equals(action)) return;
         pending = new HashMap<>();
         pending.put("action", action);
         pending.put("id", UUID.randomUUID().toString());

@@ -84,12 +84,61 @@ class AppSettings extends Table {
   Set<Column> get primaryKey => {key};
 }
 
-@DriftDatabase(tables: [Categories, Expenses, AppSettings, MonthlyBudgetsTable])
+@DataClassName('SubscriptionPlan')
+class SubscriptionPlans extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  IntColumn get minor =>
+      integer().customConstraint('NOT NULL CHECK (minor > 0)')();
+  TextColumn get currencyCode => text().customConstraint(
+    "NOT NULL CHECK (currency_code IN ('INR', 'USD'))",
+  )();
+  IntColumn get intervalMonths => integer().customConstraint(
+    'NOT NULL CHECK (interval_months IN (1, 3, 12))',
+  )();
+  IntColumn get anchorDay => integer()();
+  IntColumn get reminderDays => integer().nullable().customConstraint(
+    'CHECK (reminder_days BETWEEN 0 AND 7)',
+  )();
+  IntColumn get reminderMinutes => integer().customConstraint(
+    'NOT NULL CHECK (reminder_minutes BETWEEN 0 AND 1439)',
+  )();
+  BoolColumn get active => boolean().withDefault(const Constant(true))();
+  TextColumn get merchantAliases => text().withDefault(const Constant('[]'))();
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DataClassName('SubscriptionRenewal')
+class SubscriptionRenewals extends Table {
+  TextColumn get planId =>
+      text().references(SubscriptionPlans, #id, onDelete: KeyAction.cascade)();
+  IntColumn get dueDay => integer()();
+  TextColumn get expenseId => text().nullable().unique().references(
+    Expenses,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+  BoolColumn get skipped => boolean().withDefault(const Constant(false))();
+  @override
+  Set<Column> get primaryKey => {planId, dueDay};
+}
+
+@DriftDatabase(
+  tables: [
+    Categories,
+    Expenses,
+    AppSettings,
+    MonthlyBudgetsTable,
+    SubscriptionPlans,
+    SubscriptionRenewals,
+  ],
+)
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(driftDatabase(name: 'kharchio'));
   AppDatabase.forTesting(super.executor);
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onUpgrade: (m, from, to) async {
@@ -161,6 +210,10 @@ class AppDatabase extends _$AppDatabase {
       if (from >= 2 && from < 3) {
         await m.addColumn(expenses, expenses.transactionType);
         await m.addColumn(expenses, expenses.originalExpenseId);
+      }
+      if (from < 4) {
+        await m.createTable(subscriptionPlans);
+        await m.createTable(subscriptionRenewals);
       }
     },
     beforeOpen: (_) async {

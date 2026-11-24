@@ -18,6 +18,7 @@ String? widgetActionRoute(Object? value) {
   return switch (value['action']) {
     'add' => '/widgets/add',
     'record' => '/widgets/record',
+    'subscriptions' => '/subscription-planner',
     _ => null,
   };
 }

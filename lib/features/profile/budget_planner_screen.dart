@@ -37,137 +37,101 @@ class BudgetPlannerScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final budgets = ref.watch(monthlyBudgetsProvider);
     final currency = ref.watch(preferencesProvider.select((p) => p.currency));
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Budget Planner',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-        ),
-      ),
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 700),
-            child: Column(
-              children: [
-                Expanded(
-                  child: budgets.when(
-                    loading: () =>
-                        const Center(child: CircularProgressIndicator()),
-                    error: (_, _) => Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text('Could not load your monthly budgets.'),
-                          TextButton(
-                            onPressed: () =>
-                                ref.invalidate(monthlyBudgetsProvider),
-                            child: const Text('Retry'),
-                          ),
-                        ],
-                      ),
-                    ),
-                    data: (all) {
-                      final rows = all
-                          .where((b) => b.currency == currency.code)
-                          .toList();
-                      return Padding(
-                        padding: const EdgeInsets.fromLTRB(14, 14, 14, 6),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Text(
-                              'Set a spending budget for each month. Tap a budget to edit it, or swipe left to delete.',
-                              style: Theme.of(context).textTheme.bodySmall,
-                            ),
-                            const SizedBox(height: 12),
-                            if (rows.isEmpty)
-                              SurfaceCard(
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 24,
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      'No monthly budgets yet.',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall,
-                                    ),
-                                  ),
-                                ),
-                              )
-                            else
-                              Expanded(
-                                child: ScrollableListCard(
-                                  itemCount: rows.length,
-                                  itemBuilder: (_, index) {
-                                    final budget = rows[index];
-                                    return SwipeRevealDelete(
-                                      key: ValueKey(budget.key),
-                                      onDelete: () =>
-                                          _delete(context, ref, budget),
-                                      child: ListTile(
-                                        contentPadding: const EdgeInsets.only(
-                                          left: 12,
-                                          right: 22,
-                                        ),
-                                        minTileHeight: 50,
-                                        dense: true,
-                                        minVerticalPadding: 0,
-                                        title: Text(
-                                          budgetMonth(budget),
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        trailing: Text(
-                                          currency.formatChart(budget.amount),
-                                          style: const TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w700,
-                                            color: green,
-                                          ),
-                                        ),
-                                        onTap: () => showDialog<void>(
-                                          context: context,
-                                          builder: (_) => _BudgetDialog(
-                                            currency: currency,
-                                            budget: budget,
-                                          ),
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: budgets.hasValue
-                          ? () => showDialog<void>(
-                              context: context,
-                              builder: (_) => _BudgetDialog(currency: currency),
-                            )
-                          : null,
-                      icon: const Icon(Icons.add),
-                      label: const Text('Add Budget'),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+    return PlannerPage(
+      title: 'Budget Planner',
+      addLabel: 'Add Budget',
+      onAdd: budgets.hasValue
+          ? () => showDialog<void>(
+              context: context,
+              builder: (_) => _BudgetDialog(currency: currency),
+            )
+          : null,
+      child: budgets.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (_, _) => Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Could not load your monthly budgets.'),
+              TextButton(
+                onPressed: () => ref.invalidate(monthlyBudgetsProvider),
+                child: const Text('Retry'),
+              ),
+            ],
           ),
         ),
+        data: (all) {
+          final rows = all.where((b) => b.currency == currency.code).toList();
+          return Padding(
+            padding: settingsPageContentPadding,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Set a spending budget for each month. Tap a budget to edit it, or swipe left to delete.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 12),
+                if (rows.isEmpty)
+                  SurfaceCard(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      child: Center(
+                        child: Text(
+                          'No monthly budgets yet.',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  Expanded(
+                    child: ScrollableListCard(
+                      itemCount: rows.length,
+                      itemBuilder: (_, index) {
+                        final budget = rows[index];
+                        return SwipeRevealDelete(
+                          key: ValueKey(budget.key),
+                          onDelete: () => _delete(context, ref, budget),
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.only(
+                              left: 12,
+                              right: 22,
+                            ),
+                            minTileHeight: settingsListRowHeight,
+                            dense: true,
+                            minVerticalPadding: 0,
+                            title: Text(
+                              budgetMonth(budget),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            trailing: Text(
+                              currency.formatChart(budget.amount),
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: green,
+                              ),
+                            ),
+                            onTap: () => showDialog<void>(
+                              context: context,
+                              builder: (_) => _BudgetDialog(
+                                currency: currency,
+                                budget: budget,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -418,47 +382,17 @@ class _BudgetDialogState extends ConsumerState<_BudgetDialog> {
                   ),
                 ),
                 const SizedBox(height: 18),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: saving ? null : () => Navigator.pop(context),
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size(0, 44),
-                          side: BorderSide(color: context.appColors.line),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: Text(
-                          'Cancel',
-                          style: TextStyle(color: context.appColors.ink),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: saving ? null : save,
-                        style: FilledButton.styleFrom(
-                          minimumSize: const Size(0, 44),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        icon: saving
-                            ? const SizedBox(
-                                width: 14,
-                                height: 14,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Icon(Icons.check_rounded, size: 18),
-                        label: Text(saving ? 'Saving…' : 'Save'),
-                      ),
-                    ),
-                  ],
+                DialogActionRow(
+                  onSecondary: saving ? null : () => Navigator.pop(context),
+                  onPrimary: saving ? null : save,
+                  primaryIcon: saving
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.check_rounded, size: 18),
+                  primaryLabel: Text(saving ? 'Saving…' : 'Save'),
                 ),
               ],
             ),

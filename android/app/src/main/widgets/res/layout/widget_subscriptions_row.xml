@@ -1,0 +1,17 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_subscriptions_row"
+    android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:minHeight="28dp" android:orientation="horizontal" android:gravity="center_vertical">
+    <TextView android:id="@+id/widget_subscriptions_name"
+        android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+        android:maxLines="1" android:ellipsize="end" android:textStyle="bold"
+        android:textSize="12sp" android:textColor="@color/widget_quick_ink" />
+    <TextView android:id="@+id/widget_subscriptions_amount"
+        android:layout_width="@dimen/widget_subscriptions_amount_width" android:layout_height="wrap_content"
+        android:gravity="end" android:maxLines="1" android:ellipsize="end"
+        android:textSize="12sp" android:textColor="@color/widget_quick_ink" />
+    <TextView android:id="@+id/widget_subscriptions_days"
+        android:layout_width="@dimen/widget_subscriptions_days_width" android:layout_height="wrap_content"
+        android:gravity="end" android:maxLines="1" android:ellipsize="end" android:textStyle="bold"
+        android:textSize="12sp" android:textColor="@color/widget_quick_ink" />
+</LinearLayout>

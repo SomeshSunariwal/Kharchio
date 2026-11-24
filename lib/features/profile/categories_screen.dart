@@ -49,108 +49,72 @@ class CategoriesScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final categories = ref.watch(categoriesProvider);
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Categories',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-        ),
+    return PlannerPage(
+      title: 'Categories',
+      addLabel: 'Add Category',
+      onAdd: () => showDialog<void>(
+        context: context,
+        builder: (_) => const _AddCategoryDialog(),
       ),
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 700),
-            child: Column(
-              children: [
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 14, 14, 6),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Padding(
+        padding: settingsPageContentPadding,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Choose categories when adding expenses. Your dashboard and analysis use the same categories.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: ScrollableListCard(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 2,
+                ),
+                itemCount: categories.length,
+                itemBuilder: (_, index) {
+                  final category = categories[index];
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Row(
                       children: [
-                        Text(
-                          'Choose categories when adding expenses. Your dashboard and analysis use the same categories.',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                        const SizedBox(height: 12),
+                        CategoryIcon(category.name, size: 28),
+                        const SizedBox(width: 10),
                         Expanded(
-                          child: ScrollableListCard(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 2,
-                            ),
-                            itemCount: categories.length,
-                            itemBuilder: (_, index) {
-                              final category = categories[index];
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 6,
-                                ),
-                                child: Row(
-                                  children: [
-                                    CategoryIcon(category.name, size: 28),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Text(
-                                        category.name,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(fontSize: 12),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    IconButton(
-                                      tooltip: 'Remove ${category.name}',
-                                      style: IconButton.styleFrom(
-                                        backgroundColor: red,
-                                        foregroundColor: Colors.white,
-                                      ),
-                                      visualDensity: VisualDensity.compact,
-                                      constraints: const BoxConstraints(
-                                        minWidth: 32,
-                                        minHeight: 32,
-                                      ),
-                                      padding: EdgeInsets.zero,
-                                      onPressed: categories.length <= 1
-                                          ? null
-                                          : () => removeCategory(
-                                              context,
-                                              ref,
-                                              category,
-                                            ),
-                                      icon: const Icon(
-                                        Icons.remove_rounded,
-                                        size: 19,
-                                      ),
-                                      color: Colors.white,
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
+                          child: Text(
+                            category.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 12),
                           ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          tooltip: 'Remove ${category.name}',
+                          style: IconButton.styleFrom(
+                            backgroundColor: red,
+                            foregroundColor: Colors.white,
+                          ),
+                          visualDensity: VisualDensity.compact,
+                          constraints: const BoxConstraints(
+                            minWidth: 32,
+                            minHeight: 32,
+                          ),
+                          padding: EdgeInsets.zero,
+                          onPressed: categories.length <= 1
+                              ? null
+                              : () => removeCategory(context, ref, category),
+                          icon: const Icon(Icons.remove_rounded, size: 19),
+                          color: Colors.white,
                         ),
                       ],
                     ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: () => showDialog<void>(
-                        context: context,
-                        builder: (_) => const _AddCategoryDialog(),
-                      ),
-                      icon: const Icon(Icons.add),
-                      label: const Text('Add Category'),
-                    ),
-                  ),
-                ),
-              ],
+                  );
+                },
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -415,48 +379,20 @@ class _AddCategoryDialogState extends ConsumerState<_AddCategoryDialog> {
                 ),
               ),
               const SizedBox(height: 18),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: saving ? null : () => Navigator.pop(context),
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size(0, 44),
-                        side: BorderSide(color: context.appColors.line),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Text(
-                        'Cancel',
-                        style: TextStyle(color: context.appColors.ink),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: saving ? null : save,
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size(0, 44),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      icon: saving
-                          ? const SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.add, size: 18),
-                      label: Text(
-                        saving ? 'Saving…' : 'Add Category',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ),
-                  ),
-                ],
+              DialogActionRow(
+                onSecondary: saving ? null : () => Navigator.pop(context),
+                onPrimary: saving ? null : save,
+                primaryIcon: saving
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.add, size: 18),
+                primaryLabel: Text(
+                  saving ? 'Saving…' : 'Add Category',
+                  style: const TextStyle(fontSize: 12),
+                ),
               ),
             ],
           ),

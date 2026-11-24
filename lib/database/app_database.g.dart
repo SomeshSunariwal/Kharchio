@@ -1830,6 +1830,960 @@ class AppSettingsCompanion extends UpdateCompanion<StoredSetting> {
   }
 }
 
+class $SubscriptionPlansTable extends SubscriptionPlans
+    with TableInfo<$SubscriptionPlansTable, SubscriptionPlan> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SubscriptionPlansTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _minorMeta = const VerificationMeta('minor');
+  @override
+  late final GeneratedColumn<int> minor = GeneratedColumn<int>(
+    'minor',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK (minor > 0)',
+  );
+  static const VerificationMeta _currencyCodeMeta = const VerificationMeta(
+    'currencyCode',
+  );
+  @override
+  late final GeneratedColumn<String> currencyCode = GeneratedColumn<String>(
+    'currency_code',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK (currency_code IN (\'INR\', \'USD\'))',
+  );
+  static const VerificationMeta _intervalMonthsMeta = const VerificationMeta(
+    'intervalMonths',
+  );
+  @override
+  late final GeneratedColumn<int> intervalMonths = GeneratedColumn<int>(
+    'interval_months',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK (interval_months IN (1, 3, 12))',
+  );
+  static const VerificationMeta _anchorDayMeta = const VerificationMeta(
+    'anchorDay',
+  );
+  @override
+  late final GeneratedColumn<int> anchorDay = GeneratedColumn<int>(
+    'anchor_day',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _reminderDaysMeta = const VerificationMeta(
+    'reminderDays',
+  );
+  @override
+  late final GeneratedColumn<int> reminderDays = GeneratedColumn<int>(
+    'reminder_days',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'CHECK (reminder_days BETWEEN 0 AND 7)',
+  );
+  static const VerificationMeta _reminderMinutesMeta = const VerificationMeta(
+    'reminderMinutes',
+  );
+  @override
+  late final GeneratedColumn<int> reminderMinutes = GeneratedColumn<int>(
+    'reminder_minutes',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK (reminder_minutes BETWEEN 0 AND 1439)',
+  );
+  static const VerificationMeta _activeMeta = const VerificationMeta('active');
+  @override
+  late final GeneratedColumn<bool> active = GeneratedColumn<bool>(
+    'active',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("active" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _merchantAliasesMeta = const VerificationMeta(
+    'merchantAliases',
+  );
+  @override
+  late final GeneratedColumn<String> merchantAliases = GeneratedColumn<String>(
+    'merchant_aliases',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('[]'),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    minor,
+    currencyCode,
+    intervalMonths,
+    anchorDay,
+    reminderDays,
+    reminderMinutes,
+    active,
+    merchantAliases,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'subscription_plans';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SubscriptionPlan> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('minor')) {
+      context.handle(
+        _minorMeta,
+        minor.isAcceptableOrUnknown(data['minor']!, _minorMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_minorMeta);
+    }
+    if (data.containsKey('currency_code')) {
+      context.handle(
+        _currencyCodeMeta,
+        currencyCode.isAcceptableOrUnknown(
+          data['currency_code']!,
+          _currencyCodeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_currencyCodeMeta);
+    }
+    if (data.containsKey('interval_months')) {
+      context.handle(
+        _intervalMonthsMeta,
+        intervalMonths.isAcceptableOrUnknown(
+          data['interval_months']!,
+          _intervalMonthsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_intervalMonthsMeta);
+    }
+    if (data.containsKey('anchor_day')) {
+      context.handle(
+        _anchorDayMeta,
+        anchorDay.isAcceptableOrUnknown(data['anchor_day']!, _anchorDayMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_anchorDayMeta);
+    }
+    if (data.containsKey('reminder_days')) {
+      context.handle(
+        _reminderDaysMeta,
+        reminderDays.isAcceptableOrUnknown(
+          data['reminder_days']!,
+          _reminderDaysMeta,
+        ),
+      );
+    }
+    if (data.containsKey('reminder_minutes')) {
+      context.handle(
+        _reminderMinutesMeta,
+        reminderMinutes.isAcceptableOrUnknown(
+          data['reminder_minutes']!,
+          _reminderMinutesMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_reminderMinutesMeta);
+    }
+    if (data.containsKey('active')) {
+      context.handle(
+        _activeMeta,
+        active.isAcceptableOrUnknown(data['active']!, _activeMeta),
+      );
+    }
+    if (data.containsKey('merchant_aliases')) {
+      context.handle(
+        _merchantAliasesMeta,
+        merchantAliases.isAcceptableOrUnknown(
+          data['merchant_aliases']!,
+          _merchantAliasesMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SubscriptionPlan map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SubscriptionPlan(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      minor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}minor'],
+      )!,
+      currencyCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}currency_code'],
+      )!,
+      intervalMonths: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}interval_months'],
+      )!,
+      anchorDay: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}anchor_day'],
+      )!,
+      reminderDays: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}reminder_days'],
+      ),
+      reminderMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}reminder_minutes'],
+      )!,
+      active: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}active'],
+      )!,
+      merchantAliases: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}merchant_aliases'],
+      )!,
+    );
+  }
+
+  @override
+  $SubscriptionPlansTable createAlias(String alias) {
+    return $SubscriptionPlansTable(attachedDatabase, alias);
+  }
+}
+
+class SubscriptionPlan extends DataClass
+    implements Insertable<SubscriptionPlan> {
+  final String id;
+  final String name;
+  final int minor;
+  final String currencyCode;
+  final int intervalMonths;
+  final int anchorDay;
+  final int? reminderDays;
+  final int reminderMinutes;
+  final bool active;
+  final String merchantAliases;
+  const SubscriptionPlan({
+    required this.id,
+    required this.name,
+    required this.minor,
+    required this.currencyCode,
+    required this.intervalMonths,
+    required this.anchorDay,
+    this.reminderDays,
+    required this.reminderMinutes,
+    required this.active,
+    required this.merchantAliases,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['name'] = Variable<String>(name);
+    map['minor'] = Variable<int>(minor);
+    map['currency_code'] = Variable<String>(currencyCode);
+    map['interval_months'] = Variable<int>(intervalMonths);
+    map['anchor_day'] = Variable<int>(anchorDay);
+    if (!nullToAbsent || reminderDays != null) {
+      map['reminder_days'] = Variable<int>(reminderDays);
+    }
+    map['reminder_minutes'] = Variable<int>(reminderMinutes);
+    map['active'] = Variable<bool>(active);
+    map['merchant_aliases'] = Variable<String>(merchantAliases);
+    return map;
+  }
+
+  SubscriptionPlansCompanion toCompanion(bool nullToAbsent) {
+    return SubscriptionPlansCompanion(
+      id: Value(id),
+      name: Value(name),
+      minor: Value(minor),
+      currencyCode: Value(currencyCode),
+      intervalMonths: Value(intervalMonths),
+      anchorDay: Value(anchorDay),
+      reminderDays: reminderDays == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reminderDays),
+      reminderMinutes: Value(reminderMinutes),
+      active: Value(active),
+      merchantAliases: Value(merchantAliases),
+    );
+  }
+
+  factory SubscriptionPlan.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SubscriptionPlan(
+      id: serializer.fromJson<String>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      minor: serializer.fromJson<int>(json['minor']),
+      currencyCode: serializer.fromJson<String>(json['currencyCode']),
+      intervalMonths: serializer.fromJson<int>(json['intervalMonths']),
+      anchorDay: serializer.fromJson<int>(json['anchorDay']),
+      reminderDays: serializer.fromJson<int?>(json['reminderDays']),
+      reminderMinutes: serializer.fromJson<int>(json['reminderMinutes']),
+      active: serializer.fromJson<bool>(json['active']),
+      merchantAliases: serializer.fromJson<String>(json['merchantAliases']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'name': serializer.toJson<String>(name),
+      'minor': serializer.toJson<int>(minor),
+      'currencyCode': serializer.toJson<String>(currencyCode),
+      'intervalMonths': serializer.toJson<int>(intervalMonths),
+      'anchorDay': serializer.toJson<int>(anchorDay),
+      'reminderDays': serializer.toJson<int?>(reminderDays),
+      'reminderMinutes': serializer.toJson<int>(reminderMinutes),
+      'active': serializer.toJson<bool>(active),
+      'merchantAliases': serializer.toJson<String>(merchantAliases),
+    };
+  }
+
+  SubscriptionPlan copyWith({
+    String? id,
+    String? name,
+    int? minor,
+    String? currencyCode,
+    int? intervalMonths,
+    int? anchorDay,
+    Value<int?> reminderDays = const Value.absent(),
+    int? reminderMinutes,
+    bool? active,
+    String? merchantAliases,
+  }) => SubscriptionPlan(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    minor: minor ?? this.minor,
+    currencyCode: currencyCode ?? this.currencyCode,
+    intervalMonths: intervalMonths ?? this.intervalMonths,
+    anchorDay: anchorDay ?? this.anchorDay,
+    reminderDays: reminderDays.present ? reminderDays.value : this.reminderDays,
+    reminderMinutes: reminderMinutes ?? this.reminderMinutes,
+    active: active ?? this.active,
+    merchantAliases: merchantAliases ?? this.merchantAliases,
+  );
+  SubscriptionPlan copyWithCompanion(SubscriptionPlansCompanion data) {
+    return SubscriptionPlan(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      minor: data.minor.present ? data.minor.value : this.minor,
+      currencyCode: data.currencyCode.present
+          ? data.currencyCode.value
+          : this.currencyCode,
+      intervalMonths: data.intervalMonths.present
+          ? data.intervalMonths.value
+          : this.intervalMonths,
+      anchorDay: data.anchorDay.present ? data.anchorDay.value : this.anchorDay,
+      reminderDays: data.reminderDays.present
+          ? data.reminderDays.value
+          : this.reminderDays,
+      reminderMinutes: data.reminderMinutes.present
+          ? data.reminderMinutes.value
+          : this.reminderMinutes,
+      active: data.active.present ? data.active.value : this.active,
+      merchantAliases: data.merchantAliases.present
+          ? data.merchantAliases.value
+          : this.merchantAliases,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SubscriptionPlan(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('minor: $minor, ')
+          ..write('currencyCode: $currencyCode, ')
+          ..write('intervalMonths: $intervalMonths, ')
+          ..write('anchorDay: $anchorDay, ')
+          ..write('reminderDays: $reminderDays, ')
+          ..write('reminderMinutes: $reminderMinutes, ')
+          ..write('active: $active, ')
+          ..write('merchantAliases: $merchantAliases')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    name,
+    minor,
+    currencyCode,
+    intervalMonths,
+    anchorDay,
+    reminderDays,
+    reminderMinutes,
+    active,
+    merchantAliases,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SubscriptionPlan &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.minor == this.minor &&
+          other.currencyCode == this.currencyCode &&
+          other.intervalMonths == this.intervalMonths &&
+          other.anchorDay == this.anchorDay &&
+          other.reminderDays == this.reminderDays &&
+          other.reminderMinutes == this.reminderMinutes &&
+          other.active == this.active &&
+          other.merchantAliases == this.merchantAliases);
+}
+
+class SubscriptionPlansCompanion extends UpdateCompanion<SubscriptionPlan> {
+  final Value<String> id;
+  final Value<String> name;
+  final Value<int> minor;
+  final Value<String> currencyCode;
+  final Value<int> intervalMonths;
+  final Value<int> anchorDay;
+  final Value<int?> reminderDays;
+  final Value<int> reminderMinutes;
+  final Value<bool> active;
+  final Value<String> merchantAliases;
+  final Value<int> rowid;
+  const SubscriptionPlansCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.minor = const Value.absent(),
+    this.currencyCode = const Value.absent(),
+    this.intervalMonths = const Value.absent(),
+    this.anchorDay = const Value.absent(),
+    this.reminderDays = const Value.absent(),
+    this.reminderMinutes = const Value.absent(),
+    this.active = const Value.absent(),
+    this.merchantAliases = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SubscriptionPlansCompanion.insert({
+    required String id,
+    required String name,
+    required int minor,
+    required String currencyCode,
+    required int intervalMonths,
+    required int anchorDay,
+    this.reminderDays = const Value.absent(),
+    required int reminderMinutes,
+    this.active = const Value.absent(),
+    this.merchantAliases = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       name = Value(name),
+       minor = Value(minor),
+       currencyCode = Value(currencyCode),
+       intervalMonths = Value(intervalMonths),
+       anchorDay = Value(anchorDay),
+       reminderMinutes = Value(reminderMinutes);
+  static Insertable<SubscriptionPlan> custom({
+    Expression<String>? id,
+    Expression<String>? name,
+    Expression<int>? minor,
+    Expression<String>? currencyCode,
+    Expression<int>? intervalMonths,
+    Expression<int>? anchorDay,
+    Expression<int>? reminderDays,
+    Expression<int>? reminderMinutes,
+    Expression<bool>? active,
+    Expression<String>? merchantAliases,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (minor != null) 'minor': minor,
+      if (currencyCode != null) 'currency_code': currencyCode,
+      if (intervalMonths != null) 'interval_months': intervalMonths,
+      if (anchorDay != null) 'anchor_day': anchorDay,
+      if (reminderDays != null) 'reminder_days': reminderDays,
+      if (reminderMinutes != null) 'reminder_minutes': reminderMinutes,
+      if (active != null) 'active': active,
+      if (merchantAliases != null) 'merchant_aliases': merchantAliases,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SubscriptionPlansCompanion copyWith({
+    Value<String>? id,
+    Value<String>? name,
+    Value<int>? minor,
+    Value<String>? currencyCode,
+    Value<int>? intervalMonths,
+    Value<int>? anchorDay,
+    Value<int?>? reminderDays,
+    Value<int>? reminderMinutes,
+    Value<bool>? active,
+    Value<String>? merchantAliases,
+    Value<int>? rowid,
+  }) {
+    return SubscriptionPlansCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      minor: minor ?? this.minor,
+      currencyCode: currencyCode ?? this.currencyCode,
+      intervalMonths: intervalMonths ?? this.intervalMonths,
+      anchorDay: anchorDay ?? this.anchorDay,
+      reminderDays: reminderDays ?? this.reminderDays,
+      reminderMinutes: reminderMinutes ?? this.reminderMinutes,
+      active: active ?? this.active,
+      merchantAliases: merchantAliases ?? this.merchantAliases,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (minor.present) {
+      map['minor'] = Variable<int>(minor.value);
+    }
+    if (currencyCode.present) {
+      map['currency_code'] = Variable<String>(currencyCode.value);
+    }
+    if (intervalMonths.present) {
+      map['interval_months'] = Variable<int>(intervalMonths.value);
+    }
+    if (anchorDay.present) {
+      map['anchor_day'] = Variable<int>(anchorDay.value);
+    }
+    if (reminderDays.present) {
+      map['reminder_days'] = Variable<int>(reminderDays.value);
+    }
+    if (reminderMinutes.present) {
+      map['reminder_minutes'] = Variable<int>(reminderMinutes.value);
+    }
+    if (active.present) {
+      map['active'] = Variable<bool>(active.value);
+    }
+    if (merchantAliases.present) {
+      map['merchant_aliases'] = Variable<String>(merchantAliases.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SubscriptionPlansCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('minor: $minor, ')
+          ..write('currencyCode: $currencyCode, ')
+          ..write('intervalMonths: $intervalMonths, ')
+          ..write('anchorDay: $anchorDay, ')
+          ..write('reminderDays: $reminderDays, ')
+          ..write('reminderMinutes: $reminderMinutes, ')
+          ..write('active: $active, ')
+          ..write('merchantAliases: $merchantAliases, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SubscriptionRenewalsTable extends SubscriptionRenewals
+    with TableInfo<$SubscriptionRenewalsTable, SubscriptionRenewal> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SubscriptionRenewalsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _planIdMeta = const VerificationMeta('planId');
+  @override
+  late final GeneratedColumn<String> planId = GeneratedColumn<String>(
+    'plan_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES subscription_plans (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _dueDayMeta = const VerificationMeta('dueDay');
+  @override
+  late final GeneratedColumn<int> dueDay = GeneratedColumn<int>(
+    'due_day',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _expenseIdMeta = const VerificationMeta(
+    'expenseId',
+  );
+  @override
+  late final GeneratedColumn<String> expenseId = GeneratedColumn<String>(
+    'expense_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'UNIQUE REFERENCES expenses (id) ON DELETE SET NULL',
+    ),
+  );
+  static const VerificationMeta _skippedMeta = const VerificationMeta(
+    'skipped',
+  );
+  @override
+  late final GeneratedColumn<bool> skipped = GeneratedColumn<bool>(
+    'skipped',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("skipped" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [planId, dueDay, expenseId, skipped];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'subscription_renewals';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SubscriptionRenewal> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('plan_id')) {
+      context.handle(
+        _planIdMeta,
+        planId.isAcceptableOrUnknown(data['plan_id']!, _planIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_planIdMeta);
+    }
+    if (data.containsKey('due_day')) {
+      context.handle(
+        _dueDayMeta,
+        dueDay.isAcceptableOrUnknown(data['due_day']!, _dueDayMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dueDayMeta);
+    }
+    if (data.containsKey('expense_id')) {
+      context.handle(
+        _expenseIdMeta,
+        expenseId.isAcceptableOrUnknown(data['expense_id']!, _expenseIdMeta),
+      );
+    }
+    if (data.containsKey('skipped')) {
+      context.handle(
+        _skippedMeta,
+        skipped.isAcceptableOrUnknown(data['skipped']!, _skippedMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {planId, dueDay};
+  @override
+  SubscriptionRenewal map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SubscriptionRenewal(
+      planId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}plan_id'],
+      )!,
+      dueDay: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}due_day'],
+      )!,
+      expenseId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}expense_id'],
+      ),
+      skipped: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}skipped'],
+      )!,
+    );
+  }
+
+  @override
+  $SubscriptionRenewalsTable createAlias(String alias) {
+    return $SubscriptionRenewalsTable(attachedDatabase, alias);
+  }
+}
+
+class SubscriptionRenewal extends DataClass
+    implements Insertable<SubscriptionRenewal> {
+  final String planId;
+  final int dueDay;
+  final String? expenseId;
+  final bool skipped;
+  const SubscriptionRenewal({
+    required this.planId,
+    required this.dueDay,
+    this.expenseId,
+    required this.skipped,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['plan_id'] = Variable<String>(planId);
+    map['due_day'] = Variable<int>(dueDay);
+    if (!nullToAbsent || expenseId != null) {
+      map['expense_id'] = Variable<String>(expenseId);
+    }
+    map['skipped'] = Variable<bool>(skipped);
+    return map;
+  }
+
+  SubscriptionRenewalsCompanion toCompanion(bool nullToAbsent) {
+    return SubscriptionRenewalsCompanion(
+      planId: Value(planId),
+      dueDay: Value(dueDay),
+      expenseId: expenseId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(expenseId),
+      skipped: Value(skipped),
+    );
+  }
+
+  factory SubscriptionRenewal.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SubscriptionRenewal(
+      planId: serializer.fromJson<String>(json['planId']),
+      dueDay: serializer.fromJson<int>(json['dueDay']),
+      expenseId: serializer.fromJson<String?>(json['expenseId']),
+      skipped: serializer.fromJson<bool>(json['skipped']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'planId': serializer.toJson<String>(planId),
+      'dueDay': serializer.toJson<int>(dueDay),
+      'expenseId': serializer.toJson<String?>(expenseId),
+      'skipped': serializer.toJson<bool>(skipped),
+    };
+  }
+
+  SubscriptionRenewal copyWith({
+    String? planId,
+    int? dueDay,
+    Value<String?> expenseId = const Value.absent(),
+    bool? skipped,
+  }) => SubscriptionRenewal(
+    planId: planId ?? this.planId,
+    dueDay: dueDay ?? this.dueDay,
+    expenseId: expenseId.present ? expenseId.value : this.expenseId,
+    skipped: skipped ?? this.skipped,
+  );
+  SubscriptionRenewal copyWithCompanion(SubscriptionRenewalsCompanion data) {
+    return SubscriptionRenewal(
+      planId: data.planId.present ? data.planId.value : this.planId,
+      dueDay: data.dueDay.present ? data.dueDay.value : this.dueDay,
+      expenseId: data.expenseId.present ? data.expenseId.value : this.expenseId,
+      skipped: data.skipped.present ? data.skipped.value : this.skipped,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SubscriptionRenewal(')
+          ..write('planId: $planId, ')
+          ..write('dueDay: $dueDay, ')
+          ..write('expenseId: $expenseId, ')
+          ..write('skipped: $skipped')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(planId, dueDay, expenseId, skipped);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SubscriptionRenewal &&
+          other.planId == this.planId &&
+          other.dueDay == this.dueDay &&
+          other.expenseId == this.expenseId &&
+          other.skipped == this.skipped);
+}
+
+class SubscriptionRenewalsCompanion
+    extends UpdateCompanion<SubscriptionRenewal> {
+  final Value<String> planId;
+  final Value<int> dueDay;
+  final Value<String?> expenseId;
+  final Value<bool> skipped;
+  final Value<int> rowid;
+  const SubscriptionRenewalsCompanion({
+    this.planId = const Value.absent(),
+    this.dueDay = const Value.absent(),
+    this.expenseId = const Value.absent(),
+    this.skipped = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SubscriptionRenewalsCompanion.insert({
+    required String planId,
+    required int dueDay,
+    this.expenseId = const Value.absent(),
+    this.skipped = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : planId = Value(planId),
+       dueDay = Value(dueDay);
+  static Insertable<SubscriptionRenewal> custom({
+    Expression<String>? planId,
+    Expression<int>? dueDay,
+    Expression<String>? expenseId,
+    Expression<bool>? skipped,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (planId != null) 'plan_id': planId,
+      if (dueDay != null) 'due_day': dueDay,
+      if (expenseId != null) 'expense_id': expenseId,
+      if (skipped != null) 'skipped': skipped,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SubscriptionRenewalsCompanion copyWith({
+    Value<String>? planId,
+    Value<int>? dueDay,
+    Value<String?>? expenseId,
+    Value<bool>? skipped,
+    Value<int>? rowid,
+  }) {
+    return SubscriptionRenewalsCompanion(
+      planId: planId ?? this.planId,
+      dueDay: dueDay ?? this.dueDay,
+      expenseId: expenseId ?? this.expenseId,
+      skipped: skipped ?? this.skipped,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (planId.present) {
+      map['plan_id'] = Variable<String>(planId.value);
+    }
+    if (dueDay.present) {
+      map['due_day'] = Variable<int>(dueDay.value);
+    }
+    if (expenseId.present) {
+      map['expense_id'] = Variable<String>(expenseId.value);
+    }
+    if (skipped.present) {
+      map['skipped'] = Variable<bool>(skipped.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SubscriptionRenewalsCompanion(')
+          ..write('planId: $planId, ')
+          ..write('dueDay: $dueDay, ')
+          ..write('expenseId: $expenseId, ')
+          ..write('skipped: $skipped, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -1838,6 +2792,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $MonthlyBudgetsTableTable(this);
   late final $ExpensesTable expenses = $ExpensesTable(this);
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
+  late final $SubscriptionPlansTable subscriptionPlans =
+      $SubscriptionPlansTable(this);
+  late final $SubscriptionRenewalsTable subscriptionRenewals =
+      $SubscriptionRenewalsTable(this);
   late final Index expensesMonth = Index(
     'expenses_month',
     'CREATE INDEX expenses_month ON expenses (month_id)',
@@ -1863,11 +2821,30 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     monthlyBudgetsTable,
     expenses,
     appSettings,
+    subscriptionPlans,
+    subscriptionRenewals,
     expensesMonth,
     expensesSpentAt,
     expensesCategoryDate,
     expensesCurrencyDate,
   ];
+  @override
+  StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'subscription_plans',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('subscription_renewals', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'expenses',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('subscription_renewals', kind: UpdateKind.update)],
+    ),
+  ]);
 }
 
 typedef $$CategoriesTableCreateCompanionBuilder = CategoriesCompanion Function({
@@ -2596,6 +3573,31 @@ final class $$ExpensesTableReferences
       manager.$state.copyWith(prefetchedData: [item]),
     );
   }
+
+  static MultiTypedResultKey<
+    $SubscriptionRenewalsTable,
+    List<SubscriptionRenewal>
+  >
+  _subscriptionRenewalsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.subscriptionRenewals,
+        aliasName: 'expenses__id__subscription_renewals__expense_id',
+      );
+
+  $$SubscriptionRenewalsTableProcessedTableManager
+  get subscriptionRenewalsRefs {
+    final manager = $$SubscriptionRenewalsTableTableManager(
+      $_db,
+      $_db.subscriptionRenewals,
+    ).filter((f) => f.expenseId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _subscriptionRenewalsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$ExpensesTableFilterComposer
@@ -2701,6 +3703,31 @@ class $$ExpensesTableFilterComposer
           ),
     );
     return composer;
+  }
+
+  Expression<bool> subscriptionRenewalsRefs(
+    Expression<bool> Function($$SubscriptionRenewalsTableFilterComposer f) f,
+  ) {
+    final $$SubscriptionRenewalsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.subscriptionRenewals,
+      getReferencedColumn: (t) => t.expenseId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SubscriptionRenewalsTableFilterComposer(
+            $db: $db,
+            $table: $db.subscriptionRenewals,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
   }
 }
 
@@ -2904,6 +3931,32 @@ class $$ExpensesTableAnnotationComposer
     );
     return composer;
   }
+
+  Expression<T> subscriptionRenewalsRefs<T extends Object>(
+    Expression<T> Function($$SubscriptionRenewalsTableAnnotationComposer a) f,
+  ) {
+    final $$SubscriptionRenewalsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.subscriptionRenewals,
+          getReferencedColumn: (t) => t.expenseId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$SubscriptionRenewalsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.subscriptionRenewals,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$ExpensesTableTableManager
@@ -2919,7 +3972,11 @@ class $$ExpensesTableTableManager
           $$ExpensesTableUpdateCompanionBuilder,
           (StoredExpense, $$ExpensesTableReferences),
           StoredExpense,
-          PrefetchHooks Function({bool monthId, bool categoryId})
+          PrefetchHooks Function({
+            bool monthId,
+            bool categoryId,
+            bool subscriptionRenewalsRefs,
+          })
         > {
   $$ExpensesTableTableManager(_$AppDatabase db, $ExpensesTable table)
     : super(
@@ -3000,56 +4057,84 @@ class $$ExpensesTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({monthId = false, categoryId = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (monthId) {
-                      state = state.withJoin(
-                        currentTable: table,
-                        currentColumn: table.monthId,
-                        referencedTable: $$ExpensesTableReferences
-                            ._monthIdTable(db),
-                        referencedColumn: $$ExpensesTableReferences
-                            ._monthIdTable(db)
-                            .id,
-                      ) as T;
-                    }
-                    if (categoryId) {
-                      state = state.withJoin(
-                        currentTable: table,
-                        currentColumn: table.categoryId,
-                        referencedTable: $$ExpensesTableReferences
-                            ._categoryIdTable(db),
-                        referencedColumn: $$ExpensesTableReferences
-                            ._categoryIdTable(db)
-                            .id,
-                      ) as T;
-                    }
+          prefetchHooksCallback:
+              ({
+                monthId = false,
+                categoryId = false,
+                subscriptionRenewalsRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (subscriptionRenewalsRefs) db.subscriptionRenewals,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (monthId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.monthId,
+                            referencedTable: $$ExpensesTableReferences
+                                ._monthIdTable(db),
+                            referencedColumn: $$ExpensesTableReferences
+                                ._monthIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+                        if (categoryId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.categoryId,
+                            referencedTable: $$ExpensesTableReferences
+                                ._categoryIdTable(db),
+                            referencedColumn: $$ExpensesTableReferences
+                                ._categoryIdTable(db)
+                                .id,
+                          ) as T;
+                        }
 
-                    return state;
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (subscriptionRenewalsRefs)
+                        await $_getPrefetchedDataByColumns<
+                          StoredExpense,
+                          $ExpensesTable,
+                          SubscriptionRenewal,
+                          $SubscriptionRenewalsTable
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ExpensesTableReferences
+                              ._subscriptionRenewalsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ExpensesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).subscriptionRenewalsRefs,
+                          currentColumn: 'id',
+                          referencedColumn: 'expense_id',
+                          typedResults: items,
+                        ),
+                    ];
                   },
-              getPrefetchedDataCallback: (items) async {
-                return [];
+                );
               },
-            );
-          },
         ),
       );
 }
@@ -3066,7 +4151,11 @@ typedef $$ExpensesTableProcessedTableManager =
       $$ExpensesTableUpdateCompanionBuilder,
       (StoredExpense, $$ExpensesTableReferences),
       StoredExpense,
-      PrefetchHooks Function({bool monthId, bool categoryId})
+      PrefetchHooks Function({
+        bool monthId,
+        bool categoryId,
+        bool subscriptionRenewalsRefs,
+      })
     >;
 typedef $$AppSettingsTableCreateCompanionBuilder =
     AppSettingsCompanion Function({
@@ -3239,6 +4328,838 @@ typedef $$AppSettingsTableProcessedTableManager =
       StoredSetting,
       PrefetchHooks Function()
     >;
+typedef $$SubscriptionPlansTableCreateCompanionBuilder =
+    SubscriptionPlansCompanion Function({
+      required String id,
+      required String name,
+      required int minor,
+      required String currencyCode,
+      required int intervalMonths,
+      required int anchorDay,
+      Value<int?> reminderDays,
+      required int reminderMinutes,
+      Value<bool> active,
+      Value<String> merchantAliases,
+      Value<int> rowid,
+    });
+typedef $$SubscriptionPlansTableUpdateCompanionBuilder =
+    SubscriptionPlansCompanion Function({
+      Value<String> id,
+      Value<String> name,
+      Value<int> minor,
+      Value<String> currencyCode,
+      Value<int> intervalMonths,
+      Value<int> anchorDay,
+      Value<int?> reminderDays,
+      Value<int> reminderMinutes,
+      Value<bool> active,
+      Value<String> merchantAliases,
+      Value<int> rowid,
+    });
+
+final class $$SubscriptionPlansTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $SubscriptionPlansTable,
+          SubscriptionPlan
+        > {
+  $$SubscriptionPlansTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static MultiTypedResultKey<
+    $SubscriptionRenewalsTable,
+    List<SubscriptionRenewal>
+  >
+  _subscriptionRenewalsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.subscriptionRenewals,
+        aliasName: 'subscription_plans__id__subscription_renewals__plan_id',
+      );
+
+  $$SubscriptionRenewalsTableProcessedTableManager
+  get subscriptionRenewalsRefs {
+    final manager = $$SubscriptionRenewalsTableTableManager(
+      $_db,
+      $_db.subscriptionRenewals,
+    ).filter((f) => f.planId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _subscriptionRenewalsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$SubscriptionPlansTableFilterComposer
+    extends Composer<_$AppDatabase, $SubscriptionPlansTable> {
+  $$SubscriptionPlansTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get minor => $composableBuilder(
+    column: $table.minor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get currencyCode => $composableBuilder(
+    column: $table.currencyCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get intervalMonths => $composableBuilder(
+    column: $table.intervalMonths,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get anchorDay => $composableBuilder(
+    column: $table.anchorDay,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get reminderDays => $composableBuilder(
+    column: $table.reminderDays,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get reminderMinutes => $composableBuilder(
+    column: $table.reminderMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get active => $composableBuilder(
+    column: $table.active,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get merchantAliases => $composableBuilder(
+    column: $table.merchantAliases,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> subscriptionRenewalsRefs(
+    Expression<bool> Function($$SubscriptionRenewalsTableFilterComposer f) f,
+  ) {
+    final $$SubscriptionRenewalsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.subscriptionRenewals,
+      getReferencedColumn: (t) => t.planId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SubscriptionRenewalsTableFilterComposer(
+            $db: $db,
+            $table: $db.subscriptionRenewals,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$SubscriptionPlansTableOrderingComposer
+    extends Composer<_$AppDatabase, $SubscriptionPlansTable> {
+  $$SubscriptionPlansTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get minor => $composableBuilder(
+    column: $table.minor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get currencyCode => $composableBuilder(
+    column: $table.currencyCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get intervalMonths => $composableBuilder(
+    column: $table.intervalMonths,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get anchorDay => $composableBuilder(
+    column: $table.anchorDay,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get reminderDays => $composableBuilder(
+    column: $table.reminderDays,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get reminderMinutes => $composableBuilder(
+    column: $table.reminderMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get active => $composableBuilder(
+    column: $table.active,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get merchantAliases => $composableBuilder(
+    column: $table.merchantAliases,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SubscriptionPlansTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SubscriptionPlansTable> {
+  $$SubscriptionPlansTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<int> get minor =>
+      $composableBuilder(column: $table.minor, builder: (column) => column);
+
+  GeneratedColumn<String> get currencyCode => $composableBuilder(
+    column: $table.currencyCode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get intervalMonths => $composableBuilder(
+    column: $table.intervalMonths,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get anchorDay =>
+      $composableBuilder(column: $table.anchorDay, builder: (column) => column);
+
+  GeneratedColumn<int> get reminderDays => $composableBuilder(
+    column: $table.reminderDays,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get reminderMinutes => $composableBuilder(
+    column: $table.reminderMinutes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get active =>
+      $composableBuilder(column: $table.active, builder: (column) => column);
+
+  GeneratedColumn<String> get merchantAliases => $composableBuilder(
+    column: $table.merchantAliases,
+    builder: (column) => column,
+  );
+
+  Expression<T> subscriptionRenewalsRefs<T extends Object>(
+    Expression<T> Function($$SubscriptionRenewalsTableAnnotationComposer a) f,
+  ) {
+    final $$SubscriptionRenewalsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.subscriptionRenewals,
+          getReferencedColumn: (t) => t.planId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$SubscriptionRenewalsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.subscriptionRenewals,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+}
+
+class $$SubscriptionPlansTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SubscriptionPlansTable,
+          SubscriptionPlan,
+          $$SubscriptionPlansTableFilterComposer,
+          $$SubscriptionPlansTableOrderingComposer,
+          $$SubscriptionPlansTableAnnotationComposer,
+          $$SubscriptionPlansTableCreateCompanionBuilder,
+          $$SubscriptionPlansTableUpdateCompanionBuilder,
+          (SubscriptionPlan, $$SubscriptionPlansTableReferences),
+          SubscriptionPlan,
+          PrefetchHooks Function({bool subscriptionRenewalsRefs})
+        > {
+  $$SubscriptionPlansTableTableManager(
+    _$AppDatabase db,
+    $SubscriptionPlansTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SubscriptionPlansTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SubscriptionPlansTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SubscriptionPlansTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<int> minor = const Value.absent(),
+                Value<String> currencyCode = const Value.absent(),
+                Value<int> intervalMonths = const Value.absent(),
+                Value<int> anchorDay = const Value.absent(),
+                Value<int?> reminderDays = const Value.absent(),
+                Value<int> reminderMinutes = const Value.absent(),
+                Value<bool> active = const Value.absent(),
+                Value<String> merchantAliases = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SubscriptionPlansCompanion(
+                id: id,
+                name: name,
+                minor: minor,
+                currencyCode: currencyCode,
+                intervalMonths: intervalMonths,
+                anchorDay: anchorDay,
+                reminderDays: reminderDays,
+                reminderMinutes: reminderMinutes,
+                active: active,
+                merchantAliases: merchantAliases,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String name,
+                required int minor,
+                required String currencyCode,
+                required int intervalMonths,
+                required int anchorDay,
+                Value<int?> reminderDays = const Value.absent(),
+                required int reminderMinutes,
+                Value<bool> active = const Value.absent(),
+                Value<String> merchantAliases = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SubscriptionPlansCompanion.insert(
+                id: id,
+                name: name,
+                minor: minor,
+                currencyCode: currencyCode,
+                intervalMonths: intervalMonths,
+                anchorDay: anchorDay,
+                reminderDays: reminderDays,
+                reminderMinutes: reminderMinutes,
+                active: active,
+                merchantAliases: merchantAliases,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SubscriptionPlansTable, SubscriptionPlan>(table),
+                  $$SubscriptionPlansTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({subscriptionRenewalsRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [
+                if (subscriptionRenewalsRefs) db.subscriptionRenewals,
+              ],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (subscriptionRenewalsRefs)
+                    await $_getPrefetchedDataByColumns<
+                      SubscriptionPlan,
+                      $SubscriptionPlansTable,
+                      SubscriptionRenewal,
+                      $SubscriptionRenewalsTable
+                    >(
+                      currentTable: table,
+                      referencedTable: $$SubscriptionPlansTableReferences
+                          ._subscriptionRenewalsRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$SubscriptionPlansTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).subscriptionRenewalsRefs,
+                      currentColumn: 'id',
+                      referencedColumn: 'plan_id',
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$SubscriptionPlansTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SubscriptionPlansTable,
+      SubscriptionPlan,
+      $$SubscriptionPlansTableFilterComposer,
+      $$SubscriptionPlansTableOrderingComposer,
+      $$SubscriptionPlansTableAnnotationComposer,
+      $$SubscriptionPlansTableCreateCompanionBuilder,
+      $$SubscriptionPlansTableUpdateCompanionBuilder,
+      (SubscriptionPlan, $$SubscriptionPlansTableReferences),
+      SubscriptionPlan,
+      PrefetchHooks Function({bool subscriptionRenewalsRefs})
+    >;
+typedef $$SubscriptionRenewalsTableCreateCompanionBuilder =
+    SubscriptionRenewalsCompanion Function({
+      required String planId,
+      required int dueDay,
+      Value<String?> expenseId,
+      Value<bool> skipped,
+      Value<int> rowid,
+    });
+typedef $$SubscriptionRenewalsTableUpdateCompanionBuilder =
+    SubscriptionRenewalsCompanion Function({
+      Value<String> planId,
+      Value<int> dueDay,
+      Value<String?> expenseId,
+      Value<bool> skipped,
+      Value<int> rowid,
+    });
+
+final class $$SubscriptionRenewalsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $SubscriptionRenewalsTable,
+          SubscriptionRenewal
+        > {
+  $$SubscriptionRenewalsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $SubscriptionPlansTable _planIdTable(_$AppDatabase db) => db
+      .subscriptionPlans
+      .createAlias('subscription_renewals__plan_id__subscription_plans__id');
+
+  $$SubscriptionPlansTableProcessedTableManager get planId {
+    final $_column = $_itemColumn<String>('plan_id')!;
+
+    final manager = $$SubscriptionPlansTableTableManager(
+      $_db,
+      $_db.subscriptionPlans,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_planIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $ExpensesTable _expenseIdTable(_$AppDatabase db) => db.expenses
+      .createAlias('subscription_renewals__expense_id__expenses__id');
+
+  $$ExpensesTableProcessedTableManager? get expenseId {
+    final $_column = $_itemColumn<String>('expense_id');
+    if ($_column == null) return null;
+    final manager = $$ExpensesTableTableManager(
+      $_db,
+      $_db.expenses,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_expenseIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$SubscriptionRenewalsTableFilterComposer
+    extends Composer<_$AppDatabase, $SubscriptionRenewalsTable> {
+  $$SubscriptionRenewalsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get dueDay => $composableBuilder(
+    column: $table.dueDay,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get skipped => $composableBuilder(
+    column: $table.skipped,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$SubscriptionPlansTableFilterComposer get planId {
+    final $$SubscriptionPlansTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.planId,
+      referencedTable: $db.subscriptionPlans,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SubscriptionPlansTableFilterComposer(
+            $db: $db,
+            $table: $db.subscriptionPlans,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ExpensesTableFilterComposer get expenseId {
+    final $$ExpensesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.expenseId,
+      referencedTable: $db.expenses,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ExpensesTableFilterComposer(
+            $db: $db,
+            $table: $db.expenses,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SubscriptionRenewalsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SubscriptionRenewalsTable> {
+  $$SubscriptionRenewalsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get dueDay => $composableBuilder(
+    column: $table.dueDay,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get skipped => $composableBuilder(
+    column: $table.skipped,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$SubscriptionPlansTableOrderingComposer get planId {
+    final $$SubscriptionPlansTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.planId,
+      referencedTable: $db.subscriptionPlans,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SubscriptionPlansTableOrderingComposer(
+            $db: $db,
+            $table: $db.subscriptionPlans,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ExpensesTableOrderingComposer get expenseId {
+    final $$ExpensesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.expenseId,
+      referencedTable: $db.expenses,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ExpensesTableOrderingComposer(
+            $db: $db,
+            $table: $db.expenses,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SubscriptionRenewalsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SubscriptionRenewalsTable> {
+  $$SubscriptionRenewalsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get dueDay =>
+      $composableBuilder(column: $table.dueDay, builder: (column) => column);
+
+  GeneratedColumn<bool> get skipped =>
+      $composableBuilder(column: $table.skipped, builder: (column) => column);
+
+  $$SubscriptionPlansTableAnnotationComposer get planId {
+    final $$SubscriptionPlansTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.planId,
+          referencedTable: $db.subscriptionPlans,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$SubscriptionPlansTableAnnotationComposer(
+                $db: $db,
+                $table: $db.subscriptionPlans,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+
+  $$ExpensesTableAnnotationComposer get expenseId {
+    final $$ExpensesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.expenseId,
+      referencedTable: $db.expenses,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ExpensesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.expenses,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SubscriptionRenewalsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SubscriptionRenewalsTable,
+          SubscriptionRenewal,
+          $$SubscriptionRenewalsTableFilterComposer,
+          $$SubscriptionRenewalsTableOrderingComposer,
+          $$SubscriptionRenewalsTableAnnotationComposer,
+          $$SubscriptionRenewalsTableCreateCompanionBuilder,
+          $$SubscriptionRenewalsTableUpdateCompanionBuilder,
+          (SubscriptionRenewal, $$SubscriptionRenewalsTableReferences),
+          SubscriptionRenewal,
+          PrefetchHooks Function({bool planId, bool expenseId})
+        > {
+  $$SubscriptionRenewalsTableTableManager(
+    _$AppDatabase db,
+    $SubscriptionRenewalsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SubscriptionRenewalsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SubscriptionRenewalsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$SubscriptionRenewalsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> planId = const Value.absent(),
+                Value<int> dueDay = const Value.absent(),
+                Value<String?> expenseId = const Value.absent(),
+                Value<bool> skipped = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SubscriptionRenewalsCompanion(
+                planId: planId,
+                dueDay: dueDay,
+                expenseId: expenseId,
+                skipped: skipped,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String planId,
+                required int dueDay,
+                Value<String?> expenseId = const Value.absent(),
+                Value<bool> skipped = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SubscriptionRenewalsCompanion.insert(
+                planId: planId,
+                dueDay: dueDay,
+                expenseId: expenseId,
+                skipped: skipped,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SubscriptionRenewalsTable, SubscriptionRenewal>(
+                    table,
+                  ),
+                  $$SubscriptionRenewalsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({planId = false, expenseId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (planId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.planId,
+                        referencedTable: $$SubscriptionRenewalsTableReferences
+                            ._planIdTable(db),
+                        referencedColumn: $$SubscriptionRenewalsTableReferences
+                            ._planIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+                    if (expenseId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.expenseId,
+                        referencedTable: $$SubscriptionRenewalsTableReferences
+                            ._expenseIdTable(db),
+                        referencedColumn: $$SubscriptionRenewalsTableReferences
+                            ._expenseIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$SubscriptionRenewalsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SubscriptionRenewalsTable,
+      SubscriptionRenewal,
+      $$SubscriptionRenewalsTableFilterComposer,
+      $$SubscriptionRenewalsTableOrderingComposer,
+      $$SubscriptionRenewalsTableAnnotationComposer,
+      $$SubscriptionRenewalsTableCreateCompanionBuilder,
+      $$SubscriptionRenewalsTableUpdateCompanionBuilder,
+      (SubscriptionRenewal, $$SubscriptionRenewalsTableReferences),
+      SubscriptionRenewal,
+      PrefetchHooks Function({bool planId, bool expenseId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -3251,4 +5172,8 @@ class $AppDatabaseManager {
       $$ExpensesTableTableManager(_db, _db.expenses);
   $$AppSettingsTableTableManager get appSettings =>
       $$AppSettingsTableTableManager(_db, _db.appSettings);
+  $$SubscriptionPlansTableTableManager get subscriptionPlans =>
+      $$SubscriptionPlansTableTableManager(_db, _db.subscriptionPlans);
+  $$SubscriptionRenewalsTableTableManager get subscriptionRenewals =>
+      $$SubscriptionRenewalsTableTableManager(_db, _db.subscriptionRenewals);
 }

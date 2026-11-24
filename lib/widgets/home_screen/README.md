@@ -2,7 +2,7 @@
 
 This folder owns Flutter entry points, quick-capture UI, and capture persistence.
 Native Android widget code and resources live in `android/app/src/main/widgets/`.
-Widgets available: **Kharchio Quick Expense** (two actions), **Kharchio Add Expense** (a compact 2 by 1 button), and **Kharchio Spending Pie** (a 4 by 2 donut chart).
+Widgets available: **Kharchio Quick Expense** (two actions), **Kharchio Add Expense** (a compact 2 by 1 button), **Kharchio Spending Pie** (a 4 by 2 donut chart), and **Kharchio Subscriptions** (a 4 by 2 renewal list).
 
 ## Try it
 
@@ -60,6 +60,15 @@ popup closes, on resize, and on the widget's periodic refresh. Android 12+ uses
 RemoteCollectionItems; older Android uses a RemoteViewsService for the legend.
 
 The widget picker preview is illustrative; installed widgets use real ledger data.
+
+## Subscriptions widget
+
+Add **Kharchio Subscriptions** from the Android widget picker. The widget shows
+the oldest unpaid renewal for each active plan when it is due this month or
+overdue. A negative number counts down to the due date. Red positive days
+show how long a renewal is overdue. Unpaid renewals carry into the next month.
+Paid and skipped renewals disappear. Tap a row to open that renewal in the
+Subscription Planner.
 
 ## Structure
 

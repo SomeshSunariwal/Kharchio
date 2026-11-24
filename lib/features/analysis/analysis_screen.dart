@@ -10,14 +10,19 @@ import '../../core/expense_summary_provider.dart';
 import '../../core/monthly_budgets.dart';
 import '../../core/planning_years.dart';
 import '../../core/preferences.dart';
+import '../../core/subscriptions.dart';
 import '../../core/theme.dart';
+import '../../database/subscription_store.dart';
 import '../../shared/app_dropdown.dart';
 import '../../shared/category_donut.dart';
 import '../../shared/category_spending_summary.dart';
 import '../../shared/collapsing_expense_overview.dart';
 import '../../shared/widgets.dart';
+import '../profile/renew_subscription_popup.dart';
 import 'analysis_chart_pager.dart';
 import 'analysis_timeline.dart';
+
+enum _AnalysisView { expenses, subscriptions }
 
 class AnalysisScreen extends ConsumerStatefulWidget {
   const AnalysisScreen({super.key});
@@ -29,6 +34,8 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
   late DateTime date;
   AnalysisPeriod period = AnalysisPeriod.year;
   String? selectedCategory;
+  String? selectedService;
+  _AnalysisView view = _AnalysisView.expenses;
   bool movingForward = true;
   int chartPage = 0;
 
@@ -39,6 +46,9 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
   }
 
   void _open(AnalysisPeriod next, DateTime value) {
+    if (view == _AnalysisView.subscriptions && next == AnalysisPeriod.day) {
+      return;
+    }
     setState(() {
       if (next != period) movingForward = next.index > period.index;
       period = next;
@@ -47,7 +57,6 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
   }
 
   void _selectYear(int year) {
-    if (!PlanningYears.contains(year)) return;
     final lastDay = DateTime(year, date.month + 1, 0).day;
     _open(period, DateTime(year, date.month, date.day.clamp(1, lastDay)));
   }
@@ -55,37 +64,113 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
   @override
   Widget build(BuildContext context) {
     final currencyCode = context.currency.code;
+    final subscriptions = view == _AnalysisView.subscriptions;
+    final state = ref.watch(subscriptionsProvider).value;
+    String? serviceFor(Expense expense) =>
+        state?.planForExpense(expense.id)?.name;
     final years = PlanningYears.values;
-    final selectedSummary = ref.watch(
-      expenseSummaryProvider((
-        year: date.year,
-        month: period == AnalysisPeriod.year ? null : date.month,
-        day: period == AnalysisPeriod.day ? date.day : null,
-        currencyCode: currencyCode,
-      )),
-    );
+    final yearStart = DateTime(date.year);
+    final today = DateUtils.dateOnly(DateTime.now());
+    var renewalStart = yearStart;
+    if (date.year == today.year) {
+      for (final plan in state?.plans ?? <SubscriptionPlan>[]) {
+        final anchor = subscriptionDate(plan.anchorDay);
+        if (anchor.isBefore(renewalStart)) renewalStart = anchor;
+      }
+    }
+    final renewals = subscriptions && state != null
+        ? state
+              .upcomingRenewals(
+                renewalStart,
+                DateTime(date.year, 12, 31),
+                currencyCode,
+                asOf: today,
+              )
+              .toList()
+        : <SubscriptionMatch>[];
+    final paid = subscriptions
+        ? ref
+              .watch(expensesProvider)
+              .where(
+                (expense) =>
+                    !expense.isRefund &&
+                    expense.currencyCode == currencyCode &&
+                    expense.date.year == date.year &&
+                    serviceFor(expense) != null,
+              )
+              .toList()
+        : <Expense>[];
+    final services = {
+      for (final renewal in renewals) renewal.plan.name,
+      for (final expense in paid) serviceFor(expense)!,
+    }.toList()..sort();
+    final groups = subscriptions
+        ? [
+            for (var i = 0; i < services.length; i++)
+              ExpenseCategory(
+                services[i],
+                defaultCategories[i % defaultCategories.length].colorValue,
+                'subscriptions',
+              ),
+          ]
+        : context.expenseCategories;
+    final groupNames = [for (final group in groups) group.name];
+    final selectedRenewals = {
+      for (final renewal in renewals)
+        if (((period == AnalysisPeriod.year ||
+                    renewal.dueDay ~/ 100 % 100 == date.month) &&
+                (period != AnalysisPeriod.day ||
+                    renewal.dueDay % 100 == date.day)) ||
+            (renewal.dueDay < subscriptionDay(today) &&
+                date.year == today.year &&
+                (period == AnalysisPeriod.year || date.month == today.month) &&
+                (period != AnalysisPeriod.day || date.day == today.day)))
+          '${renewal.plan.id}:${renewal.dueDay}': renewal,
+    };
+    final selectedSummary = subscriptions
+        ? ExpenseSummary([
+            for (final expense in paid)
+              if ((period == AnalysisPeriod.year ||
+                      expense.date.month == date.month) &&
+                  (period != AnalysisPeriod.day ||
+                      expense.date.day == date.day))
+                Expense(
+                  id: expense.id,
+                  title: expense.title,
+                  category: serviceFor(expense)!,
+                  amount: expense.amount,
+                  date: expense.date,
+                  currencyCode: currencyCode,
+                ),
+          ])
+        : ref.watch(
+            expenseSummaryProvider((
+              year: date.year,
+              month: period == AnalysisPeriod.year ? null : date.month,
+              day: period == AnalysisPeriod.day ? date.day : null,
+              currencyCode: currencyCode,
+            )),
+          );
     final selected = selectedSummary.expenses;
     final heading = DateFormat(switch (period) {
       AnalysisPeriod.year => 'yyyy',
       AnalysisPeriod.month => 'MMM yyyy',
       AnalysisPeriod.day => 'dd MMM yyyy',
     }).format(date);
-    final categoryFilter = context.categoryNames.contains(selectedCategory)
-        ? selectedCategory
-        : null;
+    final filter = subscriptions ? selectedService : selectedCategory;
+    final categoryFilter = groupNames.contains(filter) ? filter : null;
     final selectedIndex = categoryFilter == null
         ? null
-        : context.categoryNames.indexOf(categoryFilter);
+        : groupNames.indexOf(categoryFilter);
     List<Expense> filtered(List<Expense> values) => categoryFilter == null
         ? values
         : values.where((e) => e.category == categoryFilter).toList();
     final visible = filtered(selected);
     final totals = [
-      for (final name in context.categoryNames)
-        selectedSummary.categoryTotal(name),
+      for (final name in groupNames) selectedSummary.categoryTotal(name),
     ];
     final total = selectedSummary.total;
-    final budget = period == AnalysisPeriod.year
+    final budget = subscriptions || period == AnalysisPeriod.year
         ? null
         : ref.watch(
             monthBudgetProvider((
@@ -107,23 +192,61 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
               )
               .total;
     final displayedTotal = budget == null
-        ? total
+        ? subscriptions && categoryFilter != null
+              ? selectedSummary.categoryTotal(categoryFilter)
+              : total
         : remainingMonthlyBudget(budget, monthlySpent);
-    void selectCategory(int index) => setState(() {
-      final name = context.categoryNames[index];
-      selectedCategory = selectedCategory == name ? null : name;
+    void setFilter(String? name) => setState(() {
+      if (subscriptions) {
+        selectedService = name;
+      } else {
+        selectedCategory = name;
+      }
     });
-    final title = Row(
+    void selectCategory(int index) => setFilter(
+      categoryFilter == groupNames[index] ? null : groupNames[index],
+    );
+    final textScaler = MediaQuery.textScalerOf(context);
+    const viewWidth = 120.0;
+    const selectorGap = 8.0;
+    final yearLabel = TextPainter(
+      text: TextSpan(
+        text: '${date.year}',
+        style: DefaultTextStyle.of(context).style.copyWith(fontSize: 12),
+      ),
+      textDirection: Directionality.of(context),
+      textScaler: textScaler,
+      maxLines: 1,
+    )..layout();
+    // Reserve the calendar icon, chevron and field padding around the year.
+    final yearWidth = (yearLabel.width + 84).clamp(112.0, double.infinity);
+    yearLabel.dispose();
+    final selectors = Wrap(
+      alignment: WrapAlignment.end,
+      spacing: selectorGap,
+      runSpacing: selectorGap,
       children: [
-        const Expanded(
-          child: Text(
-            'Analysis',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+        if (period != AnalysisPeriod.day)
+          SizedBox(
+            width: viewWidth,
+            child: AppDropdown<_AnalysisView>(
+              value: view,
+              label: 'Analysis view',
+              compact: true,
+              options: const [
+                AppDropdownOption(_AnalysisView.expenses, 'Expenses'),
+                AppDropdownOption(_AnalysisView.subscriptions, 'Subscriptions'),
+              ],
+              onChanged: (value) => setState(() {
+                if (view == value) return;
+                view = value;
+                period = AnalysisPeriod.year;
+                date = DateTime(date.year);
+              }),
+            ),
           ),
-        ),
-        const SizedBox(width: 8),
         SizedBox(
-          width: 122,
+          width: yearWidth,
           child: AppDropdown<int>(
             value: date.year,
             label: 'Year',
@@ -136,6 +259,35 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
           ),
         ),
       ],
+    );
+    const headingLabel = Text(
+      'Analysis',
+      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+    );
+    final title = LayoutBuilder(
+      builder: (context, constraints) {
+        final titleWidth = textScaler.scale(80);
+        if (constraints.maxWidth <
+            titleWidth +
+                (period == AnalysisPeriod.day ? 0 : viewWidth + selectorGap) +
+                yearWidth +
+                selectorGap) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            spacing: 8,
+            children: [
+              headingLabel,
+              Align(alignment: Alignment.centerRight, child: selectors),
+            ],
+          );
+        }
+        return Row(
+          children: [
+            const Expanded(child: headingLabel),
+            selectors,
+          ],
+        );
+      },
     );
     final resultsHeading = Column(
       children: [
@@ -166,8 +318,14 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
               child: Text(
                 switch (period) {
                   AnalysisPeriod.year => 'Your Months at a glance',
-                  AnalysisPeriod.month => 'Your Days at a glance',
-                  AnalysisPeriod.day => 'Transactions',
+                  AnalysisPeriod.month =>
+                    subscriptions ? 'Subscriptions' : 'Your Days at a glance',
+                  AnalysisPeriod.day =>
+                    subscriptions
+                        ? (categoryFilter == null
+                              ? 'Upcoming renewals'
+                              : 'Payment History')
+                        : 'Transactions',
                 },
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -177,14 +335,14 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
                 ),
               ),
             ),
-            if (categoryFilter != null)
+            if (categoryFilter != null && !subscriptions)
               SizedBox(
                 width: 26,
                 height: 26,
                 child: IconButton(
                   padding: EdgeInsets.zero,
                   tooltip: 'Clear category filter',
-                  onPressed: () => setState(() => selectedCategory = null),
+                  onPressed: () => setFilter(null),
                   icon: const Icon(Icons.close_rounded, size: 17),
                 ),
               ),
@@ -195,7 +353,22 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
               ),
           ],
         ),
-        const SizedBox(height: 12),
+        if (subscriptions && services.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: AppDropdown<String>(
+              value: categoryFilter ?? '',
+              label: 'Subscription service',
+              compact: true,
+              options: [
+                const AppDropdownOption('', 'All subscriptions'),
+                for (final service in services)
+                  AppDropdownOption(service, service),
+              ],
+              onChanged: (value) => setFilter(value.isEmpty ? null : value),
+            ),
+          ),
+        if (!subscriptions) const SizedBox(height: 12),
       ],
     );
     final scale = MediaQuery.textScalerOf(context);
@@ -210,7 +383,9 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
     final chartHeader = CollapsingExpenseOverview(
       summary: CategorySpendingSummary(
         total: budget == null ? displayedTotal.abs() : displayedTotal,
-        label: budget == null
+        label: subscriptions
+            ? 'Subscriptions paid'
+            : budget == null
             ? (total < 0 ? 'Net Refund' : 'Net Spent')
             : displayedTotal < 0
             ? 'Overspending'
@@ -220,25 +395,35 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
       ),
       summaryHeight: scale.scale(11) * 1.5 + 2 + scale.scale(24) * 1.5 + 16,
       footer: resultsHeading,
-      footerHeight: 56 + (scale.scale(17) - 17).clamp(0, 40),
+      footerHeight:
+          (subscriptions ? 44 : 56) +
+          (scale.scale(17) - 17).clamp(0, 40) +
+          (subscriptions && services.isNotEmpty
+              ? 40 + (scale.scale(12) - 12).clamp(0, 20) * 2
+              : 0),
       expanded: totals.any((value) => value != 0)
-          ? AnalysisChartPager(
-              totals: totals,
-              timeline: AnalysisTimeline(
-                expenses: selected,
-                period: period,
-                date: date,
-                currencyCode: currencyCode,
+          ? CategoriesScope(
+              categories: groups,
+              child: AnalysisChartPager(
+                totals: totals,
+                timeline: AnalysisTimeline(
+                  expenses: selected,
+                  period: period,
+                  date: date,
+                  currencyCode: currencyCode,
+                ),
+                page: chartPage,
+                budget: budget,
+                onPageChanged: (page) => setState(() => chartPage = page),
+                selectedIndex: selectedIndex,
+                onCategorySelected: selectCategory,
               ),
-              page: chartPage,
-              budget: budget,
-              onPageChanged: (page) => setState(() => chartPage = page),
-              selectedIndex: selectedIndex,
-              onCategorySelected: selectCategory,
             )
           : Center(
               child: Text(
-                'No expenses in this period',
+                subscriptions
+                    ? 'No subscription payments in this period'
+                    : 'No expenses in this period',
                 style: TextStyle(color: context.appColors.muted, fontSize: 12),
               ),
             ),
@@ -246,32 +431,48 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
       // vertically during a horizontal swipe.
       expandedHeight: totals.any((value) => value != 0) ? 24 + pieHeight : 120,
       totals: totals,
-      colors: context.categoryColors,
-      names: context.categoryNames,
+      colors: [for (final group in groups) group.color],
+      names: groupNames,
       selectedIndex: selectedIndex,
       onCategorySelected: selectCategory,
     );
-    final results = switch (period) {
-      AnalysisPeriod.year => ListView(
-        padding: const EdgeInsets.only(bottom: 72),
-        children: [_months(filtered(selected))],
-      ),
-      AnalysisPeriod.month => ListView(
-        padding: const EdgeInsets.only(bottom: 72),
-        children: [_days(filtered(selected))],
-      ),
-      AnalysisPeriod.day => ConnectedListCard(
-        child: ListView.separated(
-          padding: const EdgeInsets.only(bottom: 72),
-          itemCount: visible.isEmpty ? 1 : visible.length,
-          separatorBuilder: (context, index) => Divider(
-            height: 1,
-            indent: 10,
-            endIndent: 10,
-            color: context.appColors.line,
-          ),
-          itemBuilder: (context, index) => visible.isEmpty
-              ? Padding(
+    final overview = subscriptions
+        ? _SubscriptionOverview(
+            chart: chartHeader,
+            calendar: switch (period) {
+              AnalysisPeriod.year => _months(filtered(selected)),
+              AnalysisPeriod.month ||
+              AnalysisPeriod.day => const SizedBox.shrink(),
+            },
+            calendarHeight: period == AnalysisPeriod.year
+                ? monthTileHeight * 4 + 42
+                : 0,
+            title: categoryFilter == null
+                ? 'Upcoming renewals'
+                : 'Payment History',
+          )
+        : chartHeader;
+    final results = subscriptions
+        ? _subscriptionResults(
+            selectedRenewals,
+            history: categoryFilter == null ? null : visible,
+            payments: {for (final expense in paid) expense.id: expense},
+          )
+        : switch (period) {
+            AnalysisPeriod.year => ListView(
+              padding: const EdgeInsets.only(bottom: 72),
+              children: [_months(filtered(selected))],
+            ),
+            AnalysisPeriod.month => ListView(
+              padding: const EdgeInsets.only(bottom: 72),
+              children: [_days(filtered(selected))],
+            ),
+            AnalysisPeriod.day => TransactionList(
+              padding: const EdgeInsets.only(bottom: 72),
+              itemCount: visible.length,
+              empty: Align(
+                alignment: Alignment.topLeft,
+                child: Padding(
                   padding: const EdgeInsets.all(18),
                   child: Text(
                     categoryFilter == null
@@ -279,14 +480,15 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
                         : 'No transactions in $categoryFilter for this day',
                     style: TextStyle(color: context.appColors.muted),
                   ),
-                )
-              : ExpenseTile(
-                  visible[index],
-                  onTap: () => context.push('/add', extra: visible[index]),
                 ),
-        ),
-      ),
-    };
+              ),
+              itemBuilder: (context, index) => ExpenseTile(
+                visible[index],
+                onTap: () => context.push('/add', extra: visible[index]),
+                subscriptionName: serviceFor(visible[index]),
+              ),
+            ),
+          };
     return SafeArea(
       child: FixedHeaderPage(
         header: title,
@@ -302,71 +504,134 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
                   ),
                   sliver: SliverPersistentHeader(
                     pinned: true,
-                    delegate: chartHeader,
+                    delegate: overview,
                   ),
                 ),
               ],
               body: Padding(
-                padding: EdgeInsets.fromLTRB(14, chartHeader.minExtent, 14, 0),
+                padding: EdgeInsets.fromLTRB(14, overview.minExtent, 14, 0),
                 child: ClipRect(
-                  child: AnimatedSwitcher(
-                    duration: MediaQuery.disableAnimationsOf(context)
-                        ? Duration.zero
-                        : const Duration(milliseconds: 280),
-                    switchInCurve: Curves.easeOutCubic,
-                    switchOutCurve: Curves.easeInCubic,
-                    layoutBuilder: (current, previous) => Stack(
-                      fit: StackFit.expand,
-                      children: [...previous, ?current],
-                    ),
-                    transitionBuilder: (child, animation) => AnimatedBuilder(
-                      animation: animation,
-                      child: FadeTransition(opacity: animation, child: child),
-                      builder: (context, panel) {
-                        final incoming = child.key == ValueKey(period);
-                        final direction = movingForward ? 1.0 : -1.0;
-                        return IgnorePointer(
-                          ignoring: !incoming,
-                          child: ExcludeSemantics(
-                            excluding: !incoming,
-                            child: FractionalTranslation(
-                              translation: Offset(
-                                (incoming ? direction : -direction) *
-                                    .3 *
-                                    (1 - animation.value),
-                                0,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      AnimatedSwitcher(
+                        duration: MediaQuery.disableAnimationsOf(context)
+                            ? Duration.zero
+                            : const Duration(milliseconds: 280),
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeInCubic,
+                        layoutBuilder: (current, previous) => Stack(
+                          fit: StackFit.expand,
+                          children: [...previous, ?current],
+                        ),
+                        transitionBuilder: (child, animation) =>
+                            AnimatedBuilder(
+                              animation: animation,
+                              child: FadeTransition(
+                                opacity: animation,
+                                child: child,
                               ),
-                              child: panel,
+                              builder: (context, panel) {
+                                final incoming = child.key == ValueKey(period);
+                                final direction = movingForward ? 1.0 : -1.0;
+                                return IgnorePointer(
+                                  ignoring: !incoming,
+                                  child: ExcludeSemantics(
+                                    excluding: !incoming,
+                                    child: FractionalTranslation(
+                                      translation: Offset(
+                                        (incoming ? direction : -direction) *
+                                            .3 *
+                                            (1 - animation.value),
+                                        0,
+                                      ),
+                                      child: panel,
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
-                          ),
-                        );
-                      },
-                    ),
-                    child: KeyedSubtree(key: ValueKey(period), child: results),
+                        child: KeyedSubtree(
+                          key: ValueKey(period),
+                          child: results,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
             ),
-            Positioned(
-              right: 26,
-              bottom: 12,
-              child: SizedBox.square(
-                dimension: 48,
-                child: FloatingActionButton(
-                  heroTag: 'analysis-add-expense',
-                  tooltip: 'Add expense',
-                  backgroundColor: green,
-                  foregroundColor: Colors.white,
-                  shape: const CircleBorder(),
-                  elevation: 4,
-                  onPressed: () => context.push('/add', extra: date),
-                  child: const Icon(Icons.add_rounded, size: 24),
+            if (!subscriptions)
+              Positioned(
+                right: 26,
+                bottom: 12,
+                child: SizedBox.square(
+                  dimension: 48,
+                  child: FloatingActionButton(
+                    heroTag: 'analysis-add-expense',
+                    tooltip: 'Add expense',
+                    backgroundColor: green,
+                    foregroundColor: Colors.white,
+                    shape: const CircleBorder(),
+                    elevation: 4,
+                    onPressed: () => context.push('/add', extra: date),
+                    child: const Icon(Icons.add_rounded, size: 24),
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _subscriptionResults(
+    Map<String, SubscriptionMatch> renewals, {
+    required List<Expense>? history,
+    required Map<String, Expense> payments,
+  }) {
+    final items = history != null
+        ? ([...history]..sort((a, b) => b.date.compareTo(a.date)))
+        : ([
+            for (final entry in renewals.entries)
+              Expense(
+                id: entry.key,
+                title: entry.value.plan.name,
+                category: entry.value.plan.name,
+                amount: entry.value.plan.minor / 100,
+                date: subscriptionDate(entry.value.dueDay),
+                currencyCode: entry.value.plan.currencyCode,
+              ),
+          ]..sort((a, b) => a.date.compareTo(b.date)));
+    return TransactionList(
+      itemCount: items.length,
+      empty: Center(
+        child: Padding(
+          padding: EdgeInsets.all(18),
+          child: Text(
+            history == null
+                ? 'No upcoming renewals in this period.'
+                : 'No payments for this selection.',
+          ),
+        ),
+      ),
+      itemBuilder: (context, index) {
+        final item = items[index];
+        if (history != null) {
+          final expense = payments[item.id]!;
+          return ExpenseTile(
+            expense,
+            subscriptionName: item.category,
+            onTap: () => context.push('/add', extra: expense),
+          );
+        }
+        final renewal = renewals[item.id]!;
+        return ExpenseTile.renewal(
+          item,
+          key: ValueKey(item.id),
+          onTap: () => showRenewSubscriptionPopup(context, renewal),
+        );
+      },
     );
   }
 
@@ -377,6 +642,7 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
     final summary = ExpenseSummary(annual);
     final total = summary.total;
     return GridView.builder(
+      primary: false,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: 12,
@@ -494,6 +760,7 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
             Expanded(
               child: LayoutBuilder(
                 builder: (context, constraints) => GridView.builder(
+                  primary: false,
                   padding: EdgeInsets.zero,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: weeks * 7,
@@ -563,4 +830,104 @@ class _AnalysisState extends ConsumerState<AnalysisScreen> {
       ),
     );
   }
+}
+
+/// Keeps the dashboard transaction viewport fixed while its calendar collapses.
+class _SubscriptionOverview extends SliverPersistentHeaderDelegate {
+  final CollapsingExpenseOverview chart;
+  final Widget calendar;
+  final double calendarHeight;
+  final String title;
+  _SubscriptionOverview({
+    required this.chart,
+    required this.calendar,
+    required this.calendarHeight,
+    required this.title,
+  });
+
+  @override
+  double get minExtent => chart.minExtent + 48;
+  @override
+  double get maxExtent => chart.maxExtent + calendarHeight + 48;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    final chartTravel = chart.maxExtent - chart.minExtent;
+    final chartHeight = (chart.maxExtent - shrinkOffset).clamp(
+      chart.minExtent,
+      chart.maxExtent,
+    );
+    final calendarTravel = (shrinkOffset - chartTravel).clamp(
+      0.0,
+      calendarHeight,
+    );
+    return ColoredBox(
+      color: context.appColors.background,
+      child: Column(
+        children: [
+          SizedBox(
+            height: chartHeight,
+            child: chart.build(
+              context,
+              shrinkOffset.clamp(0.0, chartTravel),
+              overlapsContent,
+            ),
+          ),
+          Expanded(
+            child: ClipRect(
+              child: ShaderMask(
+                blendMode: BlendMode.dstIn,
+                shaderCallback: (bounds) =>
+                    LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        calendarTravel > 0 ? Colors.transparent : Colors.white,
+                        Colors.white,
+                      ],
+                      stops: [0, (18 / (bounds.height + 12)).clamp(0.0, 1.0)],
+                    ).createShader(
+                      // Anchor the fade at the dropdown edge. Most of its travel
+                      // sits under the control, rather than forming a strip below it.
+                      Rect.fromLTWH(0, -12, bounds.width, bounds.height + 12),
+                    ),
+                child: OverflowBox(
+                  alignment: Alignment.bottomCenter,
+                  minHeight: calendarHeight,
+                  maxHeight: calendarHeight,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+                    child: calendar,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          SizedBox(
+            height: 48,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _SubscriptionOverview oldDelegate) => true;
 }

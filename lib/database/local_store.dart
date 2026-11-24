@@ -204,6 +204,12 @@ class LocalStore {
       final old = await (db.select(
         db.expenses,
       )..where((e) => e.id.equals(expense.id))).getSingleOrNull();
+      if (old != null &&
+          (expense.isRefund || old.currencyCode != expense.currencyCode)) {
+        await (db.update(db.subscriptionRenewals)
+              ..where((row) => row.expenseId.equals(expense.id)))
+            .write(const SubscriptionRenewalsCompanion(expenseId: Value(null)));
+      }
       final monthId =
           '${expense.currencyCode}-${expense.date.year}-${expense.date.month}';
       await db
